@@ -1,0 +1,2565 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUPABASE — Direct database connection (no separate backend needed!)
+// Fill in YOUR values from supabase.com → Settings → API
+// ═══════════════════════════════════════════════════════════════════════════════
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const SUPABASE_URL      = import.meta.env?.VITE_SUPABASE_URL      || "https://YOUR_PROJECT.supabase.co";
+const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || "YOUR_ANON_KEY";
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+// ── Auth helpers ───────────────────────────────────────────────────────────────
+async function sbLogin(email, password) {
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message);
+  // Role and company_id stored in user metadata
+  const meta = data.user.user_metadata || {};
+  return {
+    id:        data.user.id,
+    email:     data.user.email,
+    name:      meta.name      || email.split("@")[0],
+    role:      meta.role      || "hr",       // "hr" | "emp" | "sa"
+    companyId: meta.company_id || null,
+    eid:       meta.employee_id || null,
+  };
+}
+async function sbLogout() { await sb.auth.signOut(); }
+
+// ── DB helpers ─────────────────────────────────────────────────────────────────
+// All queries auto-scoped by company_id via RLS policies
+const db = {
+  // Employees
+  async getEmps()    { const {data}=await sb.from("employees").select("*").order("code"); return data||[]; },
+  async addEmp(e)    { const {data,error}=await sb.from("employees").insert(toDbEmp(e)).select().single(); if(error)throw new Error(error.message); return data; },
+  async updateEmp(e) { const {data,error}=await sb.from("employees").update(toDbEmp(e)).eq("id",e.id).select().single(); if(error)throw new Error(error.message); return data; },
+  async deactivateEmp(id) { await sb.from("employees").update({status:"Inactive",dol:TODAY}).eq("id",id); },
+
+  // Policies (whole JSON blob per company)
+  async getPolicies() { const {data}=await sb.from("company_policies").select("policies").single(); return data?.policies||{}; },
+  async savePolicies(pol) { await sb.from("company_policies").upsert({policies:pol,updated_at:new Date()},{onConflict:"company_id"}); },
+
+  // Attendance
+  async getAtt(date)        { const {data}=await sb.from("attendance").select("*").eq("date",date); return data||[]; },
+  async getMonthAtt(m,y)    { const {data}=await sb.from("attendance").select("*").gte("date",`${y}-${String(m).padStart(2,"0")}-01`).lte("date",`${y}-${String(m).padStart(2,"0")}-31`); return data||[]; },
+  async markAtt(employeeId,date,status,inTime,outTime,hrs,ot) {
+    await sb.from("attendance").upsert({employee_id:employeeId,date,status,in_time:inTime||null,out_time:outTime||null,hrs:hrs||0,ot:ot||0},{onConflict:"employee_id,date"});
+  },
+  async bulkAtt(empIds,date,status) {
+    await sb.from("attendance").upsert(empIds.map(id=>({employee_id:id,date,status,hrs:status==="P"?9:status==="HD"?4.5:0,ot:0})),{onConflict:"employee_id,date"});
+  },
+
+  // Payroll
+  async getRuns()    { const {data}=await sb.from("payroll_runs").select("*").order("year",{ascending:false}).order("month",{ascending:false}); return data||[]; },
+  async saveRun(month,year,results) {
+    const total=results.reduce((s,e)=>s+(e.netFinal||e.net||0),0);
+    const gross=results.reduce((s,e)=>s+(e.g||0),0);
+    const {data:run}=await sb.from("payroll_runs").upsert({month,year,total,gross,emp_count:results.length},{onConflict:"company_id,month,year"}).select().single();
+    if(run?.id){
+      await sb.from("payroll_details").delete().eq("run_id",run.id);
+      await sb.from("payroll_details").insert(results.map(e=>({
+        run_id:run.id,employee_id:e.id,month,year,lop:e.lop||0,days_paid:26-(e.lop||0),
+        basic:e.basic||0,hra:e.hra||0,conv:e.conv||0,med:e.med||0,spl:e.spl||0,lta:e.lta||0,
+        gross:e.g||0,pf_employee:e.pfE||0,pf_employer:e.pfR||0,esic_employee:e.esE||0,esic_employer:e.esR||0,
+        pt:e.pt||0,tds:e.tds||0,loan_emi:e.loanEmi||0,total_ded:e.ded||0,
+        net_pay:e.netFinal||e.net||0,ctc:e.ctc||0,joining_note:e.joiningNote||null,joining_proration:e.joiningProration||1
+      })));
+    }
+    return run;
+  },
+
+  // Leaves
+  async getLeaves()            { const {data}=await sb.from("leaves").select("*").order("created_at",{ascending:false}); return data||[]; },
+  async addLeave(l)            { const {data}=await sb.from("leaves").insert({employee_id:l.eid,ename:l.ename,type:l.type,from_date:l.from,to_date:l.to,days:l.days,reason:l.reason}).select().single(); return data; },
+  async actionLeave(id,status) { await sb.from("leaves").update({status,actioned_on:new Date()}).eq("id",id); },
+
+  // Loans
+  async getLoans()            { const {data}=await sb.from("loans").select("*").order("created_at",{ascending:false}); return data||[]; },
+  async addLoan(l)            { const {data}=await sb.from("loans").insert({employee_id:l.eid,ename:l.ename,type:l.type,amount:l.amount,emi:l.emi,tenure:l.tenure,remaining:l.tenure,reason:l.reason}).select().single(); return data; },
+  async actionLoan(id,status) { await sb.from("loans").update({status}).eq("id",id); },
+
+  // Reimbursements
+  async getReimb()              { const {data}=await sb.from("reimbursements").select("*").order("applied_on",{ascending:false}); return data||[]; },
+  async addReimb(r)             { await sb.from("reimbursements").insert({employee_id:r.eid,ename:r.ename,type:r.type,amount:r.amount,expense_date:r.date,description:r.desc}); },
+  async actionReimb(id,status)  { await sb.from("reimbursements").update({status}).eq("id",id); },
+
+  // Company
+  async getCompany()            { const {data}=await sb.from("companies").select("*").single(); return data; },
+  async saveCompany(co)         { await sb.from("companies").update({...co,updated_at:new Date()}).eq("id",co.id); },
+};
+
+// ── Field mapper: DB row → app shape ──────────────────────────────────────────
+function fromDbEmp(e){ return{id:e.id,code:e.code||"",name:e.name||"",dob:e.dob||"",doj:e.doj||"",gen:e.gender||"",dept:e.dept||"",desig:e.desig||"",email:e.email||"",phone:e.phone||"",pan:e.pan||"",aadhaar:e.aadhaar||"",bank:e.bank||"",acc:e.acc||"",ifsc:e.ifsc||"",basic:+e.basic||0,hra:+e.hra||0,conv:+e.conv||0,med:+e.med||0,spl:+e.spl||0,lta:+e.lta||0,pf:!!e.pf,esic:!!e.esic,pt:!!e.pt,itRegime:e.it_regime||"",status:e.status||"Active",cat:e.cat||"Permanent",shift:e.shift||"General",note:e.note||""};}
+function toDbEmp(e)  { return{code:e.code,name:e.name,dob:e.dob||null,doj:e.doj,gender:e.gen,dept:e.dept,desig:e.desig,email:e.email,phone:e.phone,pan:e.pan,aadhaar:e.aadhaar,bank:e.bank,acc:e.acc,ifsc:e.ifsc,basic:+e.basic||0,hra:+e.hra||0,conv:+e.conv||0,med:+e.med||0,spl:+e.spl||0,lta:+e.lta||0,pf:!!e.pf,esic:!!e.esic,pt:!!e.pt,it_regime:e.itRegime||"new",status:e.status,cat:e.cat,shift:e.shift,note:e.note||null};}
+function fromDbLeave(l){ return{id:l.id,eid:l.employee_id,ename:l.ename,type:l.type,from:l.from_date,to:l.to_date,days:l.days,reason:l.reason,status:l.status,on:l.applied_on||TODAY};}
+function fromDbLoan(l) { return{id:l.id,eid:l.employee_id,ename:l.ename,type:l.type,amount:+l.amount,emi:+l.emi,tenure:+l.tenure,remaining:+l.remaining,reason:l.reason,status:l.status,on:l.applied_on||TODAY};}
+function fromDbReimb(r){ return{id:r.id,eid:r.employee_id,ename:r.ename,type:r.type,amount:+r.amount,date:r.expense_date,description:r.desc,status:r.status};}
+function fromDbRun(r)  { return{id:r.id,month:r.month,year:r.year,on:r.run_date?new Date(r.run_date).toLocaleDateString("en-IN"):TODAY,total:+r.total||0,gross:+r.gross||0,count:r.emp_count||0,results:[]};}
+
+// ── Utils ─────────────────────────────────────────────
+const INR = n => "₹" + Number(n||0).toLocaleString("en-IN");
+const uid = () => Math.random().toString(36).slice(2,8).toUpperCase();
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const NOW = new Date();
+const TODAY = NOW.toISOString().slice(0,10);
+
+function calcPay(e, lopDays=0, POL=null, runMonth=null, runYear=null) {
+  // POL = live policy; falls back to DEFAULT_POLICIES
+  const P_pol = POL || (typeof DEFAULT_POLICIES !== "undefined" ? DEFAULT_POLICIES : null);
+
+  // ── Joining date proration ─────────────────────────────────────────────────
+  // If employee joined mid-month during the pay month, prorate salary
+  let joiningProration = 1; // default = full month
+  let joiningNote = "";
+  if(e.doj && runMonth && runYear) {
+    const doj = new Date(e.doj);
+    const dojMonth = doj.getMonth() + 1;
+    const dojYear  = doj.getFullYear();
+    if(dojYear === runYear && dojMonth === runMonth) {
+      // Employee joined THIS pay month — prorate
+      const totalDaysInMonth = new Date(runYear, runMonth, 0).getDate();
+      const daysWorked = totalDaysInMonth - doj.getDate() + 1;
+      joiningProration = Math.max(0, daysWorked / totalDaysInMonth);
+      joiningNote = `Joined ${e.doj} — ${daysWorked}/${totalDaysInMonth} days`;
+      lopDays = 0; // don't double-deduct
+    } else if(dojYear > runYear || (dojYear === runYear && dojMonth > runMonth)) {
+      // Employee hadn't joined yet
+      joiningProration = 0;
+    }
+  }
+  const basic=+e.basic||0, hra=+e.hra||0, conv=+e.conv||0, med=+e.med||0, spl=+e.spl||0, lta=+e.lta||0;
+  const wDays = P_pol?.payroll?.workingDays||26;
+  const lopFactor = lopDays>0 ? Math.max(0,(wDays-lopDays)/wDays) : 1;
+  const f = lopFactor * joiningProration;
+  const g  = Math.round((basic+hra+conv+med+spl+lta)*f);
+  const pfBase = Math.round(basic*f);
+
+  // PF — policy driven
+  const pfWage = Math.min(pfBase, P_pol?.pf?.maxPfWage||15000);
+  const pfE = (e.pf && (P_pol?.pf?.enabled!==false)) ? Math.min(Math.round(pfWage*(P_pol?.pf?.employeeRate||12)/100),1800) : 0;
+  const pfR = pfE;
+
+  // ESIC — policy driven
+  const esicCeil = P_pol?.esic?.wageLimit||21000;
+  const esE = (e.esic && (P_pol?.esic?.enabled!==false) && g<=esicCeil) ? Math.round(g*(P_pol?.esic?.employeeRate||0.75)/100) : 0;
+  const esR = (e.esic && (P_pol?.esic?.enabled!==false) && g<=esicCeil) ? Math.round(g*(P_pol?.esic?.employerRate||3.25)/100) : 0;
+
+  // PT — from policy slabs
+  let pt = 0;
+  if(e.pt && (P_pol?.pt?.enabled!==false)){
+    const ptSlabs = P_pol?.pt?.slabs||[{from:0,to:10000,monthly:0},{from:10001,to:15000,monthly:150},{from:15001,to:999999,monthly:200}];
+    const slab = [...ptSlabs].sort((a,b)=>b.from-a.from).find(s=>g>=s.from);
+    pt = slab ? (slab.monthly||0) : 0;
+  }
+
+  // TDS — regime from policy
+  const stdDed = P_pol?.tds?.standardDeduction||50000;
+  const cess   = (P_pol?.tds?.cess||4)/100;
+  const regime = e.itRegime || P_pol?.tds?.regime || "new"; // employee override > company default
+  const ti = Math.max(0, basic*12 - stdDed);
+  let annTax = 0;
+  if(regime==="new"){
+    if(ti>1500000)      annTax=150000+(ti-1500000)*0.30;
+    else if(ti>1200000) annTax=90000+(ti-1200000)*0.20;
+    else if(ti>1000000) annTax=60000+(ti-1000000)*0.15;
+    else if(ti>700000)  annTax=10000+(ti-700000)*0.10;
+    else if(ti>300000)  annTax=(ti-300000)*0.05;
+  } else {
+    if(ti>1000000)     annTax=112500+(ti-1000000)*0.30;
+    else if(ti>500000) annTax=12500+(ti-500000)*0.20;
+    else if(ti>250000) annTax=(ti-250000)*0.05;
+  }
+  annTax = Math.round(annTax*(1+cess));
+  const tds = Math.round(annTax/12);
+
+  const ded = pfE+esE+pt+tds;
+  const net = g-ded;
+  const ctc = g+pfR+esR;
+  const yrs = e.doj ? Math.max(0,(NOW-new Date(e.doj))/(365.25*24*3600*1000)) : 0;
+  const gratMinYrs = P_pol?.gratuity?.minServiceYears||5;
+  const gratMax    = P_pol?.gratuity?.maxLimit||2000000;
+  const gratuity   = ((P_pol?.gratuity?.enabled!==false) && yrs>=gratMinYrs) ? Math.min(Math.round((pfBase/26)*15*Math.floor(yrs)),gratMax) : 0;
+
+  return {g,pfBase,pfE,pfR,esE,esR,pt,tds,ded,net,ti,annTax,gratuity,lopDays,ctc,yrs,
+    joiningProration, joiningNote,
+    basic:Math.round(basic*f),hra:Math.round(hra*f),conv:Math.round(conv*f),
+    med:Math.round(med*f),spl:Math.round(spl*f),lta:Math.round(lta*f)};
+}
+
+// ── Seed ─────────────────────────────────────────────
+const CO0 = {id:"C1",name:"TechCorp India Pvt Ltd",pan:"AABCT1332L",tan:"MUMB12345A",gstin:"27AABCT1332L1ZQ",addr:"501 Maker Chambers, Nariman Point",city:"Mumbai",state:"Maharashtra",pin:"400021",phone:"02222001234",email:"hr@techcorp.in",pf:"MH/BAN/12345",esic:"31-00-123456-000",pt:"MH-PT-2010-0012345",nature:"IT Services",type:"Private Limited",est:"2010",wHours:9,wDays:"Mon-Fri",halfDay:4.5,otRate:150};
+
+const EMPS0 = [
+  {id:"E1",code:"EMP001",name:"Rajesh Kumar",dob:"1985-06-15",doj:"2018-03-01",gen:"Male",dept:"Engineering",desig:"Senior Manager",email:"rajesh.kumar@techcorp.in",phone:"9876543210",pan:"AVKPK2297K",aadhaar:"1234-5678-9012",bank:"HDFC Bank",acc:"50100123456789",ifsc:"HDFC0001234",basic:65000,hra:26000,conv:1600,med:1250,spl:15000,lta:5000,pf:true,esic:false,pt:true,status:"Active",cat:"Permanent",shift:"General"},
+  {id:"E2",code:"EMP002",name:"Priya Sharma",dob:"1990-02-20",doj:"2020-07-15",gen:"Female",dept:"Finance",desig:"Manager",email:"priya.sharma@techcorp.in",phone:"9876543211",pan:"BRKPS5678L",aadhaar:"2345-6789-0123",bank:"SBI",acc:"32145678901",ifsc:"SBIN0001234",basic:45000,hra:18000,conv:1600,med:1250,spl:8000,lta:3000,pf:true,esic:true,pt:true,status:"Active",cat:"Permanent",shift:"General"},
+  {id:"E3",code:"EMP003",name:"Amit Verma",dob:"1982-11-08",doj:"2015-01-10",gen:"Male",dept:"HR",desig:"DGM - HR",email:"amit.verma@techcorp.in",phone:"9876543212",pan:"CMNPV3456M",aadhaar:"3456-7890-1234",bank:"ICICI Bank",acc:"123456789012",ifsc:"ICIC0001234",basic:80000,hra:32000,conv:1600,med:1250,spl:20000,lta:6000,pf:true,esic:false,pt:true,status:"Active",cat:"Permanent",shift:"General"},
+  {id:"E4",code:"EMP004",name:"Sunita Patel",dob:"1993-08-25",doj:"2022-04-01",gen:"Female",dept:"Marketing",desig:"Executive",email:"sunita.patel@techcorp.in",phone:"9876543213",pan:"DMNSP4567N",aadhaar:"4567-8901-2345",bank:"Axis Bank",acc:"456789012345",ifsc:"UTIB0001234",basic:18000,hra:7200,conv:1600,med:1250,spl:3000,lta:0,pf:true,esic:true,pt:true,status:"Active",cat:"Contractual",shift:"Morning"},
+];
+
+// Generate last 30 days attendance for demo
+function genAttendance() {
+  const records = {};
+  EMPS0.forEach(emp => {
+    records[emp.id] = {};
+    for(let i=29;i>=0;i--) {
+      const d = new Date(NOW); d.setDate(d.getDate()-i);
+      const ds = d.toISOString().slice(0,10);
+      const day = d.getDay();
+      if(day===0||day===6) { records[emp.id][ds]={status:"WO",in:"",out:"",hrs:0,ot:0}; continue; }
+      const rand = Math.random();
+      if(rand<0.05) { records[emp.id][ds]={status:"A",in:"",out:"",hrs:0,ot:0}; continue; }
+      if(rand<0.08) { records[emp.id][ds]={status:"HD",in:"09:30",out:"14:00",hrs:4.5,ot:0}; continue; }
+      const inH = 9 + Math.floor(Math.random()*2);
+      const inM = Math.floor(Math.random()*30);
+      const outH = 18 + Math.floor(Math.random()*3);
+      const outM = Math.floor(Math.random()*60);
+      const hrs = parseFloat(((outH+outM/60)-(inH+inM/60)).toFixed(1));
+      const ot = Math.max(0,hrs-9);
+      const late = (inH>9||(inH===9&&inM>15));
+      records[emp.id][ds]={status:late?"L":"P",in:`${String(inH).padStart(2,"0")}:${String(inM).padStart(2,"0")}`,out:`${String(outH).padStart(2,"0")}:${String(outM).padStart(2,"0")}`,hrs,ot:parseFloat(ot.toFixed(1))};
+    }
+  });
+  return records;
+}
+
+const LEAVES0 = [
+  {id:"L1",eid:"E1",ename:"Rajesh Kumar",type:"Casual Leave",from:"2025-06-10",to:"2025-06-11",days:2,reason:"Personal work",status:"Approved",on:"2025-06-08"},
+  {id:"L2",eid:"E2",ename:"Priya Sharma",type:"Sick Leave",from:"2025-06-18",to:"2025-06-18",days:1,reason:"Fever",status:"Pending",on:"2025-06-17"},
+  {id:"L3",eid:"E3",ename:"Amit Verma",type:"Earned Leave",from:"2025-07-01",to:"2025-07-05",days:5,reason:"Vacation",status:"Pending",on:"2025-06-20"},
+];
+const LOANS0 = [
+  {id:"LN1",eid:"E1",ename:"Rajesh Kumar",type:"Personal Loan",amount:50000,emi:5000,tenure:10,remaining:8,reason:"Home renovation",status:"Approved",on:"2025-05-01"},
+  {id:"LN2",eid:"E4",ename:"Sunita Patel",type:"Salary Advance",amount:15000,emi:5000,tenure:3,remaining:3,reason:"Medical",status:"Pending",on:"2025-06-20"},
+];
+const CREDS = [
+  {role:"sa",  email:"admin@payrolla.in",        password:"Admin@123",name:"Super Admin"},
+  {role:"hr",  email:"hr@techcorp.in",           password:"Hr@123",   name:"HR Admin"},
+  {role:"emp", email:"rajesh.kumar@techcorp.in", password:"Emp@123",  name:"Rajesh Kumar",eid:"E1"},
+];
+
+// ── Design ────────────────────────────────────────────
+const P="#1a237e",PL="#3949ab",PX="#e8eaf6",AC="#00897b",AX="#e0f2f1",DG="#c62828",DX="#ffebee",WN="#e65100",WX="#fff3e0",OK="#2e7d32",OX="#e8f5e9",MT="#546e7a",BD="#e0e0e0",BG="#f5f6fa",SB="#0d1b4b";
+const STATUS_COLOR={P:OK,A:DG,HD:WN,L:"#7b1fa2",WO:MT,H:"#0277bd",OD:"#4e342e"};
+const STATUS_LABEL={P:"Present",A:"Absent",HD:"Half Day",L:"Late",WO:"Week Off",H:"Holiday",OD:"On Duty"};
+
+// ── Atoms ────────────────────────────────────────────
+function Card({children,s={}}){return <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 6px rgba(0,0,0,0.07)",border:`1px solid ${BD}`,...s}}>{children}</div>}
+function Badge({t,c=P}){return <span style={{background:c+"18",color:c,border:`1px solid ${c}44`,borderRadius:6,padding:"2px 10px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{t}</span>}
+function Btn({onClick,children,v="pri",sz="md",disabled=false,s={}}){
+  const vs={pri:{background:P,color:"#fff",border:"none"},sec:{background:PX,color:P,border:`1px solid ${P}44`},ok:{background:OK,color:"#fff",border:"none"},danger:{background:DG,color:"#fff",border:"none"},ghost:{background:"transparent",color:MT,border:`1px solid ${BD}`},warn:{background:WN,color:"#fff",border:"none"}};
+  const szs={sm:{padding:"5px 14px",fontSize:12},md:{padding:"8px 20px",fontSize:13},lg:{padding:"12px 28px",fontSize:15}};
+  return <button disabled={disabled} onClick={onClick} style={{...vs[v],...szs[sz],borderRadius:8,fontWeight:600,cursor:disabled?"not-allowed":"pointer",opacity:disabled?.6:1,...s}}>{children}</button>;
+}
+function Inp({label,val,set,type="text",ph="",opts=null,disabled=false,s={}}){
+  return <div style={{marginBottom:14,...s}}>
+    {label&&<label style={{display:"block",fontSize:12,fontWeight:600,color:MT,marginBottom:5,textTransform:"uppercase",letterSpacing:.5}}>{label}</label>}
+    {opts
+      ?<select value={val} onChange={e=>set(e.target.value)} disabled={disabled} style={{width:"100%",padding:"9px 12px",border:`1.5px solid ${BD}`,borderRadius:8,fontSize:14,background:"#fff",outline:"none",boxSizing:"border-box"}}><option value="">Select...</option>{opts.map(o=><option key={o.v||o} value={o.v||o}>{o.l||o}</option>)}</select>
+      :<input type={type} value={val} onChange={e=>set(e.target.value)} placeholder={ph} disabled={disabled} style={{width:"100%",padding:"9px 12px",border:`1.5px solid ${BD}`,borderRadius:8,fontSize:14,outline:"none",background:disabled?"#f5f5f5":"#fff",boxSizing:"border-box"}}/>
+    }
+  </div>;
+}
+function Tbl({cols,rows,empty="No data"}){
+  return <div style={{overflowX:"auto"}}>
+    <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+      <thead><tr style={{background:PX}}>{cols.map(c=><th key={c} style={{textAlign:"left",padding:"10px 14px",color:P,fontWeight:700,fontSize:11,textTransform:"uppercase",letterSpacing:.5,whiteSpace:"nowrap"}}>{c}</th>)}</tr></thead>
+      <tbody>{rows.length===0?<tr><td colSpan={cols.length} style={{padding:32,textAlign:"center",color:MT}}>{empty}</td></tr>:rows.map((r,i)=><tr key={i} style={{borderBottom:`1px solid ${BD}`,background:i%2?"#fafafa":"#fff"}}>{r.map((cell,j)=><td key={j} style={{padding:"10px 14px",verticalAlign:"middle"}}>{cell}</td>)}</tr>)}</tbody>
+    </table>
+  </div>;
+}
+function Modal({title,onClose,children,w=520}){
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:16,overflowY:"auto"}}>
+    <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:w,maxHeight:"92vh",overflowY:"auto",boxShadow:"0 24px 80px rgba(0,0,0,.2)"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"18px 24px",borderBottom:`1px solid ${BD}`,position:"sticky",top:0,background:"#fff",zIndex:1}}>
+        <h3 style={{margin:0,fontSize:16,fontWeight:800}}>{title}</h3>
+        <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:MT}}>✕</button>
+      </div>
+      <div style={{padding:24}}>{children}</div>
+    </div>
+  </div>;
+}
+function Stat({label,value,sub,color=P,icon}){
+  return <Card s={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+      <div><div style={{fontSize:11,fontWeight:600,color:MT,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>{label}</div><div style={{fontSize:26,fontWeight:800,color,lineHeight:1}}>{value}</div>{sub&&<div style={{fontSize:12,color:MT,marginTop:4}}>{sub}</div>}</div>
+      {icon&&<div style={{fontSize:28,opacity:.6}}>{icon}</div>}
+    </div>
+  </Card>;
+}
+function Sec({title,action,children}){
+  return <div style={{marginBottom:28}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h2 style={{margin:0,fontSize:20,fontWeight:800}}>{title}</h2>{action}</div>
+    {children}
+  </div>;
+}
+function G({cols=2,gap=16,children}){return <div style={{display:"grid",gridTemplateColumns:`repeat(${cols},1fr)`,gap}}>{children}</div>}
+function Divider({t}){return <div style={{fontSize:12,fontWeight:700,color:P,textTransform:"uppercase",letterSpacing:1,marginBottom:12,paddingBottom:8,borderBottom:`1px solid ${BD}`,marginTop:4}}>{t}</div>}
+
+// ── Shell ────────────────────────────────────────────
+// ── Missing atoms (needed by PolicyTab + EmpForm) ─────────────────────────────
+const Bdg = Badge; // alias
+function Toggle({label,val,set,note=""}){
+  return <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:`1px solid ${BG}`}}>
+    <div><div style={{fontSize:13,fontWeight:600,color:"#1a1a2e"}}>{label}</div>{note&&<div style={{fontSize:11,color:MT,marginTop:2}}>{note}</div>}</div>
+    <div onClick={()=>set(!val)} style={{width:44,height:24,borderRadius:12,background:val?OK:BD,cursor:"pointer",position:"relative",transition:"background .2s",flexShrink:0,marginLeft:16}}>
+      <div style={{position:"absolute",top:2,left:val?22:2,width:20,height:20,borderRadius:10,background:"#fff",transition:"left .2s",boxShadow:"0 1px 4px rgba(0,0,0,.3)"}}/>
+    </div>
+  </div>;
+}
+function NumInp({label,val,set,min=0,max=99999,suffix="",note=""}){
+  return <div style={{marginBottom:14}}>
+    {label&&<label style={{display:"block",fontSize:12,fontWeight:600,color:MT,marginBottom:5,textTransform:"uppercase",letterSpacing:.5}}>{label}</label>}
+    <div style={{display:"flex",alignItems:"center",gap:10}}>
+      <input type="number" min={min} max={max} value={val} onChange={e=>set(+e.target.value)}
+        style={{width:110,padding:"9px 12px",border:`1.5px solid ${BD}`,borderRadius:8,fontSize:14,outline:"none"}}/>
+      {suffix&&<span style={{fontSize:13,color:MT,fontWeight:500}}>{suffix}</span>}
+    </div>
+    {note&&<div style={{fontSize:11,color:MT,marginTop:4}}>{note}</div>}
+  </div>;
+}
+function Section({title,sub,children}){
+  return <div style={{marginBottom:26}}>
+    <div style={{fontSize:17,fontWeight:800,marginBottom:sub?4:12}}>{title}</div>
+    {sub&&<div style={{fontSize:13,color:MT,marginBottom:12}}>{sub}</div>}
+    {children}
+  </div>;
+}
+function InfoBox({color=P,bg=PX,children}){
+  return <div style={{background:bg,border:`1px solid ${color}33`,borderRadius:9,padding:"12px 16px",marginTop:14,fontSize:12,color,lineHeight:1.7}}>{children}</div>;
+}
+// PTSlabEditor — inline slab table for Professional Tax
+function PTSlabEditor({slabs,setSlabs}){
+  return <div>
+    <Tbl cols={["From (₹)","To (₹)","Monthly PT (₹)","Action"]} rows={slabs.map((s,i)=>[
+      <input type="number" value={s.from} onChange={e=>setSlabs(p=>p.map((x,j)=>j===i?{...x,from:+e.target.value}:x))} style={{width:80,padding:"4px 8px",border:`1px solid ${BD}`,borderRadius:6,fontSize:12}}/>,
+      <input type="number" value={s.to}   onChange={e=>setSlabs(p=>p.map((x,j)=>j===i?{...x,to:  +e.target.value}:x))} style={{width:80,padding:"4px 8px",border:`1px solid ${BD}`,borderRadius:6,fontSize:12}}/>,
+      <input type="number" value={s.monthly} onChange={e=>setSlabs(p=>p.map((x,j)=>j===i?{...x,monthly:+e.target.value}:x))} style={{width:70,padding:"4px 8px",border:`1px solid ${BD}`,borderRadius:6,fontSize:12}}/>,
+      <Btn sz="sm" v="danger" onClick={()=>setSlabs(p=>p.filter((_,j)=>j!==i))}>✕</Btn>
+    ])} empty="No slabs."/>
+    <Btn v="sec" sz="sm" s={{marginTop:10}} onClick={()=>setSlabs(p=>[...p,{from:0,to:0,monthly:0}])}>+ Add Slab</Btn>
+  </div>;
+}
+// LeaveTypeEditor modal
+function LeaveTypeEditor({lt,onSave,onClose}){
+  const [f,setF]=useState({...lt});
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  return <Modal title={lt.id?"Edit Leave Type":"Add Leave Type"} onClose={onClose} w={640}>
+    <G cols={2} gap={14}>
+      <Inp label="Leave Name *" val={f.name} set={v=>set("name",v)} ph="e.g. Casual Leave"/>
+      <Inp label="Short Code" val={f.code} set={v=>set("code",v.toUpperCase())} ph="CL"/>
+      <NumInp label="Annual Days" val={f.annual} set={v=>set("annual",v)} suffix="days/year"/>
+      <Inp label="Gender" val={f.gender||"all"} set={v=>set("gender",v)} opts={["all","male","female"]}/>
+      <NumInp label="Advance Notice" val={f.notice||0} set={v=>set("notice",v)} suffix="days"/>
+    </G>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
+      {[["paid","Paid Leave","Salary paid during leave"],["halfDay","Allow Half Day","0.5 day applications"],["carryForward","Carry Forward","Unused leaves roll over"],["encashable","Encashable","Can be converted to cash"],["probation","Allow During Probation","Available from Day 1"]].map(([k,l,n])=>(
+        <Toggle key={k} label={l} val={!!f[k]} set={v=>set(k,v)} note={n}/>
+      ))}
+    </div>
+    {f.carryForward&&<NumInp label="Max Carry Forward" val={f.maxCarry||0} set={v=>set("maxCarry",v)} suffix="days (0=unlimited)"/>}
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
+      <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+      <Btn onClick={()=>{if(!f.name){alert("Leave name required.");return;}onSave({...f,id:f.id||"LT"+Math.random().toString(36).slice(2,6).toUpperCase()});}}>{lt.id?"Save Changes":"Add Leave Type"}</Btn>
+    </div>
+  </Modal>;
+}
+// HolidayEditor modal
+function HolidayEditor({h,onSave,onClose}){
+  const [f,setF]=useState(h||{id:"",name:"",date:"",type:"festival"});
+  return <Modal title={f.id?"Edit Holiday":"Add Holiday"} onClose={onClose} w={440}>
+    <Inp label="Holiday Name *" val={f.name} set={v=>setF(p=>({...p,name:v}))} ph="e.g. Diwali"/>
+    <Inp label="Date *" val={f.date} set={v=>setF(p=>({...p,date:v}))} type="date"/>
+    <Inp label="Type" val={f.type} set={v=>setF(p=>({...p,type:v}))} opts={["national","festival","optional","regional"]}/>
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:14}}>
+      <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+      <Btn onClick={()=>{if(!f.name||!f.date){alert("Name and date required.");return;}onSave({...f,id:f.id||"H"+Math.random().toString(36).slice(2,6).toUpperCase()});}}>{f.id?"Save":"Add Holiday"}</Btn>
+    </div>
+  </Modal>;
+}
+
+function Shell({user,nav,tab,setTab,onLogout,children}){
+  return <div style={{display:"flex",minHeight:"100vh",fontFamily:"'Segoe UI',system-ui,sans-serif",background:BG}}>
+    <div style={{width:230,background:SB,display:"flex",flexDirection:"column",flexShrink:0,position:"sticky",top:0,height:"100vh"}}>
+      <div style={{padding:"20px 20px 12px"}}><div style={{fontWeight:900,fontSize:17,color:"#fff"}}>Payrolla<span style={{color:"#64b5f6"}}>.in</span></div><div style={{fontSize:11,color:"rgba(255,255,255,.4)",marginTop:3}}>{user.name}</div><div style={{fontSize:10,color:"rgba(255,255,255,.25)",textTransform:"uppercase",letterSpacing:1}}>{user.role}</div></div>
+      <div style={{height:1,background:"rgba(255,255,255,.08)",margin:"0 16px"}}/>
+      <nav style={{flex:1,padding:"8px 10px",overflowY:"auto"}}>
+        {nav.map(([id,icon,label])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"9px 14px",border:"none",borderRadius:8,fontSize:13,cursor:"pointer",marginBottom:2,background:tab===id?"rgba(100,181,246,.2)":"transparent",color:tab===id?"#90caf9":"rgba(255,255,255,.6)",fontWeight:tab===id?700:400}}>
+            <span style={{fontSize:15}}>{icon}</span>{label}
+          </button>
+        ))}
+      </nav>
+      <div style={{padding:"8px 10px 14px"}}><button onClick={onLogout} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"9px 14px",border:"1px solid rgba(255,255,255,.15)",borderRadius:8,background:"transparent",color:"rgba(255,255,255,.5)",cursor:"pointer",fontSize:13}}>🚪 Log Out</button></div>
+    </div>
+    <div style={{flex:1,overflowY:"auto"}}><div style={{padding:28,maxWidth:1150}}>{children}</div></div>
+  </div>;
+}
+
+// ── Login ────────────────────────────────────────────
+function Login({onLogin}){
+  const [role,setRole]=useState("hr");
+  const [email,setEmail]=useState("");
+  const [pw,setPw]=useState("");
+  const [err,setErr]=useState("");
+  const hints={sa:"admin@payrolla.in / Admin@123",hr:"hr@techcorp.in / Hr@123",emp:"rajesh.kumar@techcorp.in / Emp@123"};
+  const [loggingIn,setLoggingIn]=useState(false);
+  async function go(){
+    setErr(""); setLoggingIn(true);
+    // Try Supabase Auth first
+    try{
+      const user = await sbLogin(email.trim(), pw);
+      onLogin(user);
+      setLoggingIn(false);
+      return;
+    }catch(authErr){
+      // Supabase not configured yet? Fall back to demo CREDS
+      const c=CREDS.find(x=>x.role===role&&x.email===email.trim()&&x.password===pw);
+      if(c){ onLogin(c); setLoggingIn(false); return; }
+      setErr(authErr.message.includes("Invalid login")?"Incorrect email or password.":authErr.message);
+    }
+    setLoggingIn(false);
+  }
+  return <div style={{minHeight:"100vh",background:`linear-gradient(135deg,${SB} 0%,${PL} 100%)`,display:"flex",alignItems:"center",justifyContent:"center",padding:16,fontFamily:"'Segoe UI',system-ui,sans-serif"}}>
+    <div style={{background:"#fff",borderRadius:20,padding:40,width:"100%",maxWidth:400,boxShadow:"0 24px 80px rgba(0,0,0,.3)"}}>
+      <div style={{textAlign:"center",marginBottom:28}}><div style={{fontWeight:900,fontSize:24,color:P}}>Payrolla<span style={{color:AC}}>.in</span></div><div style={{fontSize:13,color:MT,marginTop:4}}>Indian Payroll & HRMS Platform</div></div>
+      <div style={{display:"flex",background:BG,borderRadius:10,padding:3,marginBottom:20,gap:3}}>
+        {[["sa","Super Admin"],["hr","HR Admin"],["emp","Employee"]].map(([r,l])=>(
+          <button key={r} onClick={()=>{setRole(r);setEmail("");setPw("");setErr("");}} style={{flex:1,padding:"7px 4px",border:"none",borderRadius:8,fontWeight:600,fontSize:12,cursor:"pointer",background:role===r?P:"transparent",color:role===r?"#fff":MT}}>{l}</button>
+        ))}
+      </div>
+      <div style={{background:"#e3f2fd",border:"1px solid #90caf9",borderRadius:9,padding:"9px 13px",fontSize:12,color:"#1565c0",marginBottom:20}}><b>Demo:</b> {hints[role]}</div>
+      <Inp label="Email" val={email} set={setEmail} ph="Enter email"/>
+      <Inp label="Password" val={pw} set={setPw} type="password" ph="Enter password"/>
+      {err&&<div style={{background:DX,border:`1px solid ${DG}44`,borderRadius:8,padding:"9px 13px",fontSize:13,color:DG,marginBottom:14}}>{err}</div>}
+      <Btn onClick={go} sz="lg" s={{width:"100%",marginTop:4}}>{loggingIn?"Signing in...":"Sign In →"}</Btn>
+    </div>
+  </div>;
+}
+
+// ── Salary Slip ───────────────────────────────────────
+function SalarySlip({emp,co,month,year,lopDays=0,onClose,pol}){
+  const SPOL=pol||DEFAULT_POLICIES;
+  const p=calcPay(emp,lopDays,SPOL,month,year);
+  return <Modal title="Salary Slip" onClose={onClose} w={640}>
+    {p.joiningNote&&<div style={{background:"#fff3e0",border:"1px solid #e65100",borderRadius:8,padding:"8px 14px",marginBottom:10,fontSize:12,color:"#e65100"}}>⚠ <b>Mid-month joiner:</b> {p.joiningNote}. Salary prorated to {INR(p.g)} ({Math.round(p.joiningProration*100)}% of full month).</div>}
+    <div style={{border:`2px solid ${P}`,borderRadius:10,overflow:"hidden",fontSize:13}}>
+      <div style={{background:P,color:"#fff",padding:"16px 22px",textAlign:"center"}}>
+        <div style={{fontWeight:900,fontSize:17}}>{co.name}</div>
+        <div style={{fontSize:11,opacity:.8}}>{co.addr}, {co.city} | PAN: {co.pan} | PF: {co.pf} | ESIC: {co.esic}</div>
+        <div style={{fontWeight:700,marginTop:6,fontSize:14}}>SALARY SLIP — {MONTHS[month-1].toUpperCase()} {year}</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",background:"#f8fafc"}}>
+        {[["Emp Code",emp.code],["Name",emp.name],["Designation",emp.desig],["Department",emp.dept],["Date of Joining",emp.doj],["PAN",emp.pan],["Bank / IFSC",`${emp.bank} / ${emp.ifsc}`],["Account No",emp.acc],["Working Days","26"],["LOP Days",lopDays],["Days Paid",p.joiningNote?`${Math.round(p.joiningProration*26)}`:26-lopDays],["PF Enrolled",emp.pf?"Yes":"No"]].map(([l,v])=>(
+          <div key={l} style={{padding:"6px 14px",borderBottom:`1px solid ${BD}`,fontSize:12}}><span style={{color:MT}}>{l}: </span><b>{v}</b></div>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
+        <div style={{borderRight:`1px solid ${BD}`}}>
+          <div style={{background:OX,padding:"8px 14px",fontWeight:700,color:OK,borderBottom:`1px solid ${BD}`}}>EARNINGS</div>
+          {[["Basic Salary",+emp.basic||0],["HRA",+emp.hra||0],["Conveyance",+emp.conv||0],["Medical Allowance",+emp.med||0],["Special Allowance",+emp.spl||0],["LTA",+emp.lta||0]].filter(([,v])=>v>0).map(([l,v])=>(
+            <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"7px 14px",borderBottom:`1px solid #f0f0f0`}}><span>{l}</span><span style={{fontWeight:600}}>{INR(Math.round(v*(26-lopDays)/26))}</span></div>
+          ))}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"10px 14px",background:OX,fontWeight:800}}><span>Gross Earnings</span><span>{INR(p.g)}</span></div>
+        </div>
+        <div>
+          <div style={{background:DX,padding:"8px 14px",fontWeight:700,color:DG,borderBottom:`1px solid ${BD}`}}>DEDUCTIONS</div>
+          {[["PF Employee (12%)",p.pfE],["ESIC Employee (0.75%)",p.esE],["Professional Tax",p.pt],["TDS / Income Tax",p.tds],["LOP Deduction",lopDays>0?INR(Math.round((+emp.basic||0)/26*lopDays)):"Nil"]].map(([l,v])=>(
+            <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"7px 14px",borderBottom:`1px solid #f0f0f0`}}><span>{l}</span><span style={{fontWeight:600,color:DG}}>{typeof v==="number"?INR(v):v}</span></div>
+          ))}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"10px 14px",background:DX,fontWeight:800}}><span>Total Deductions</span><span style={{color:DG}}>{INR(p.ded)}</span></div>
+        </div>
+      </div>
+      <div style={{background:P,color:"#fff",padding:"14px 22px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span style={{fontWeight:700,fontSize:15}}>NET PAY (Take Home)</span><span style={{fontWeight:900,fontSize:22}}>{INR(p.net)}</span>
+      </div>
+      <div style={{padding:"8px 14px",background:"#fffde7",fontSize:11,color:"#795548"}}>
+        Employer Contributions: PF {INR(p.pfR)} + ESIC {INR(p.esR)} | CTC this month: {INR(p.ctc)}
+      </div>
+    </div>
+    <div style={{marginTop:14,display:"flex",gap:10,justifyContent:"flex-end"}}>
+      <Btn v="sec" onClick={()=>{
+        const html=`<div class="slip-meta">${[["Emp Code",emp.code],["Name",emp.name],["Designation",emp.desig],["Department",emp.dept],["Date of Joining",emp.doj],["PAN",emp.pan],["Bank",emp.bank],["Account No",emp.acc],["IFSC",emp.ifsc],["Working Days","26"],["LOP Days",lopDays],["Days Paid",26-lopDays]].map(([l,v])=>`<div class="slip-cell"><span style="color:#546e7a">${l}: </span><b>${v||""}</b></div>`).join("")}</div><div class="earn-ded"><div style="border-right:1px solid #e0e0e0"><div class="ehdr">EARNINGS</div>${[["Basic Salary",+emp.basic||0],["HRA",+emp.hra||0],["Conveyance",+emp.conv||0],["Medical",+emp.med||0],["Special Allowance",+emp.spl||0],["LTA",+emp.lta||0]].filter(([,v])=>v>0).map(([l,v])=>`<div class="erow"><span>${l}</span><span>${INR(Math.round(v*(26-lopDays)/26))}</span></div>`).join("")}<div class="etot"><span>Gross Earnings</span><span>${INR(p.g)}</span></div></div><div><div class="dhdr">DEDUCTIONS</div>${[["PF Employee (12%)",p.pfE],["ESIC (0.75%)",p.esE],["Professional Tax",p.pt],["TDS / Income Tax",p.tds]].map(([l,v])=>`<div class="drow"><span>${l}</span><span class="red">${INR(v)}</span></div>`).join("")}<div class="dtot"><span>Total Deductions</span><span>${INR(p.ded)}</span></div></div></div><div class="netpay"><span>NET PAY (Take Home)</span><span>${INR(p.net)}</span></div><div class="ctcrow">Employer PF: ${INR(p.pfR)} | ESIC: ${INR(p.esR)} | Monthly CTC: ${INR(p.ctc)} | Annual CTC: ${INR(p.ctc*12)}</div>`;
+        printHTML(`Salary_Slip_${emp.name.replace(/ /g,"_")}_${MONTHS[month-1]}_${year}`, html);
+      }}>⬇ Download PDF</Btn>
+      <Btn v="ghost" onClick={onClose}>Close</Btn>
+    </div>
+  </Modal>;
+}
+
+// ── Employee Form ─────────────────────────────────────
+function EmpForm({emp,onSave,onClose,pol=DEFAULT_POLICIES}){
+  const blank={code:"",name:"",dob:"",doj:"",gen:"",dept:"",desig:"",email:"",phone:"",pan:"",aadhaar:"",bank:"",acc:"",ifsc:"",basic:"",hra:"",conv:"1600",med:"1250",spl:"",lta:"0",pf:true,esic:false,pt:true,status:"Active",cat:"Permanent",shift:"General",itRegime:"",note:""};
+  const [f,setF]=useState(emp?{...emp}:blank);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const p=calcPay(f,0,pol);
+  return <Modal title={emp?"Edit Employee":"Add Employee"} onClose={onClose} w={760}>
+    <Divider t="Personal Details"/>
+    <G><Inp label="Employee Code *" val={f.code} set={v=>set("code",v)} ph="EMP001"/>
+    <Inp label="Full Name *" val={f.name} set={v=>set("name",v)}/></G>
+    <G><Inp label="Date of Birth" val={f.dob} set={v=>set("dob",v)} type="date"/>
+    <Inp label="Gender" val={f.gen} set={v=>set("gen",v)} opts={["Male","Female","Other"]}/></G>
+    <G><Inp label="Phone" val={f.phone} set={v=>set("phone",v)}/>
+    <Inp label="PAN *" val={f.pan} set={v=>set("pan",v)}/></G>
+    <Inp label="Aadhaar" val={f.aadhaar} set={v=>set("aadhaar",v)} ph="XXXX-XXXX-XXXX"/>
+    <Divider t="Employment"/>
+    <G><Inp label="Date of Joining *" val={f.doj} set={v=>set("doj",v)} type="date"/>
+    <Inp label="Department" val={f.dept} set={v=>set("dept",v)} opts={["Engineering","Finance","HR","Marketing","Operations","Admin","Sales","Legal"]}/></G>
+    <G><Inp label="Designation *" val={f.desig} set={v=>set("desig",v)}/>
+    <Inp label="Work Email *" val={f.email} set={v=>set("email",v)}/></G>
+    <G><Inp label="Category" val={f.cat} set={v=>set("cat",v)} opts={["Permanent","Contractual","Probation","Intern"]}/>
+    <Inp label="Shift" val={f.shift} set={v=>set("shift",v)} opts={["General","Morning","Evening","Night","Rotational"]}/></G>
+    <G><Inp label="Status" val={f.status} set={v=>set("status",v)} opts={["Active","Inactive","Resigned","Terminated"]}/>
+    <div/></G>
+    <Divider t="Salary Structure (₹/month)"/>
+    <G cols={3}><Inp label="Basic *" val={f.basic} set={v=>set("basic",v)} type="number" ph="0"/>
+    <Inp label="HRA" val={f.hra} set={v=>set("hra",v)} type="number" ph="0"/>
+    <Inp label="Conveyance" val={f.conv} set={v=>set("conv",v)} type="number" ph="0"/>
+    <Inp label="Medical" val={f.med} set={v=>set("med",v)} type="number" ph="0"/>
+    <Inp label="Special Allowance" val={f.spl} set={v=>set("spl",v)} type="number" ph="0"/>
+    <Inp label="LTA" val={f.lta} set={v=>set("lta",v)} type="number" ph="0"/></G>
+    <div style={{background:PX,borderRadius:10,padding:"12px 16px",display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,fontSize:13,marginBottom:14}}>
+      <div><span style={{color:MT}}>Gross: </span><b style={{color:P}}>{INR(p.g)}</b></div>
+      <div><span style={{color:MT}}>Deductions: </span><b style={{color:DG}}>{INR(p.ded)}</b></div>
+      <div><span style={{color:MT}}>Net Pay: </span><b style={{color:OK}}>{INR(p.net)}</b></div>
+      <div><span style={{color:MT}}>CTC: </span><b style={{color:WN}}>{INR(p.ctc)}</b></div>
+    </div>
+    <Divider t="Statutory"/>
+    <div style={{display:"flex",gap:24,marginBottom:16}}>
+      {[["pf","PF / EPF"],["esic","ESIC"],["pt","Prof. Tax"]].map(([k,l])=>(
+        <label key={k} style={{display:"flex",alignItems:"center",gap:6,fontSize:13,cursor:"pointer"}}>
+          <input type="checkbox" checked={!!f[k]} onChange={e=>set(k,e.target.checked)} style={{width:15,height:15}}/>{l}
+        </label>
+      ))}
+    </div>
+    <G cols={2} gap={14}>
+      <Inp label="Income Tax Regime" val={f.itRegime||""} set={v=>set("itRegime",v)} opts={[{v:"",l:"Company Default"},{v:"new",l:"New Regime (FY 2025-26)"},{v:"old",l:"Old Regime"}]} note="Overrides company TDS policy for this employee"/>
+      <Inp label="Notes" val={f.note||""} set={v=>set("note",v)} ph="Any notes..."/>
+    </G>
+    <Divider t="Bank Details"/>
+    <G><Inp label="Bank Name *" val={f.bank} set={v=>set("bank",v)}/>
+    <Inp label="Account Number *" val={f.acc} set={v=>set("acc",v)}/></G>
+    <Inp label="IFSC Code *" val={f.ifsc} set={v=>set("ifsc",v)} ph="HDFC0001234"/>
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:8}}>
+      <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+      <Btn onClick={()=>{if(!f.name||!f.code||!f.basic){alert("Name, Code and Basic are required.");return;}onSave({...f,id:emp?.id||"E"+uid()});}}>{emp?"Save Changes":"Add Employee"}</Btn>
+    </div>
+  </Modal>;
+}
+
+// ── ATTENDANCE MODULE ─────────────────────────────────
+function AttendanceModule({emps,attendance,setAttendance,onMark,onBulkMark}){
+  const [viewDate,setViewDate]=useState(TODAY);
+  const [viewEmp,setViewEmp]=useState("all");
+  const [bulkModal,setBulkModal]=useState(false);
+  const [editModal,setEditModal]=useState(null);
+  const [editForm,setEditForm]=useState({status:"P",in:"09:00",out:"18:00"});
+  const [viewMode,setViewMode]=useState("daily"); // daily | monthly
+  const [monthEmp,setMonthEmp]=useState(emps[0]?.id||"");
+  const [monthDate,setMonthDate]=useState(TODAY.slice(0,7));
+
+  const dates = (() => {
+    const d=new Date(viewDate); const arr=[];
+    for(let i=6;i>=0;i--){const x=new Date(d);x.setDate(x.getDate()-i);arr.push(x.toISOString().slice(0,10));}
+    return arr;
+  })();
+
+  function markSingle(eid,date,rec){
+    setAttendance(p=>({...p,[eid]:{...p[eid],[date]:rec}}));
+  }
+
+  function markBulkToday(status){
+    const today=viewDate;
+    setAttendance(p=>{
+      const np={...p};
+      emps.forEach(e=>{np[e.id]={...np[e.id],[today]:{status,in:status==="P"?"09:00":"",out:status==="P"?"18:00":"",hrs:status==="P"?9:0,ot:0}};});
+      return np;
+    });
+    setBulkModal(false);
+  }
+
+  function getStats(eid){
+    const recs=attendance[eid]||{};
+    const vals=Object.values(recs);
+    return {P:vals.filter(r=>r.status==="P").length,A:vals.filter(r=>r.status==="A").length,HD:vals.filter(r=>r.status==="HD").length,L:vals.filter(r=>r.status==="L").length,WO:vals.filter(r=>r.status==="WO").length,totalHrs:vals.reduce((s,r)=>s+(r.hrs||0),0).toFixed(1),totalOT:vals.reduce((s,r)=>s+(r.ot||0),0).toFixed(1)};
+  }
+
+  // Monthly calendar view
+  function MonthlyView(){
+    const emp=emps.find(e=>e.id===monthEmp);
+    if(!emp) return <div style={{color:MT,padding:20}}>Select an employee.</div>;
+    const [yr,mo]=monthDate.split("-").map(Number);
+    const firstDay=new Date(yr,mo-1,1).getDay();
+    const daysInMonth=new Date(yr,mo,0).getDate();
+    const cells=[];
+    for(let i=0;i<firstDay;i++) cells.push(null);
+    for(let d=1;d<=daysInMonth;d++) cells.push(d);
+    const recs=attendance[emp.id]||{};
+    const stats=getStats(emp.id);
+    return <div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+        {[["Present",stats.P,OK],["Absent",stats.A,DG],["Half Day",stats.HD,WN],["Late",stats.L,"#7b1fa2"]].map(([l,v,c])=>(
+          <div key={l} style={{background:c+"18",border:`1px solid ${c}44`,borderRadius:8,padding:"10px 14px",textAlign:"center"}}><div style={{fontSize:11,color:c,fontWeight:700}}>{l}</div><div style={{fontSize:22,fontWeight:800,color:c}}>{v}</div></div>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
+        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=><div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,color:MT,padding:"4px 0"}}>{d}</div>)}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+        {cells.map((d,i)=>{
+          if(!d) return <div key={i}/>;
+          const ds=`${yr}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+          const rec=recs[ds];
+          const st=rec?.status||"";
+          const c=STATUS_COLOR[st]||"#e0e0e0";
+          return <div key={i} onClick={()=>{setEditModal({eid:emp.id,date:ds,rec});setEditForm({status:rec?.status||"P",in:rec?.in||"09:00",out:rec?.out||"18:00"});}}
+            style={{borderRadius:8,padding:"8px 4px",textAlign:"center",background:st?c+"22":"#f9f9f9",border:`1px solid ${st?c+"66":BD}`,cursor:"pointer",minHeight:52}}>
+            <div style={{fontWeight:700,fontSize:13}}>{d}</div>
+            {st&&<div style={{fontSize:10,fontWeight:700,color:c,marginTop:2}}>{st}</div>}
+            {rec?.in&&<div style={{fontSize:9,color:MT}}>{rec.in}</div>}
+          </div>;
+        })}
+      </div>
+      <div style={{marginTop:14,fontSize:12,color:MT}}>Total Hours: <b>{stats.totalHrs}</b> | Overtime: <b>{stats.totalOT} hrs</b> | Week Off: <b>{stats.WO}</b> days</div>
+    </div>;
+  }
+
+  return <div>
+    <div style={{display:"flex",gap:12,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+      <div style={{display:"flex",background:BG,borderRadius:10,padding:3,gap:3}}>
+        {[["daily","Daily View"],["monthly","Monthly Calendar"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setViewMode(v)} style={{padding:"7px 16px",border:"none",borderRadius:8,fontWeight:600,fontSize:12,cursor:"pointer",background:viewMode===v?P:"transparent",color:viewMode===v?"#fff":MT}}>{l}</button>
+        ))}
+      </div>
+      {viewMode==="daily"&&<>
+        <input type="date" value={viewDate} onChange={e=>setViewDate(e.target.value)} style={{padding:"8px 12px",border:`1.5px solid ${BD}`,borderRadius:8,fontSize:14,outline:"none"}}/>
+        <Btn v="ok" onClick={()=>setBulkModal(true)}>✓ Bulk Mark Attendance</Btn>
+      </>}
+      {viewMode==="monthly"&&<>
+        <input type="month" value={monthDate} onChange={e=>setMonthDate(e.target.value)} style={{padding:"8px 12px",border:`1.5px solid ${BD}`,borderRadius:8,fontSize:14,outline:"none"}}/>
+        <select value={monthEmp} onChange={e=>setMonthEmp(e.target.value)} style={{padding:"8px 12px",border:`1.5px solid ${BD}`,borderRadius:8,fontSize:14,outline:"none"}}>
+          {emps.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+      </>}
+    </div>
+
+    {viewMode==="monthly"&&<Card><MonthlyView/></Card>}
+
+    {viewMode==="daily"&&<>
+      <Card s={{marginBottom:20}}>
+        <div style={{fontWeight:700,marginBottom:14}}>Attendance for {new Date(viewDate).toLocaleDateString("en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+        <Tbl cols={["Employee","Shift","Status","In Time","Out Time","Hrs","OT Hrs","Action"]}
+          rows={emps.map(e=>{
+            const rec=(attendance[e.id]||{})[viewDate]||{status:"",in:"",out:"",hrs:0,ot:0};
+            const c=STATUS_COLOR[rec.status]||MT;
+            return [
+              <div><div style={{fontWeight:600}}>{e.name}</div><div style={{fontSize:11,color:MT}}>{e.code}</div></div>,
+              <Badge t={e.shift||"General"} c={P}/>,
+              rec.status?<Badge t={STATUS_LABEL[rec.status]||rec.status} c={c}/>:<span style={{color:MT,fontSize:12}}>Not marked</span>,
+              <span style={{fontWeight:600,color:OK}}>{rec.in||"—"}</span>,
+              <span style={{fontWeight:600,color:DG}}>{rec.out||"—"}</span>,
+              <span style={{fontWeight:rec.hrs>0?600:400,color:rec.hrs>9?WN:MT}}>{rec.hrs||0}h</span>,
+              <span style={{color:rec.ot>0?WN:MT,fontWeight:rec.ot>0?700:400}}>{rec.ot||0}h</span>,
+              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                {["P","A","HD","L","OD"].map(s=>(
+                  <button key={s} onClick={()=>markSingle(e.id,viewDate,{status:s,in:s==="P"||s==="L"?"09:00":"",out:s==="P"?"18:00":s==="HD"?"13:30":"",hrs:s==="P"?9:s==="HD"?4.5:0,ot:0})}
+                    style={{padding:"3px 8px",border:`1px solid ${(STATUS_COLOR[s]||MT)}44`,borderRadius:5,fontSize:11,fontWeight:700,cursor:"pointer",background:rec.status===s?(STATUS_COLOR[s]||MT)+"22":"transparent",color:STATUS_COLOR[s]||MT}}>{s}</button>
+                ))}
+                <button onClick={()=>{setEditModal({eid:e.id,date:viewDate,rec});setEditForm({status:rec.status||"P",in:rec.in||"09:00",out:rec.out||"18:00"});}} style={{padding:"3px 8px",border:`1px solid ${BD}`,borderRadius:5,fontSize:11,cursor:"pointer",background:"transparent",color:MT}}>✏</button>
+              </div>
+            ];
+          })}/>
+      </Card>
+
+      <Card>
+        <div style={{fontWeight:700,marginBottom:14}}>7-Day Summary</div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead><tr style={{background:PX}}>
+              <th style={{textAlign:"left",padding:"8px 12px",color:P,fontWeight:700}}>Employee</th>
+              {dates.map(d=><th key={d} style={{textAlign:"center",padding:"8px 10px",color:P,fontWeight:700,minWidth:70}}><div>{new Date(d).toLocaleDateString("en-IN",{weekday:"short"})}</div><div style={{fontSize:10,fontWeight:400}}>{d.slice(5)}</div></th>)}
+              <th style={{textAlign:"center",padding:"8px 12px",color:P,fontWeight:700}}>Summary</th>
+            </tr></thead>
+            <tbody>{emps.map((e,i)=>{
+              const stats=getStats(e.id);
+              return <tr key={e.id} style={{borderBottom:`1px solid ${BD}`,background:i%2?"#fafafa":"#fff"}}>
+                <td style={{padding:"10px 12px",fontWeight:600}}>{e.name}</td>
+                {dates.map(d=>{
+                  const rec=(attendance[e.id]||{})[d]||{};
+                  const c=STATUS_COLOR[rec.status]||"#e0e0e0";
+                  return <td key={d} style={{padding:"6px 8px",textAlign:"center"}}>
+                    {rec.status?<div style={{background:c+"22",color:c,border:`1px solid ${c}66`,borderRadius:5,padding:"3px 6px",fontSize:11,fontWeight:700}}>{rec.status}</div>:<div style={{color:"#ccc",fontSize:10}}>—</div>}
+                  </td>;
+                })}
+                <td style={{padding:"10px 12px",textAlign:"center"}}>
+                  <div style={{fontSize:11}}><span style={{color:OK,fontWeight:700}}>{stats.P}P</span> <span style={{color:DG,fontWeight:700}}>{stats.A}A</span> <span style={{color:WN,fontWeight:700}}>{stats.HD}HD</span></div>
+                  <div style={{fontSize:10,color:MT}}>{stats.totalOT}h OT</div>
+                </td>
+              </tr>;
+            })}</tbody>
+          </table>
+        </div>
+      </Card>
+    </>}
+
+    {/* Bulk Mark Modal */}
+    {bulkModal&&<Modal title={`Bulk Mark — ${viewDate}`} onClose={()=>setBulkModal(false)} w={400}>
+      <p style={{color:MT,fontSize:13,marginBottom:20}}>Mark attendance for ALL {emps.length} employees for {new Date(viewDate).toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}:</p>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12}}>
+        {[["P","✓ Present",OK],["A","✗ Absent",DG],["HD","½ Half Day",WN],["H","🎉 Holiday",P],["WO","🏖 Week Off",MT]].map(([s,l,c])=>(
+          <button key={s} onClick={()=>markBulkToday(s)} style={{padding:"14px",border:`2px solid ${c}`,borderRadius:10,background:c+"11",color:c,fontWeight:700,fontSize:14,cursor:"pointer"}}>{l}</button>
+        ))}
+      </div>
+    </Modal>}
+
+    {/* Edit single record */}
+    {editModal&&<Modal title="Edit Attendance Record" onClose={()=>setEditModal(null)} w={420}>
+      <div style={{marginBottom:12,fontSize:13,color:MT}}>{emps.find(e=>e.id===editModal.eid)?.name} · {editModal.date}</div>
+      <Inp label="Status" val={editForm.status} set={v=>setEditForm(p=>({...p,status:v}))} opts={Object.entries(STATUS_LABEL).map(([v,l])=>({v,l}))}/>
+      <G><Inp label="In Time" val={editForm.in} set={v=>setEditForm(p=>({...p,in:v}))} type="time"/>
+      <Inp label="Out Time" val={editForm.out} set={v=>setEditForm(p=>({...p,out:v}))} type="time"/></G>
+      <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:8}}>
+        <Btn v="ghost" onClick={()=>setEditModal(null)}>Cancel</Btn>
+        <Btn onClick={()=>{
+          const inT=editForm.in?editForm.in.split(":").map(Number):null;
+          const outT=editForm.out?editForm.out.split(":").map(Number):null;
+          const hrs=inT&&outT?parseFloat(((outT[0]+outT[1]/60)-(inT[0]+inT[1]/60)).toFixed(1)):0;
+          const ot=Math.max(0,hrs-9);
+          markSingle(editModal.eid,editModal.date,{status:editForm.status,in:editForm.in,out:editForm.out,hrs,ot:parseFloat(ot.toFixed(1))});
+          setEditModal(null);
+        }}>Save Record</Btn>
+      </div>
+    </Modal>}
+  </div>;
+}
+
+// ── HR Admin ──────────────────────────────────────────
+
+// ─── Utils ────────────────────────────────────────────────────────────────────
+
+// ─── Default Company Policies (fully configurable) ────────────────────────────
+const DEFAULT_POLICIES = {
+
+  // ── Leave Policy ──────────────────────────────────────────────────────────
+  leave: {
+    types: [
+      { id:"L1", name:"Casual Leave",     code:"CL", annual:12, carryForward:false, maxCarry:0,  encashable:false, paid:true,  halfDay:true,  minDays:0.5, maxDays:3,  gender:"all",    probation:false, notice:0,  desc:"For personal/casual reasons" },
+      { id:"L2", name:"Sick Leave",       code:"SL", annual:12, carryForward:false, maxCarry:0,  encashable:false, paid:true,  halfDay:true,  minDays:0.5, maxDays:7,  gender:"all",    probation:false, notice:0,  desc:"For illness/medical reasons" },
+      { id:"L3", name:"Earned Leave",     code:"EL", annual:24, carryForward:true,  maxCarry:30, encashable:true,  paid:true,  halfDay:true,  minDays:1,   maxDays:30, gender:"all",    probation:false, notice:7,  desc:"Accrued @ 2 days/month. Encashable on exit." },
+      { id:"L4", name:"Maternity Leave",  code:"ML", annual:182,carryForward:false, maxCarry:0,  encashable:false, paid:true,  halfDay:false, minDays:182, maxDays:182,gender:"female", probation:false, notice:30, desc:"As per Maternity Benefit Act — 26 weeks paid" },
+      { id:"L5", name:"Paternity Leave",  code:"PL", annual:7,  carryForward:false, maxCarry:0,  encashable:false, paid:true,  halfDay:false, minDays:1,   maxDays:7,  gender:"male",   probation:false, notice:7,  desc:"7 days paid paternity leave" },
+      { id:"L6", name:"Loss of Pay",      code:"LOP",annual:0,  carryForward:false, maxCarry:0,  encashable:false, paid:false, halfDay:true,  minDays:0.5, maxDays:999,gender:"all",    probation:true,  notice:0,  desc:"Unpaid leave — salary deducted proportionally" },
+      { id:"L7", name:"Compensatory Off", code:"CO", annual:0,  carryForward:true,  maxCarry:12, encashable:false, paid:true,  halfDay:true,  minDays:0.5, maxDays:5,  gender:"all",    probation:true,  notice:1,  desc:"In lieu of working on holidays/weekends" },
+      { id:"L8", name:"Bereavement Leave",code:"BL", annual:3,  carryForward:false, maxCarry:0,  encashable:false, paid:true,  halfDay:false, minDays:1,   maxDays:3,  gender:"all",    probation:false, notice:0,  desc:"Death of immediate family member" },
+    ],
+    accrualMethod: "monthly",    // monthly | quarterly | yearly
+    accrualDay: 1,               // day of month to credit leave
+    leaveYear: "april",          // april (India standard) | january
+    probationLeaves: ["LOP"],    // leave types allowed during probation
+    sandwichRule: true,          // weekends between leave days counted
+    backdatedDays: 3,            // max days employee can apply backdated leave
+    approvalLevels: 1,           // 1 = direct manager, 2 = manager + HR
+    autoApprove: false,
+    holidayList: [
+      { id:"H1", name:"Republic Day",     date:"2025-01-26", type:"national" },
+      { id:"H2", name:"Holi",             date:"2025-03-14", type:"festival" },
+      { id:"H3", name:"Good Friday",      date:"2025-04-18", type:"optional" },
+      { id:"H4", name:"Independence Day", date:"2025-08-15", type:"national" },
+      { id:"H5", name:"Gandhi Jayanti",   date:"2025-10-02", type:"national" },
+      { id:"H6", name:"Diwali",           date:"2025-10-20", type:"festival" },
+      { id:"H7", name:"Christmas",        date:"2025-12-25", type:"festival" },
+    ],
+  },
+
+  // ── Leave Encashment Policy ───────────────────────────────────────────────
+  encashment: {
+    enabled: true,
+    encashableTypes: ["EL"],          // which leave types can be encashed
+    maxEncashPerYear: 15,             // max days encashable per year (without separation)
+    onSeparation: true,               // allow full encashment on resignation/termination
+    formula: "basic",                 // basic | gross — which salary for calculation
+    // Encashment = (Basic or Gross / 26) × days
+    taxable: true,                    // is encashment taxable?
+    taxExemptLimit: 300000,           // ₹3 lakh exempt under Sec 10(10AA) for govt
+    minServiceMonths: 12,             // min service before encashment allowed
+    timingRestriction: "any",         // any | year-end | separation-only
+  },
+
+  // ── Gratuity Policy ───────────────────────────────────────────────────────
+  gratuity: {
+    enabled: true,
+    applicableAct: "Payment of Gratuity Act 1972",
+    minServiceYears: 5,               // min years of service (4y 240d counts as 5y)
+    formula: "15/26",                 // (Basic / 26) × 15 × years
+    maxLimit: 2000000,                // ₹20 lakh (statutory max as of 2024)
+    taxExemptLimit: 2000000,          // ₹20 lakh exempt under Sec 10(10)
+    payOn: ["resignation","retirement","death","disability","retrenchment"],
+    rounding: "nearest_year",        // nearest_year | completed_years
+    // Gratuity = (Last Basic / 26) × 15 × completed years of service
+    fundCreation: false,              // maintain gratuity fund/provision
+    monthlyProvision: true,           // accrue monthly provision in books
+  },
+
+  // ── Provident Fund (PF/EPF) Policy ───────────────────────────────────────
+  pf: {
+    enabled: true,
+    applicableAct: "Employees Provident Fund Act 1952",
+    wageLimit: 15000,                 // ₹15,000 wage ceiling for mandatory PF
+    employeeRate: 12,                 // % of basic (employee contribution)
+    employerRate: 12,                 // % of basic (employer total)
+    eps: 8.33,                        // % of basic to EPS (pension scheme) — from employer share
+    edli: 0.5,                        // % to EDLI (insurance scheme)
+    pfAdmin: 0.5,                     // % admin charges on EPF
+    epsAdmin: 0,                      // EPS admin charges
+    maxPfWage: 15000,                 // cap PF calculation at ₹15K even if basic > ₹15K
+    voluntaryPF: false,               // allow VPF contributions above 12%
+    voluntaryRate: 0,
+    internationalWorkers: false,
+    dueDate: 15,                      // file by 15th of next month
+  },
+
+  // ── ESIC Policy ──────────────────────────────────────────────────────────
+  esic: {
+    enabled: true,
+    applicableAct: "Employees State Insurance Act 1948",
+    wageLimit: 21000,                 // ₹21,000 — employees above this exempt
+    employeeRate: 0.75,               // % of gross wages
+    employerRate: 3.25,               // % of gross wages
+    dueDate: 15,
+    applicableStates: ["all"],
+    // ESIC not applicable in some areas — configure if needed
+  },
+
+  // ── Professional Tax Policy ───────────────────────────────────────────────
+  pt: {
+    enabled: true,
+    state: "Maharashtra",
+    slabs: [
+      { from: 0,     to: 10000, monthly: 0   },
+      { from: 10001, to: 15000, monthly: 150 },
+      { from: 15001, to: 999999,monthly: 200 },
+    ],
+    // Different states have different slabs — configurable
+    deductMonth: "all",               // all | specific months
+    annualLimit: 2500,                // ₹2,500 max PT per year
+    exemptions: ["disability"],
+  },
+
+  // ── TDS / Income Tax Policy ───────────────────────────────────────────────
+  tds: {
+    regime: "new",                    // new | old — company default
+    financialYear: "2025-26",
+    standardDeduction: 50000,
+    newRegimeSlabs: [
+      { from:0,      to:300000,  rate:0  },
+      { from:300001, to:700000,  rate:5  },
+      { from:700001, to:1000000, rate:10 },
+      { from:1000001,to:1200000, rate:15 },
+      { from:1200001,to:1500000, rate:20 },
+      { from:1500001,to:9999999, rate:30 },
+    ],
+    oldRegimeSlabs: [
+      { from:0,      to:250000,  rate:0  },
+      { from:250001, to:500000,  rate:5  },
+      { from:500001, to:1000000, rate:20 },
+      { from:1000001,to:9999999, rate:30 },
+    ],
+    surcharge: [
+      { from:5000000,  to:10000000, rate:10 },
+      { from:10000001, to:20000000, rate:15 },
+      { from:20000001, to:50000000, rate:25 },
+      { from:50000001, to:9999999999,rate:37},
+    ],
+    cess: 4,                          // Health & Education cess %
+    declarationDeadline: "2025-04-30",
+    projectionMethod: "average",      // average | actual
+    form12BB: true,                   // require Form 12BB declaration
+  },
+
+  // ── Bonus Policy ─────────────────────────────────────────────────────────
+  bonus: {
+    enabled: true,
+    applicableAct: "Payment of Bonus Act 1965",
+    eligibilityWage: 21000,           // employees with salary ≤ ₹21,000
+    calculationWage: 7000,            // max wage for bonus calculation = ₹7,000 or MWA
+    minRate: 8.33,                    // % minimum bonus (statutory)
+    maxRate: 20,                      // % maximum bonus
+    currentRate: 8.33,                // company's current rate
+    formula: "basic",                 // basic | basic+da
+    minServiceMonths: 30,             // 30 working days in the accounting year
+    payBy: "november",                // month to pay (within 8 months of year end)
+    accountingYear: "april",          // April-March (same as leave year)
+    exGratia: {                       // bonus beyond statutory (discretionary)
+      enabled: false,
+      rate: 0,
+      eligibility: "all",
+    },
+  },
+
+  // ── Payroll Policy ────────────────────────────────────────────────────────
+  payroll: {
+    paymentDay: 5,                    // pay salary by 5th of next month
+    paymentMode: "bank",             // bank | cash | cheque
+    workingDays: 26,                  // standard working days for calculation
+    lopMethod: "calendar",           // calendar | working — which days for LOP calc
+    overtimeEnabled: true,
+    otRate: 2,                        // multiplier (2x for OT — Factory Act)
+    otEligible: ["contractual","worker"], // categories eligible for OT
+    hraExemption: {
+      metro: 50,                      // % of basic for metro cities HRA exemption
+      nonMetro: 40,                   // % for non-metro
+      metroCities: ["Mumbai","Delhi","Chennai","Kolkata"],
+    },
+    ctcComponents: ["basic","hra","conveyance","medical","special","lta","pf_employer","esic_employer"],
+    salaryRevision: "april",          // month for annual increments
+  },
+
+  // ── F&F (Full & Final) Policy ─────────────────────────────────────────────
+  fnf: {
+    noticePeriod: {
+      probation: 7,                   // days notice during probation
+      confirmed: 30,                  // days notice for confirmed employees
+      senior: 60,                     // days for senior/management roles
+    },
+    noticePeriodWaiverAllowed: true,
+    settlementDays: 45,               // days within which F&F must be settled
+    components: {
+      lastSalary: true,
+      gratuity: true,
+      elEncashment: true,
+      bonus: true,
+      noticePay: true,
+      loanRecovery: true,
+      reimbursementPending: true,
+    },
+    form16Timing: "june",             // issue Form 16 by June 15
+    experienceLetter: true,
+    relievingLetter: true,
+  },
+
+  // ── Reimbursement Policy ─────────────────────────────────────────────────
+  reimbursement: {
+    types: [
+      { id:"R1", name:"Travel (Local)",      limit:5000,  period:"monthly", taxable:false, proof:"bill"     },
+      { id:"R2", name:"Travel (Outstation)", limit:25000, period:"trip",    taxable:false, proof:"bill+boarding"},
+      { id:"R3", name:"Mobile/Internet",     limit:1500,  period:"monthly", taxable:false, proof:"bill"     },
+      { id:"R4", name:"Medical",             limit:15000, period:"yearly",  taxable:false, proof:"prescription"},
+      { id:"R5", name:"Food/Meal",           limit:2200,  period:"monthly", taxable:false, proof:"none"     },
+      { id:"R6", name:"Training/Course",     limit:50000, period:"yearly",  taxable:false, proof:"certificate"},
+      { id:"R7", name:"Fuel",                limit:3000,  period:"monthly", taxable:false, proof:"bill"     },
+      { id:"R8", name:"Entertainment",       limit:10000, period:"quarterly",taxable:true, proof:"bill"     },
+    ],
+    submissionDeadline: 30,           // days after expense to submit claim
+    approvalRequired: true,
+    doubleApproval: false,            // manager only, or manager + HR
+  },
+
+  // ── Shift & Working Hours Policy ──────────────────────────────────────────
+  shifts: {
+    workWeek: ["Mon","Tue","Wed","Thu","Fri"],
+    weeklyOff: ["Sat","Sun"],
+    alternateOff: false,              // 2nd/4th Saturday off?
+    alternateSaturdays: [],
+    shifts: [
+      { id:"S1", name:"General",  start:"09:00", end:"18:00", grace:15, breakMins:60 },
+      { id:"S2", name:"Morning",  start:"07:00", end:"16:00", grace:10, breakMins:30 },
+      { id:"S3", name:"Evening",  start:"14:00", end:"23:00", grace:10, breakMins:30 },
+      { id:"S4", name:"Night",    start:"22:00", end:"07:00", grace:15, breakMins:30 },
+    ],
+    halfDayHours: 4.5,
+    lateMarkAfter: 15,                // minutes after shift start = late mark
+    absentIfBelow: 2,                 // hours below which = absent
+    otStartAfter: 9,                  // hours after which OT starts
+  },
+
+  // ── Loan Policy ───────────────────────────────────────────────────────────
+  loans: {
+    enabled: true,
+    types: [
+      { id:"LT1", name:"Salary Advance",    maxAmount:"1_month_salary", maxTenure:3,  interest:0,    minService:0  },
+      { id:"LT2", name:"Personal Loan",     maxAmount:"3_month_salary", maxTenure:12, interest:0,    minService:6  },
+      { id:"LT3", name:"Emergency Medical", maxAmount:100000,           maxTenure:12, interest:0,    minService:0  },
+      { id:"LT4", name:"Vehicle Loan",      maxAmount:200000,           maxTenure:24, interest:0,    minService:12 },
+      { id:"LT5", name:"Home Loan Advance", maxAmount:500000,           maxTenure:36, interest:0,    minService:24 },
+    ],
+    maxOutstanding: "3_month_salary", // total outstanding loan limit
+    emiDeductionDay: "payroll",       // deduct EMI from salary
+    recovery_on_separation: true,     // recover full outstanding on exit
+  },
+};
+
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const C = {
+  P:"#1a237e",PL:"#3949ab",PX:"#e8eaf6",
+  AC:"#00897b",AX:"#e0f2f1",
+  DG:"#c62828",DX:"#ffebee",
+  WN:"#e65100",WX:"#fff3e0",
+  OK:"#2e7d32",OX:"#e8f5e9",
+  MT:"#546e7a",BD:"#e0e0e0",BG:"#f5f6fa",SB:"#0d1b4b",
+};
+
+// ─── Atoms ────────────────────────────────────────────────────────────────────
+
+// ─── Leave Type Editor ────────────────────────────────────────────────────────
+function LeaveTypeEditor({lt,onSave,onClose}){
+  const [f,setF]=useState({...lt});
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  return <Modal title={lt.id?"Edit Leave Type":"Add Leave Type"} onClose={onClose} w={680}>
+    <G cols={2} gap={16}>
+      <Inp label="Leave Name *" val={f.name} set={v=>set("name",v)} ph="e.g. Casual Leave"/>
+      <Inp label="Short Code" val={f.code} set={v=>set("code",v.toUpperCase())} ph="CL"/>
+      <NumInp label="Annual Entitlement (days)" val={f.annual} set={v=>set("annual",v)} suffix="days/year"/>
+      <Inp label="Applicable Gender" val={f.gender} set={v=>set("gender",v)} opts={["all","male","female"]}/>
+      <NumInp label="Min Days per Application" val={f.minDays} set={v=>set("minDays",v)} suffix="days"/>
+      <NumInp label="Max Days per Application" val={f.maxDays} set={v=>set("maxDays",v)} suffix="days"/>
+      <NumInp label="Advance Notice Required" val={f.notice} set={v=>set("notice",v)} suffix="days"/>
+    </G>
+    <Inp label="Description" val={f.desc} set={v=>set("desc",v)} ph="Brief description..."/>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
+      {[
+        ["paid","Paid Leave","Salary not deducted"],
+        ["halfDay","Allow Half Day","Employee can apply 0.5 day"],
+        ["carryForward","Carry Forward","Unused leaves carry to next year"],
+        ["encashable","Encashable","Can be encashed at exit"],
+        ["probation","Allow During Probation","Available from day 1"],
+      ].map(([k,l,n])=><Toggle key={k} label={l} val={!!f[k]} set={v=>set(k,v)} note={n}/>)}
+    </div>
+    {f.carryForward&&<NumInp label="Max Carry Forward (days)" val={f.maxCarry} set={v=>set("maxCarry",v)} suffix="days" note="0 = unlimited"/>}
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
+      <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+      <Btn onClick={()=>{if(!f.name){alert("Name required.");return;}onSave({...f,id:f.id||"L"+uid()});}}>{lt.id?"Save Changes":"Add Leave Type"}</Btn>
+    </div>
+  </Modal>;
+}
+
+// ─── Holiday Editor ───────────────────────────────────────────────────────────
+function HolidayEditor({h,onSave,onClose}){
+  const [f,setF]=useState(h||{name:"",date:"",type:"festival"});
+  return <Modal title={h?.id?"Edit Holiday":"Add Holiday"} onClose={onClose} w={480}>
+    <Inp label="Holiday Name *" val={f.name} set={v=>setF(p=>({...p,name:v}))} ph="e.g. Diwali"/>
+    <Inp label="Date *" val={f.date} set={v=>setF(p=>({...p,date:v}))} type="date"/>
+    <Inp label="Type" val={f.type} set={v=>setF(p=>({...p,type:v}))} opts={["national","festival","optional","regional"]}/>
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:12}}>
+      <Btn v="ghost" onClick={onClose}>Cancel</Btn>
+      <Btn onClick={()=>{if(!f.name||!f.date){alert("Name and date required.");return;}onSave({...f,id:f.id||"H"+uid()});}}>{h?.id?"Save":"Add Holiday"}</Btn>
+    </div>
+  </Modal>;
+}
+
+// ─── PT Slab Editor ───────────────────────────────────────────────────────────
+function PTSlabEditor({slabs,setSlabs}){
+  return <div>
+    <Tbl cols={["From (₹)","To (₹)","Monthly PT (₹)","Actions"]}
+      rows={slabs.map((s,i)=>[
+        <input type="number" value={s.from} onChange={e=>setSlabs(p=>p.map((x,j)=>j===i?{...x,from:+e.target.value}:x))} style={{width:90,padding:"5px 8px",border:`1px solid ${BD}`,borderRadius:6}}/>,
+        <input type="number" value={s.to} onChange={e=>setSlabs(p=>p.map((x,j)=>j===i?{...x,to:+e.target.value}:x))} style={{width:90,padding:"5px 8px",border:`1px solid ${BD}`,borderRadius:6}}/>,
+        <input type="number" value={s.monthly} onChange={e=>setSlabs(p=>p.map((x,j)=>j===i?{...x,monthly:+e.target.value}:x))} style={{width:80,padding:"5px 8px",border:`1px solid ${BD}`,borderRadius:6}}/>,
+        <Btn v="danger" sz="sm" onClick={()=>setSlabs(p=>p.filter((_,j)=>j!==i))}>Remove</Btn>
+      ])}/>
+    <Btn v="sec" sz="sm" s={{marginTop:10}} onClick={()=>setSlabs(p=>[...p,{from:0,to:0,monthly:0}])}>+ Add Slab</Btn>
+  </div>;
+}
+
+// ─── Main Policy Manager ──────────────────────────────────────────────────────
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POLICY TAB — embedded inside HRAdmin, receives pol/setPol as props
+// ─────────────────────────────────────────────────────────────────────────────
+function PolicyTab({pol,setPol,onSave}){
+  const [ptab,setPtab]=useState("leave");
+  const [editLeaveType,setEditLeaveType]=useState(null);
+  const [editHoliday,setEditHoliday]=useState(null);
+  const [editLT,setEditLT]=useState(null);
+  const [saved,setSaved]=useState(false);
+
+  const update=(section,key,val)=>setPol(p=>({...p,[section]:{...p[section],[key]:val}}));
+  const save=async()=>{
+    if(onSave) await onSave(pol);
+    else setPol(pol);
+    setSaved(true);setTimeout(()=>setSaved(false),2500);
+  };
+
+  const PTABS=[
+    ["leave","🌴","Leave Types"],["encashment","💵","Leave Encashment"],["gratuity","⚖️","Gratuity"],
+    ["pf","🏛️","PF / EPF"],["esic","🏥","ESIC"],["pt","📋","Prof. Tax"],
+    ["tds","📄","TDS / IT"],["bonus","🎁","Bonus"],["payroll","💰","Payroll Rules"],
+    ["loans","💸","Loan Policy"],["reimbursement","🧾","Reimbursements"],
+    ["shifts","🕐","Shifts & Hours"],["fnf","📑","F&F Policy"],
+  ];
+
+  return <div style={{display:"flex",gap:0,minHeight:"calc(100vh - 56px)"}}>
+    {/* Policy sub-nav */}
+    <div style={{width:180,background:"#f0f4ff",borderRight:`1px solid ${BD}`,padding:"12px 8px",flexShrink:0}}>
+      <div style={{fontSize:11,fontWeight:700,color:MT,textTransform:"uppercase",letterSpacing:1,padding:"4px 8px",marginBottom:8}}>Policy Sections</div>
+      {PTABS.map(([id,icon,label])=>(
+        <button key={id} onClick={()=>setPtab(id)}
+          style={{display:"flex",alignItems:"center",gap:8,width:"100%",textAlign:"left",padding:"8px 12px",border:"none",borderRadius:7,fontSize:12,cursor:"pointer",marginBottom:1,
+            background:ptab===id?P:"transparent",color:ptab===id?"#fff":MT,fontWeight:ptab===id?700:400}}>
+          <span>{icon}</span>{label}
+        </button>
+      ))}
+      <div style={{marginTop:16,borderTop:`1px solid ${BD}`,paddingTop:12}}>
+        <Btn onClick={save} v="ok" s={{width:"100%",fontSize:12}}>{saved?"✓ Saved!":"💾 Save Policies"}</Btn>
+      </div>
+    </div>
+
+    {/* Policy content */}
+    <div style={{flex:1,padding:24,overflowY:"auto",maxHeight:"calc(100vh - 56px)"}}>
+{/* ── LEAVE POLICY ── */}
+        {ptab==="leave"&&<div>
+          <Section title="Leave Policy" sub="Configure leave types, accrual, approval and holiday calendar">
+            {/* General settings */}
+            <Card s={{marginBottom:20}}>
+              <div style={{fontWeight:700,marginBottom:16,fontSize:15}}>General Leave Settings</div>
+              <G cols={3} gap={16}>
+                <Inp label="Leave Year Start" val={pol.leave.leaveYear} set={v=>update("leave","leaveYear",v)} opts={["april","january","july"]} note="India standard: April"/>
+                <Inp label="Accrual Method" val={pol.leave.accrualMethod} set={v=>update("leave","accrualMethod",v)} opts={["monthly","quarterly","yearly"]} note="When leaves are credited"/>
+                <NumInp label="Accrual Day" val={pol.leave.accrualDay} set={v=>update("leave","accrualDay",v)} suffix="of month" note="Day leaves are credited"/>
+                <NumInp label="Backdated Application" val={pol.leave.backdatedDays} set={v=>update("leave","backdatedDays",v)} suffix="days" note="How far back employee can apply"/>
+                <Inp label="Approval Levels" val={pol.leave.approvalLevels} set={v=>update("leave","approvalLevels",+v)} opts={[{v:1,l:"1 — Manager only"},{v:2,l:"2 — Manager + HR"}]}/>
+              </G>
+              <Toggle label="Sandwich Rule" val={pol.leave.sandwichRule} set={v=>update("leave","sandwichRule",v)} note="Weekends/holidays between leave days counted as leave"/>
+              <Toggle label="Auto Approve Leaves" val={pol.leave.autoApprove} set={v=>update("leave","autoApprove",v)} note="Leaves auto-approved without manager action"/>
+            </Card>
+
+            {/* Leave Types */}
+            <Card s={{marginBottom:20}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                <div style={{fontWeight:700,fontSize:15}}>Leave Types</div>
+                <Btn sz="sm" onClick={()=>setEditLeaveType({id:"",name:"",code:"",annual:12,carryForward:false,maxCarry:0,encashable:false,paid:true,halfDay:true,minDays:0.5,maxDays:30,gender:"all",probation:false,notice:0,desc:""})}>+ Add Leave Type</Btn>
+              </div>
+              <Tbl cols={["Name","Code","Days/Yr","Gender","Paid","Half Day","Carry Fwd","Encashable","Actions"]}
+                rows={pol.leave.types.map(lt=>[
+                  <div><div style={{fontWeight:600}}>{lt.name}</div><div style={{fontSize:11,color:MT}}>{lt.desc}</div></div>,
+                  <Bdg t={lt.code} c={P}/>,
+                  <b>{lt.annual===0?"Unlimited":lt.annual}</b>,
+                  <Bdg t={lt.gender==="all"?"All":lt.gender==="female"?"Female":"Male"} c={lt.gender==="all"?MT:lt.gender==="female"?"#ad1457":"#1565c0"}/>,
+                  lt.paid?<Bdg t="Paid" c={OK}/>:<Bdg t="Unpaid" c={DG}/>,
+                  lt.halfDay?<Bdg t="Yes" c={AC}/>:<Bdg t="No" c={MT}/>,
+                  lt.carryForward?<Bdg t={`Yes (max ${lt.maxCarry||"∞"})`} c={WN}/>:<Bdg t="No" c={MT}/>,
+                  lt.encashable?<Bdg t="Yes" c={OK}/>:<Bdg t="No" c={MT}/>,
+                  <div style={{display:"flex",gap:5}}>
+                    <Btn sz="sm" v="sec" onClick={()=>setEditLeaveType(lt)}>Edit</Btn>
+                    <Btn sz="sm" v="danger" onClick={()=>setPol(p=>({...p,leave:{...p.leave,types:p.leave.types.filter(x=>x.id!==lt.id)}}))}>Del</Btn>
+                  </div>
+                ])}/>
+            </Card>
+
+            {/* Holiday Calendar */}
+            <Card>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                <div style={{fontWeight:700,fontSize:15}}>Holiday Calendar 2025</div>
+                <Btn sz="sm" onClick={()=>setEditHoliday({})}>+ Add Holiday</Btn>
+              </div>
+              <Tbl cols={["Holiday","Date","Day","Type","Actions"]}
+                rows={pol.leave.holidayList.sort((a,b)=>a.date.localeCompare(b.date)).map(h=>[
+                  <b>{h.name}</b>,
+                  h.date,
+                  new Date(h.date).toLocaleDateString("en-IN",{weekday:"long"}),
+                  <Bdg t={h.type} c={h.type==="national"?DG:h.type==="festival"?WN:MT}/>,
+                  <div style={{display:"flex",gap:5}}>
+                    <Btn sz="sm" v="sec" onClick={()=>setEditHoliday(h)}>Edit</Btn>
+                    <Btn sz="sm" v="danger" onClick={()=>setPol(p=>({...p,leave:{...p.leave,holidayList:p.leave.holidayList.filter(x=>x.id!==h.id)}}))}>Del</Btn>
+                  </div>
+                ])}/>
+            </Card>
+          </Section>
+          {editLeaveType&&<LeaveTypeEditor lt={editLeaveType} onClose={()=>setEditLeaveType(null)} onSave={data=>{setPol(p=>({...p,leave:{...p.leave,types:data.id&&p.leave.types.find(x=>x.id===data.id)?p.leave.types.map(x=>x.id===data.id?data:x):[...p.leave.types,data]}}));setEditLeaveType(null);}}/>}
+          {editHoliday&&<HolidayEditor h={editHoliday} onClose={()=>setEditHoliday(null)} onSave={data=>{setPol(p=>({...p,leave:{...p.leave,holidayList:data.id&&p.leave.holidayList.find(x=>x.id===data.id)?p.leave.holidayList.map(x=>x.id===data.id?data:x):[...p.leave.holidayList,data]}}));setEditHoliday(null);}}/>}
+        </div>}
+
+        {/* ── LEAVE ENCASHMENT ── */}
+        {ptab==="encashment"&&<Section title="Leave Encashment Policy" sub="Configure when and how leaves can be converted to cash">
+          <Card s={{marginBottom:20}}>
+            <Toggle label="Enable Leave Encashment" val={pol.encashment.enabled} set={v=>update("encashment","enabled",v)} note="Allow employees to encash unused leaves"/>
+            {pol.encashment.enabled&&<>
+              <div style={{height:16}}/>
+              <G cols={2} gap={16}>
+                <Inp label="Calculation Basis" val={pol.encashment.formula} set={v=>update("encashment","formula",v)} opts={["basic","gross"]} note="Basic: (Basic/26)×days | Gross: (Gross/26)×days"/>
+                <NumInp label="Max Encashment Per Year" val={pol.encashment.maxEncashPerYear} set={v=>update("encashment","maxEncashPerYear",v)} suffix="days" note="Without separation"/>
+                <NumInp label="Min Service Required" val={pol.encashment.minServiceMonths} set={v=>update("encashment","minServiceMonths",v)} suffix="months"/>
+                <NumInp label="Tax Exempt Limit" val={pol.encashment.taxExemptLimit} set={v=>update("encashment","taxExemptLimit",v)} suffix="₹" note="Sec 10(10AA) — ₹3L for private, ₹no limit for govt"/>
+                <Inp label="Timing Restriction" val={pol.encashment.timingRestriction} set={v=>update("encashment","timingRestriction",v)} opts={["any","year-end","separation-only"]}/>
+              </G>
+              <Toggle label="Allow Encashment on Separation" val={pol.encashment.onSeparation} set={v=>update("encashment","onSeparation",v)} note="Full EL encashment allowed on resignation / retirement"/>
+              <Toggle label="Encashment Amount is Taxable" val={pol.encashment.taxable} set={v=>update("encashment","taxable",v)} note="Add to taxable income in the year of encashment"/>
+              <div style={{background:PX,borderRadius:10,padding:"14px 18px",marginTop:16}}>
+                <div style={{fontWeight:700,marginBottom:8,color:P}}>📊 Encashment Formula</div>
+                <div style={{fontSize:13,color:MT,lineHeight:1.8}}>
+                  Encashment = ({pol.encashment.formula==="basic"?"Basic Salary":"Gross Salary"} ÷ 26) × Encashable Days<br/>
+                  Example (Rajesh, Basic ₹65,000, 15 EL days):<br/>
+                  <b style={{color:P}}>(65,000 ÷ 26) × 15 = ₹{INR(Math.round(65000/26*15))}</b>
+                </div>
+              </div>
+            </>}
+          </Card>
+        </Section>}
+
+        {/* ── GRATUITY ── */}
+        {ptab==="gratuity"&&<Section title="Gratuity Policy" sub="Payment of Gratuity Act 1972 — configure eligibility and calculation">
+          <Card s={{marginBottom:20}}>
+            <Toggle label="Enable Gratuity" val={pol.gratuity.enabled} set={v=>update("gratuity","enabled",v)} note="Mandatory for companies with 10+ employees"/>
+            {pol.gratuity.enabled&&<>
+              <div style={{height:16}}/>
+              <G cols={2} gap={16}>
+                <NumInp label="Min Service Years for Eligibility" val={pol.gratuity.minServiceYears} set={v=>update("gratuity","minServiceYears",v)} suffix="years" note="4 years 240 days = 5 years under the Act"/>
+                <NumInp label="Statutory Maximum Limit" val={pol.gratuity.maxLimit} set={v=>update("gratuity","maxLimit",v)} suffix="₹" note="₹20 lakh as of 2024"/>
+                <NumInp label="Tax Exempt Limit" val={pol.gratuity.taxExemptLimit} set={v=>update("gratuity","taxExemptLimit",v)} suffix="₹" note="Same as max limit — Sec 10(10)"/>
+                <Inp label="Rounding Method" val={pol.gratuity.rounding} set={v=>update("gratuity","rounding",v)} opts={["nearest_year","completed_years"]} note="nearest_year: 6+ months = 1 year"/>
+              </G>
+              <Toggle label="Monthly Gratuity Provision" val={pol.gratuity.monthlyProvision} set={v=>update("gratuity","monthlyProvision",v)} note="Accrue monthly provision in accounts (15/26×basic/12)"/>
+              <Toggle label="Maintain Gratuity Fund" val={pol.gratuity.fundCreation} set={v=>update("gratuity","fundCreation",v)} note="Create separate gratuity fund with LIC or trust"/>
+              <div style={{background:OX,borderRadius:10,padding:"14px 18px",marginTop:16}}>
+                <div style={{fontWeight:700,marginBottom:8,color:OK}}>📊 Gratuity Formula (Fixed by Act)</div>
+                <div style={{fontSize:13,color:MT,lineHeight:1.8}}>
+                  Gratuity = (Last Basic Salary ÷ 26) × 15 × Completed Years of Service<br/>
+                  Example (Rajesh, Basic ₹65,000, 7 years):<br/>
+                  <b style={{color:OK}}>(65,000 ÷ 26) × 15 × 7 = {INR(Math.round(65000/26*15*7))}</b><br/>
+                  Maximum payable: {INR(pol.gratuity.maxLimit)}
+                </div>
+              </div>
+              <div style={{marginTop:14}}>
+                <div style={{fontWeight:600,marginBottom:8}}>Payable on:</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {["resignation","retirement","death","disability","retrenchment"].map(e=>(
+                    <label key={e} style={{display:"flex",alignItems:"center",gap:5,fontSize:13,cursor:"pointer"}}>
+                      <input type="checkbox" checked={pol.gratuity.payOn.includes(e)} onChange={ev=>update("gratuity","payOn",ev.target.checked?[...pol.gratuity.payOn,e]:pol.gratuity.payOn.filter(x=>x!==e))}/>
+                      {e.charAt(0).toUpperCase()+e.slice(1)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>}
+          </Card>
+        </Section>}
+
+        {/* ── PF ── */}
+        {ptab==="pf"&&<Section title="Provident Fund (PF/EPF) Policy" sub="Employees Provident Fund Act 1952">
+          <Card s={{marginBottom:20}}>
+            <Toggle label="Enable PF" val={pol.pf.enabled} set={v=>update("pf","enabled",v)} note="Mandatory for companies with 20+ employees"/>
+            {pol.pf.enabled&&<>
+              <div style={{height:16}}/>
+              <G cols={3} gap={16}>
+                <NumInp label="PF Wage Ceiling" val={pol.pf.wageLimit} set={v=>update("pf","wageLimit",v)} suffix="₹/mo" note="₹15,000 mandatory ceiling"/>
+                <NumInp label="Employee Contribution" val={pol.pf.employeeRate} set={v=>update("pf","employeeRate",v)} suffix="% of basic"/>
+                <NumInp label="Employer Contribution (Total)" val={pol.pf.employerRate} set={v=>update("pf","employerRate",v)} suffix="% of basic"/>
+                <NumInp label="EPS (Pension) Rate" val={pol.pf.eps} set={v=>update("pf","eps",v)} suffix="% (from employer)" note="Fixed at 8.33% by Act"/>
+                <NumInp label="EDLI Rate" val={pol.pf.edli} set={v=>update("pf","edli",v)} suffix="%" note="Insurance — 0.5%"/>
+                <NumInp label="PF Admin Charges" val={pol.pf.pfAdmin} set={v=>update("pf","pfAdmin",v)} suffix="%" note="0.5% on EPF wages"/>
+                <NumInp label="Due Date" val={pol.pf.dueDate} set={v=>update("pf","dueDate",v)} suffix="of next month"/>
+              </G>
+              <Toggle label="Cap PF at ₹15,000 Basic" val={pol.pf.maxPfWage===15000} set={v=>update("pf","maxPfWage",v?15000:0)} note="If basic > ₹15K, calculate PF only on ₹15K (common practice)"/>
+              <Toggle label="Allow Voluntary PF (VPF)" val={pol.pf.voluntaryPF} set={v=>update("pf","voluntaryPF",v)} note="Employees can contribute more than 12%"/>
+              {pol.pf.voluntaryPF&&<NumInp label="VPF Rate" val={pol.pf.voluntaryRate} set={v=>update("pf","voluntaryRate",v)} suffix="%"/>}
+              <div style={{background:PX,borderRadius:10,padding:"14px 18px",marginTop:14}}>
+                <div style={{fontWeight:700,marginBottom:6,color:P}}>📊 PF Calculation Example (Basic ₹65,000)</div>
+                <div style={{fontSize:13,color:MT,lineHeight:1.8}}>
+                  PF Wage = {INR(Math.min(65000,pol.pf.maxPfWage||65000))} (capped at ₹{pol.pf.maxPfWage||65000})<br/>
+                  Employee PF = {INR(Math.min(Math.round(Math.min(65000,pol.pf.maxPfWage||65000)*pol.pf.employeeRate/100),1800))}/mo<br/>
+                  Employer EPF = {INR(Math.round(Math.min(65000,pol.pf.maxPfWage||65000)*(pol.pf.employerRate-pol.pf.eps)/100))}/mo<br/>
+                  Employer EPS = {INR(Math.round(Math.min(65000,pol.pf.maxPfWage||65000)*pol.pf.eps/100))}/mo<br/>
+                  EDLI = {INR(Math.round(Math.min(65000,pol.pf.maxPfWage||65000)*pol.pf.edli/100))}/mo
+                </div>
+              </div>
+            </>}
+          </Card>
+        </Section>}
+
+        {/* ── ESIC ── */}
+        {ptab==="esic"&&<Section title="ESIC Policy" sub="Employees State Insurance Act 1948">
+          <Card>
+            <Toggle label="Enable ESIC" val={pol.esic.enabled} set={v=>update("esic","enabled",v)} note="Mandatory for employees with gross salary ≤ ₹21,000"/>
+            {pol.esic.enabled&&<>
+              <div style={{height:16}}/>
+              <G cols={2} gap={16}>
+                <NumInp label="Wage Ceiling" val={pol.esic.wageLimit} set={v=>update("esic","wageLimit",v)} suffix="₹/mo" note="Employees above this are exempt"/>
+                <NumInp label="Employee Contribution" val={pol.esic.employeeRate} set={v=>update("esic","employeeRate",v)} suffix="% of gross"/>
+                <NumInp label="Employer Contribution" val={pol.esic.employerRate} set={v=>update("esic","employerRate",v)} suffix="% of gross"/>
+                <NumInp label="Due Date" val={pol.esic.dueDate} set={v=>update("esic","dueDate",v)} suffix="of next month"/>
+              </G>
+              <div style={{background:AX,borderRadius:10,padding:"14px 18px",marginTop:14}}>
+                <div style={{fontWeight:700,marginBottom:6,color:AC}}>📊 ESIC Example (Gross ₹18,000)</div>
+                <div style={{fontSize:13,color:MT,lineHeight:1.8}}>
+                  Employee ESIC = {INR(Math.round(18000*pol.esic.employeeRate/100))}/mo ({pol.esic.employeeRate}%)<br/>
+                  Employer ESIC = {INR(Math.round(18000*pol.esic.employerRate/100))}/mo ({pol.esic.employerRate}%)<br/>
+                  Total ESIC = {INR(Math.round(18000*(pol.esic.employeeRate+pol.esic.employerRate)/100))}/mo<br/>
+                  <span style={{color:DG}}>Note: Employee with gross above {INR(pol.esic.wageLimit)}/mo is exempt.</span>
+                </div>
+              </div>
+            </>}
+          </Card>
+        </Section>}
+
+        {/* ── PT ── */}
+        {ptab==="pt"&&<Section title="Professional Tax Policy" sub="State-level tax — configure slabs for your state">
+          <Card>
+            <Toggle label="Enable Professional Tax" val={pol.pt.enabled} set={v=>update("pt","enabled",v)} note="Varies by state — not applicable in all states"/>
+            {pol.pt.enabled&&<>
+              <div style={{height:16}}/>
+              <G cols={2} gap={16}>
+                <Inp label="State" val={pol.pt.state} set={v=>update("pt","state",v)} opts={["Maharashtra","Karnataka","West Bengal","Andhra Pradesh","Telangana","Tamil Nadu","Gujarat","Madhya Pradesh","Assam","Meghalaya","Odisha","Sikkim","Bihar","Jharkhand"]}/>
+                <NumInp label="Annual PT Limit" val={pol.pt.annualLimit} set={v=>update("pt","annualLimit",v)} suffix="₹" note="₹2,500 max per year"/>
+              </G>
+              <div style={{fontWeight:600,marginBottom:10,marginTop:4}}>PT Slabs (Monthly Gross → Monthly PT)</div>
+              <PTSlabEditor slabs={pol.pt.slabs} setSlabs={v=>update("pt","slabs",v)}/>
+              <div style={{background:"#fff3e0",borderRadius:10,padding:"12px 16px",marginTop:16,fontSize:12,color:WN}}>
+                <b>State-wise PT rates:</b> Maharashtra ₹200/mo | Karnataka ₹200/mo | WB ₹110/mo | AP/Telangana ₹200/mo | Tamil Nadu ₹208/mo (half-yearly)
+              </div>
+            </>}
+          </Card>
+        </Section>}
+
+        {/* ── TDS ── */}
+        {ptab==="tds"&&<Section title="TDS / Income Tax Policy" sub="Configure default tax regime and slabs for FY 2025-26">
+          <Card s={{marginBottom:20}}>
+            <G cols={3} gap={16}>
+              <Inp label="Default Tax Regime" val={pol.tds.regime} set={v=>update("tds","regime",v)} opts={[{v:"new",l:"New Regime (default)"},{v:"old",l:"Old Regime"}]} note="Employees can opt out individually"/>
+              <Inp label="Financial Year" val={pol.tds.financialYear} set={v=>update("tds","financialYear",v)} ph="2025-26"/>
+              <NumInp label="Standard Deduction" val={pol.tds.standardDeduction} set={v=>update("tds","standardDeduction",v)} suffix="₹" note="₹50,000 for salaried (New Regime FY26: ₹75,000)"/>
+              <NumInp label="Education Cess" val={pol.tds.cess} set={v=>update("tds","cess",v)} suffix="%" note="Fixed 4% — Health & Education Cess"/>
+              <Inp label="Declaration Deadline" val={pol.tds.declarationDeadline} set={v=>update("tds","declarationDeadline",v)} type="date"/>
+              <Toggle label="Require Form 12BB" val={pol.tds.form12BB} set={v=>update("tds","form12BB",v)} note="Mandate investment declaration from all employees"/>
+            </G>
+          </Card>
+          <G cols={2} gap={20}>
+            <Card>
+              <div style={{fontWeight:700,marginBottom:14}}>New Regime Slabs (FY 2025-26)</div>
+              <Tbl cols={["From","To","Rate"]}
+                rows={pol.tds.newRegimeSlabs.map(s=>[INR(s.from),s.to===9999999?"Above":INR(s.to),<Bdg t={s.rate+"%"} c={s.rate===0?OK:s.rate<20?WN:DG}/>])}/>
+            </Card>
+            <Card>
+              <div style={{fontWeight:700,marginBottom:14}}>Old Regime Slabs (FY 2025-26)</div>
+              <Tbl cols={["From","To","Rate"]}
+                rows={pol.tds.oldRegimeSlabs.map(s=>[INR(s.from),s.to===9999999?"Above":INR(s.to),<Bdg t={s.rate+"%"} c={s.rate===0?OK:s.rate<20?WN:DG}/>])}/>
+            </Card>
+          </G>
+        </Section>}
+
+        {/* ── BONUS ── */}
+        {ptab==="bonus"&&<Section title="Bonus Policy" sub="Payment of Bonus Act 1965 — configure rates and eligibility">
+          <Card>
+            <Toggle label="Enable Statutory Bonus" val={pol.bonus.enabled} set={v=>update("bonus","enabled",v)} note="Mandatory for establishments with 20+ employees"/>
+            {pol.bonus.enabled&&<>
+              <div style={{height:16}}/>
+              <G cols={2} gap={16}>
+                <NumInp label="Eligibility Wage Limit" val={pol.bonus.eligibilityWage} set={v=>update("bonus","eligibilityWage",v)} suffix="₹/mo" note="Employees earning ≤ this are eligible"/>
+                <NumInp label="Calculation Wage Cap" val={pol.bonus.calculationWage} set={v=>update("bonus","calculationWage",v)} suffix="₹/mo" note="Max wage for bonus calc (₹7,000 or MWA)"/>
+                <NumInp label="Minimum Bonus Rate" val={pol.bonus.minRate} set={v=>update("bonus","minRate",v)} suffix="%" note="8.33% fixed by Act"/>
+                <NumInp label="Maximum Bonus Rate" val={pol.bonus.maxRate} set={v=>update("bonus","maxRate",v)} suffix="%" note="20% maximum"/>
+                <NumInp label="Current Year Rate" val={pol.bonus.currentRate} set={v=>update("bonus","currentRate",v)} suffix="%" note="Between min and max"/>
+                <NumInp label="Min Service (working days)" val={pol.bonus.minServiceMonths} set={v=>update("bonus","minServiceMonths",v)} suffix="days" note="30 working days in the year"/>
+                <Inp label="Accounting Year" val={pol.bonus.accountingYear} set={v=>update("bonus","accountingYear",v)} opts={["april","january"]}/>
+                <Inp label="Pay By Month" val={pol.bonus.payBy} set={v=>update("bonus","payBy",v)} opts={["november","december","january","march"]} note="Within 8 months of year end"/>
+                <Inp label="Calculation Basis" val={pol.bonus.formula} set={v=>update("bonus","formula",v)} opts={["basic",{v:"basic+da",l:"Basic + DA"}]}/>
+              </G>
+              <div style={{background:"#f3e5f5",borderRadius:10,padding:"14px 18px",marginTop:14}}>
+                <div style={{fontWeight:700,marginBottom:6,color:"#6a1b9a"}}>📊 Bonus Example</div>
+                <div style={{fontSize:13,color:MT,lineHeight:1.8}}>
+                  Employee Basic: ₹15,000/mo (eligible, ≤ ₹{pol.bonus.eligibilityWage})<br/>
+                  Calculation Wage: ₹{pol.bonus.calculationWage}/mo (capped)<br/>
+                  Annual Bonus = ₹{pol.bonus.calculationWage} × 12 × {pol.bonus.currentRate}% = <b style={{color:"#6a1b9a"}}>{INR(Math.round(pol.bonus.calculationWage*12*pol.bonus.currentRate/100))}</b><br/>
+                  <span style={{fontSize:11}}>Min: {INR(Math.round(pol.bonus.calculationWage*12*pol.bonus.minRate/100))} | Max: {INR(Math.round(pol.bonus.calculationWage*12*pol.bonus.maxRate/100))}</span>
+                </div>
+              </div>
+            </>}
+          </Card>
+        </Section>}
+
+        {/* ── PAYROLL RULES ── */}
+        {ptab==="payroll"&&<Section title="Payroll Rules" sub="Configure how salary is calculated and paid">
+          <Card s={{marginBottom:20}}>
+            <div style={{fontWeight:700,marginBottom:14}}>Payment Settings</div>
+            <G cols={3} gap={16}>
+              <NumInp label="Salary Payment Day" val={pol.payroll.paymentDay} set={v=>update("payroll","paymentDay",v)} suffix="of next month" note="Pay by this date every month"/>
+              <Inp label="Payment Mode" val={pol.payroll.paymentMode} set={v=>update("payroll","paymentMode",v)} opts={["bank","cash","cheque"]}/>
+              <NumInp label="Working Days/Month" val={pol.payroll.workingDays} set={v=>update("payroll","workingDays",v)} suffix="days" note="Standard: 26 days"/>
+              <Inp label="LOP Calculation" val={pol.payroll.lopMethod} set={v=>update("payroll","lopMethod",v)} opts={[{v:"calendar",l:"Calendar days (30)"},{v:"working",l:"Working days (26)"}]}/>
+              <Inp label="Salary Revision Month" val={pol.payroll.salaryRevision} set={v=>update("payroll","salaryRevision",v)} opts={["april","january","july","october"]} note="Month for annual increments"/>
+            </G>
+          </Card>
+          <Card s={{marginBottom:20}}>
+            <div style={{fontWeight:700,marginBottom:14}}>Overtime</div>
+            <Toggle label="Enable Overtime" val={pol.payroll.overtimeEnabled} set={v=>update("payroll","overtimeEnabled",v)} note="Track and pay overtime wages"/>
+            {pol.payroll.overtimeEnabled&&<>
+              <NumInp label="OT Rate Multiplier" val={pol.payroll.otRate} set={v=>update("payroll","otRate",v)} suffix="x" note="Factory Act mandates 2x for workers"/>
+            </>}
+          </Card>
+          <Card>
+            <div style={{fontWeight:700,marginBottom:14}}>HRA Exemption (Old Regime)</div>
+            <G cols={2} gap={16}>
+              <NumInp label="Metro Cities HRA Exemption" val={pol.payroll.hraExemption.metro} set={v=>update("payroll","hraExemption",{...pol.payroll.hraExemption,metro:v})} suffix="% of basic"/>
+              <NumInp label="Non-Metro HRA Exemption" val={pol.payroll.hraExemption.nonMetro} set={v=>update("payroll","hraExemption",{...pol.payroll.hraExemption,nonMetro:v})} suffix="% of basic"/>
+            </G>
+            <div style={{fontSize:12,color:MT}}>Metro cities: {pol.payroll.hraExemption.metroCities.join(", ")}</div>
+          </Card>
+        </Section>}
+
+        {/* ── LOANS ── */}
+        {ptab==="loans"&&<Section title="Loan & Advance Policy" sub="Configure loan types employees can apply for">
+          <Card>
+            <Toggle label="Enable Loans & Advances" val={pol.loans.enabled} set={v=>update("loans","enabled",v)}/>
+            {pol.loans.enabled&&<>
+              <div style={{height:16}}/>
+              <Tbl cols={["Loan Type","Max Amount","Max Tenure","Interest","Min Service"]}
+                rows={pol.loans.types.map(lt=>[
+                  <b>{lt.name}</b>,
+                  typeof lt.maxAmount==="number"?INR(lt.maxAmount):<Bdg t={lt.maxAmount.replace("_"," ")} c={P}/>,
+                  `${lt.maxTenure} months`,
+                  lt.interest===0?<Bdg t="Interest Free" c={OK}/>:<Bdg t={lt.interest+"%"} c={WN}/>,
+                  lt.minService===0?<Bdg t="From Day 1" c={AC}/>:`${lt.minService} months`
+                ])}/>
+              <Toggle label="Recover Full Outstanding on Separation" val={pol.loans.recovery_on_separation} set={v=>update("loans","recovery_on_separation",v)} note="Deduct all pending EMIs from F&F settlement"/>
+            </>}
+          </Card>
+        </Section>}
+
+        {/* ── REIMBURSEMENTS ── */}
+        {ptab==="reimbursement"&&<Section title="Reimbursement Policy" sub="Configure expense types, limits and approval rules">
+          <Card s={{marginBottom:20}}>
+            <div style={{fontWeight:700,marginBottom:14,fontSize:15}}>Expense Types & Limits</div>
+            <Tbl cols={["Expense Type","Limit","Period","Taxable","Proof Required","Actions"]}
+              rows={pol.reimbursement.types.map((r,i)=>[
+                <b>{r.name}</b>,
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <input type="number" value={r.limit} onChange={e=>setPol(p=>({...p,reimbursement:{...p.reimbursement,types:p.reimbursement.types.map((x,j)=>j===i?{...x,limit:+e.target.value}:x)}}))}
+                    style={{width:80,padding:"4px 8px",border:`1px solid ${BD}`,borderRadius:6,fontSize:12}}/>
+                  <span style={{fontSize:11,color:MT}}>₹</span>
+                </div>,
+                <select value={r.period} onChange={e=>setPol(p=>({...p,reimbursement:{...p.reimbursement,types:p.reimbursement.types.map((x,j)=>j===i?{...x,period:e.target.value}:x)}}))}
+                  style={{padding:"4px 8px",border:`1px solid ${BD}`,borderRadius:6,fontSize:12}}>
+                  {["monthly","quarterly","yearly","trip"].map(o=><option key={o}>{o}</option>)}
+                </select>,
+                r.taxable?<Bdg t="Taxable" c={DG}/>:<Bdg t="Tax Free" c={OK}/>,
+                <Bdg t={r.proof} c={MT}/>,
+                <Btn sz="sm" v="danger" onClick={()=>setPol(p=>({...p,reimbursement:{...p.reimbursement,types:p.reimbursement.types.filter((_,j)=>j!==i)}}))}>Remove</Btn>
+              ])}/>
+            <Btn v="sec" sz="sm" s={{marginTop:12}} onClick={()=>setPol(p=>({...p,reimbursement:{...p.reimbursement,types:[...p.reimbursement.types,{id:"R"+uid(),name:"New Expense",limit:1000,period:"monthly",taxable:false,proof:"bill"}]}}))}>+ Add Expense Type</Btn>
+          </Card>
+          <Card>
+            <div style={{fontWeight:700,marginBottom:14}}>Submission Rules</div>
+            <NumInp label="Submission Deadline" val={pol.reimbursement.submissionDeadline} set={v=>update("reimbursement","submissionDeadline",v)} suffix="days after expense" note="Claims older than this will be rejected"/>
+            <Toggle label="Approval Required" val={pol.reimbursement.approvalRequired} set={v=>update("reimbursement","approvalRequired",v)}/>
+            <Toggle label="Double Approval (Manager + HR)" val={pol.reimbursement.doubleApproval} set={v=>update("reimbursement","doubleApproval",v)} note="Useful for large expense claims"/>
+          </Card>
+        </Section>}
+
+        {/* ── SHIFTS ── */}
+        {ptab==="shifts"&&<Section title="Shifts & Working Hours" sub="Define your work schedule, shifts and overtime rules">
+          <Card s={{marginBottom:20}}>
+            <div style={{fontWeight:700,marginBottom:14}}>Work Schedule</div>
+            <G cols={3} gap={16}>
+              <NumInp label="Late Mark Grace Period" val={pol.shifts.lateMarkAfter} set={v=>update("shifts","lateMarkAfter",v)} suffix="minutes" note="After this → marked Late"/>
+              <NumInp label="Half Day Threshold" val={pol.shifts.halfDayHours} set={v=>update("shifts","halfDayHours",v)} suffix="hours" note="Less than this → half day"/>
+              <NumInp label="Absent Threshold" val={pol.shifts.absentIfBelow} set={v=>update("shifts","absentIfBelow",v)} suffix="hours" note="Less than this → absent"/>
+              <NumInp label="OT Starts After" val={pol.shifts.otStartAfter} set={v=>update("shifts","otStartAfter",v)} suffix="hours worked"/>
+            </G>
+            <Toggle label="Alternate Saturday Off" val={pol.shifts.alternateOff} set={v=>update("shifts","alternateOff",v)} note="2nd and 4th Saturday are week-offs"/>
+          </Card>
+          <Card>
+            <div style={{fontWeight:700,marginBottom:14}}>Shift Configuration</div>
+            <Tbl cols={["Shift Name","Start","End","Grace (min)","Break (min)","Actions"]}
+              rows={pol.shifts.shifts.map((s,i)=>[
+                <input value={s.name} onChange={e=>setPol(p=>({...p,shifts:{...p.shifts,shifts:p.shifts.shifts.map((x,j)=>j===i?{...x,name:e.target.value}:x)}}))} style={{padding:"4px 8px",border:`1px solid ${BD}`,borderRadius:6,fontSize:13,width:90}}/>,
+                <input type="time" value={s.start} onChange={e=>setPol(p=>({...p,shifts:{...p.shifts,shifts:p.shifts.shifts.map((x,j)=>j===i?{...x,start:e.target.value}:x)}}))} style={{padding:"4px 8px",border:`1px solid ${BD}`,borderRadius:6,fontSize:13}}/>,
+                <input type="time" value={s.end} onChange={e=>setPol(p=>({...p,shifts:{...p.shifts,shifts:p.shifts.shifts.map((x,j)=>j===i?{...x,end:e.target.value}:x)}}))} style={{padding:"4px 8px",border:`1px solid ${BD}`,borderRadius:6,fontSize:13}}/>,
+                <input type="number" value={s.grace} onChange={e=>setPol(p=>({...p,shifts:{...p.shifts,shifts:p.shifts.shifts.map((x,j)=>j===i?{...x,grace:+e.target.value}:x)}}))} style={{width:60,padding:"4px 8px",border:`1px solid ${BD}`,borderRadius:6,fontSize:13}}/>,
+                <input type="number" value={s.breakMins} onChange={e=>setPol(p=>({...p,shifts:{...p.shifts,shifts:p.shifts.shifts.map((x,j)=>j===i?{...x,breakMins:+e.target.value}:x)}}))} style={{width:60,padding:"4px 8px",border:`1px solid ${BD}`,borderRadius:6,fontSize:13}}/>,
+                <Btn sz="sm" v="danger" onClick={()=>setPol(p=>({...p,shifts:{...p.shifts,shifts:p.shifts.shifts.filter((_,j)=>j!==i)}}))}>Del</Btn>
+              ])}/>
+            <Btn v="sec" sz="sm" s={{marginTop:12}} onClick={()=>setPol(p=>({...p,shifts:{...p.shifts,shifts:[...p.shifts.shifts,{id:"S"+uid(),name:"New Shift",start:"09:00",end:"18:00",grace:15,breakMins:60}]}}))}>+ Add Shift</Btn>
+          </Card>
+        </Section>}
+
+        {/* ── F&F ── */}
+        {ptab==="fnf"&&<Section title="Full & Final Settlement Policy" sub="Configure notice period, settlement timeline and components">
+          <Card s={{marginBottom:20}}>
+            <div style={{fontWeight:700,marginBottom:14}}>Notice Period</div>
+            <G cols={3} gap={16}>
+              <NumInp label="During Probation" val={pol.fnf.noticePeriod.probation} set={v=>update("fnf","noticePeriod",{...pol.fnf.noticePeriod,probation:v})} suffix="days"/>
+              <NumInp label="Confirmed Employees" val={pol.fnf.noticePeriod.confirmed} set={v=>update("fnf","noticePeriod",{...pol.fnf.noticePeriod,confirmed:v})} suffix="days"/>
+              <NumInp label="Senior / Management" val={pol.fnf.noticePeriod.senior} set={v=>update("fnf","noticePeriod",{...pol.fnf.noticePeriod,senior:v})} suffix="days"/>
+            </G>
+            <Toggle label="Notice Period Buyout Allowed" val={pol.fnf.noticePeriodWaiverAllowed} set={v=>update("fnf","noticePeriodWaiverAllowed",v)} note="Employee can pay in lieu of serving notice"/>
+            <NumInp label="Settlement Within" val={pol.fnf.settlementDays} set={v=>update("fnf","settlementDays",v)} suffix="days of exit" note="Legally required to settle within 45 days"/>
+          </Card>
+          <Card s={{marginBottom:20}}>
+            <div style={{fontWeight:700,marginBottom:14}}>F&F Components</div>
+            {Object.entries(pol.fnf.components).map(([k,v])=>(
+              <Toggle key={k} label={{lastSalary:"Last Month Salary",gratuity:"Gratuity (if eligible)",elEncashment:"Earned Leave Encashment",bonus:"Pending Bonus",noticePay:"Notice Pay",loanRecovery:"Loan Recovery",reimbursementPending:"Pending Reimbursements"}[k]||k} val={v} set={nv=>update("fnf","components",{...pol.fnf.components,[k]:nv})}/>
+            ))}
+          </Card>
+          <Card>
+            <div style={{fontWeight:700,marginBottom:14}}>Exit Documents</div>
+            <Toggle label="Issue Experience Letter" val={pol.fnf.experienceLetter} set={v=>update("fnf","experienceLetter",v)}/>
+            <Toggle label="Issue Relieving Letter" val={pol.fnf.relievingLetter} set={v=>update("fnf","relievingLetter",v)}/>
+            <Inp label="Issue Form 16 by" val={pol.fnf.form16Timing} set={v=>update("fnf","form16Timing",v)} opts={["june","july","august"]} note="June 15 is statutory deadline"/>
+          </Card>
+        </Section>}
+
+
+    </div>
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI ASSISTANT — powered by Claude API
+// ═══════════════════════════════════════════════════════════════════════════════
+function AIAssistant({emps,runs,activeRun,leaves,loans,reimb,attendance,pol,co,payMonth,payYear}){
+  const [messages,setMessages]=useState([
+    {role:"assistant",content:`👋 Hi! I'm Payrolla AI, your intelligent HR & payroll assistant powered by Claude.\n\nI have full context about **${co?.name||"your company"}** — all ${emps?.length||0} employees, payroll runs, attendance, leaves, loans, and your policy settings.\n\nAsk me anything:\n• "Why is Rajesh's TDS so high?"\n• "Calculate gratuity for Amit if he resigns today"\n• "Which employees are ESIC eligible?"\n• "Summarize this month's payroll"\n• "What's the difference between new and old IT regime for Priya?"\n• "Flag any compliance issues"\n• "Who joined this month and how was their salary prorated?"`}
+  ]);
+  const [input,setInput]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [thinking,setThinking]=useState("");
+  const bottomRef = useState(null);
+  const chatRef = {current:null};
+
+  // Build rich system context from all app state
+  function buildContext(){
+    const empSummary = emps.map(e=>{
+      const p=calcPay(e,0,pol,payMonth,payYear);
+      return `${e.name} (${e.code}): ${e.dept}/${e.desig}, DOJ:${e.doj}, Basic:₹${e.basic}, Gross:₹${p.g}, Net:₹${p.net}, PF:${e.pf?"Yes":"No"}, ESIC:${e.esic?"Yes":"No"}, IT Regime:${e.itRegime||pol.tds?.regime||"new"}, Status:${e.status}${p.joiningNote?", "+p.joiningNote:""}`;
+    }).join("\n");
+
+    const runSummary = runs.length>0 ? runs.slice(0,3).map(r=>
+      `${MONTHS[r.month-1]} ${r.year}: ${r.count} employees, Gross:₹${r.gross||"N/A"}, Net:₹${r.total}`
+    ).join("\n") : "No payroll runs yet";
+
+    const leaveSummary = leaves.slice(0,20).map(l=>`${l.ename}: ${l.type} ${l.from} to ${l.to} (${l.status})`).join("\n");
+    const loanSummary  = loans.map(l=>`${l.ename}: ${l.type} ₹${l.amount} @EMI ₹${l.emi} (${l.remaining} months left, ${l.status})`).join("\n");
+
+    const ptSlabs = (pol.pt?.slabs||[]).map(s=>`₹${s.from}-${s.to}: ₹${s.monthly}/mo`).join(", ");
+
+    return `You are Payrolla AI, an expert Indian payroll & HR assistant embedded in Payrolla.in — a comprehensive Indian Payroll SaaS. You have full real-time context about the company's data.
+
+COMPANY: ${co?.name||"Unknown"} | ${co?.city||""}, ${co?.state||""} | PAN: ${co?.pan||""} | PF: ${co?.pf||""} | ESIC: ${co?.esic||""}
+
+POLICY SETTINGS:
+- Working Days: ${pol.payroll?.workingDays||26}/month
+- Payment Day: ${pol.payroll?.paymentDay||5}th of next month
+- PF: ${pol.pf?.enabled?"Enabled":"Disabled"} | Employee ${pol.pf?.employeeRate||12}% + Employer ${pol.pf?.employerRate||12}% | Wage cap: ₹${pol.pf?.maxPfWage||15000}
+- ESIC: ${pol.esic?.enabled?"Enabled":"Disabled"} | Employee ${pol.esic?.employeeRate||0.75}% + Employer ${pol.esic?.employerRate||3.25}% | Ceiling: ₹${pol.esic?.wageLimit||21000}/mo
+- PT (${pol.pt?.state||"Maharashtra"}): ${ptSlabs}
+- TDS Default Regime: ${pol.tds?.regime||"new"} | Std Deduction: ₹${pol.tds?.standardDeduction||50000} | Cess: ${pol.tds?.cess||4}%
+- Gratuity: Min ${pol.gratuity?.minServiceYears||5} years | Max ₹${pol.gratuity?.maxLimit||2000000}
+- Bonus: ${pol.bonus?.minRate||8.33}%–${pol.bonus?.maxRate||20}% | Wage cap: ₹${pol.bonus?.calculationWage||7000}
+- Leave Types: ${(pol.leave?.types||[]).map(l=>`${l.name}(${l.annual}days)`).join(", ")}
+- Payroll Month: ${MONTHS[payMonth-1]} ${payYear}
+
+EMPLOYEES (${emps.length} total):
+${empSummary}
+
+RECENT PAYROLL RUNS:
+${runSummary}
+
+LEAVE APPLICATIONS (recent):
+${leaveSummary||"None"}
+
+LOANS:
+${loanSummary||"None"}
+
+INSTRUCTIONS:
+- Answer in clear, concise language. Use ₹ for amounts.
+- For calculations, show your working step by step.
+- For compliance queries, cite the relevant Act/section.
+- When analyzing individual employees, use their actual data above.
+- Flag potential issues proactively (ESIC eligibility changes, gratuity thresholds, joining proration, IT regime optimization).
+- Use markdown for structure but keep it readable.
+- Today's date: ${new Date().toLocaleDateString("en-IN")}.`;
+  }
+
+  async function sendMessage(){
+    if(!input.trim()||loading) return;
+    const userMsg = {role:"user",content:input.trim()};
+    const newMessages = [...messages,userMsg];
+    setMessages(newMessages);
+    setInput("");
+    setLoading(true);
+
+    // Thinking indicators
+    const thinkingMsgs = ["Analysing employee data...","Checking policy settings...","Calculating...","Preparing response..."];
+    let ti=0;
+    const thinkInterval = setInterval(()=>{setThinking(thinkingMsgs[ti%thinkingMsgs.length]);ti++;},800);
+
+    try {
+      const systemPrompt = buildContext();
+      // Build message history (last 10 for context window)
+      const apiMessages = newMessages.slice(-10).map(m=>({role:m.role,content:m.content}));
+
+      const res = await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-6",
+          max_tokens:1500,
+          system:systemPrompt,
+          messages:apiMessages
+        })
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || "Sorry, I couldn't get a response. Please try again.";
+      setMessages(p=>[...p,{role:"assistant",content:reply}]);
+    } catch(err) {
+      setMessages(p=>[...p,{role:"assistant",content:"⚠ Connection error. Check your internet and try again.\n\nError: "+err.message}]);
+    } finally {
+      clearInterval(thinkInterval);
+      setThinking("");
+      setLoading(false);
+    }
+  }
+
+  // Auto-scroll
+  function handleRef(el){if(el)el.scrollTop=el.scrollHeight;}
+
+  const QUICK = [
+    "Summarise this month's payroll",
+    "Which employees are ESIC eligible?",
+    "Calculate gratuity for all eligible employees",
+    "Any compliance issues I should know about?",
+    "Compare new vs old IT regime for each employee",
+    "Who joined this month? Was their salary prorated correctly?",
+    "List all pending leave & loan approvals",
+    "What is TDS for Rajesh Kumar this month?",
+  ];
+
+  return <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 80px)",maxWidth:900}}>
+    <div style={{marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+        <div style={{width:36,height:36,background:"linear-gradient(135deg,#1a237e,#00897b)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🤖</div>
+        <div><div style={{fontWeight:800,fontSize:19}}>Payrolla AI Assistant</div><div style={{fontSize:12,color:MT}}>Powered by Claude · Full payroll & HR context loaded · {emps.length} employees</div></div>
+      </div>
+    </div>
+
+    {/* Quick questions */}
+    {messages.length<=1&&<div style={{marginBottom:14}}>
+      <div style={{fontSize:11,fontWeight:700,color:MT,textTransform:"uppercase",letterSpacing:.8,marginBottom:7}}>Quick Questions</div>
+      <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+        {QUICK.map(q=><button key={q} onClick={()=>{setInput(q);}} style={{padding:"6px 12px",border:`1px solid ${P}44`,borderRadius:20,fontSize:11,cursor:"pointer",background:PX,color:P,fontWeight:500}}>{q}</button>)}
+      </div>
+    </div>}
+
+    {/* Chat messages */}
+    <div ref={handleRef} style={{flex:1,overflowY:"auto",border:`1px solid ${BD}`,borderRadius:12,padding:16,background:"#fff",display:"flex",flexDirection:"column",gap:12,marginBottom:12}}>
+      {messages.map((m,i)=>(
+        <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",flexDirection:m.role==="user"?"row-reverse":"row"}}>
+          <div style={{width:30,height:30,borderRadius:8,background:m.role==="user"?P:"linear-gradient(135deg,#1a237e,#00897b)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,color:"#fff",fontWeight:700}}>
+            {m.role==="user"?"U":"🤖"}
+          </div>
+          <div style={{maxWidth:"82%",background:m.role==="user"?P:"#f8fafc",color:m.role==="user"?"#fff":"#1a1a2e",borderRadius:m.role==="user"?"12px 3px 12px 12px":"3px 12px 12px 12px",padding:"10px 14px",fontSize:13,lineHeight:1.7,boxShadow:"0 1px 3px rgba(0,0,0,.07)",whiteSpace:"pre-wrap"}}>
+            {m.content}
+          </div>
+        </div>
+      ))}
+      {loading&&<div style={{display:"flex",gap:10,alignItems:"center"}}>
+        <div style={{width:30,height:30,borderRadius:8,background:"linear-gradient(135deg,#1a237e,#00897b)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🤖</div>
+        <div style={{background:"#f8fafc",borderRadius:"3px 12px 12px 12px",padding:"10px 14px",fontSize:13,color:MT,display:"flex",alignItems:"center",gap:8}}>
+          <div style={{display:"flex",gap:4}}>
+            {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:3,background:P,animation:`pulse ${0.6+i*0.2}s ease-in-out infinite alternate`}}/>)}
+          </div>
+          {thinking}
+        </div>
+      </div>}
+    </div>
+
+    {/* Input */}
+    <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
+      <textarea value={input} onChange={e=>setInput(e.target.value)}
+        onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}}}
+        placeholder="Ask anything about payroll, employees, compliance, tax... (Enter to send, Shift+Enter for new line)"
+        rows={2} style={{flex:1,padding:"10px 14px",border:`1.5px solid ${BD}`,borderRadius:10,fontSize:13,outline:"none",resize:"none",lineHeight:1.5,fontFamily:"inherit"}}/>
+      <button onClick={sendMessage} disabled={loading||!input.trim()} style={{padding:"10px 20px",background:loading||!input.trim()?BD:P,color:"#fff",border:"none",borderRadius:10,fontWeight:700,fontSize:14,cursor:loading||!input.trim()?"not-allowed":"pointer",flexShrink:0}}>
+        {loading?"...":"Send"}
+      </button>
+    </div>
+    <div style={{fontSize:10,color:MT,marginTop:5,textAlign:"center"}}>Payrolla AI has full access to your company data. Do not share sensitive information externally.</div>
+    <style>{`@keyframes pulse{from{opacity:.3;transform:scale(.8)}to{opacity:1;transform:scale(1)}}`}</style>
+  </div>;
+}
+
+
+function HRAdmin({user,onLogout}){
+  const [tab,setTab]=useState("dashboard");
+  const [pol,setPol]=useState(DEFAULT_POLICIES);
+  const [emps,setEmps]=useState(EMPS0);
+  const [leaves,setLeaves]=useState(LEAVES0);
+  const [loans,setLoans]=useState(LOANS0);
+  const [co,setCo]=useState(CO0);
+  const [runs,setRuns]=useState([]);
+  const [activeRun,setActiveRun]=useState(null);
+  const [payMonth,setPayMonth]=useState(NOW.getMonth()+1);
+  const [payYear,setPayYear]=useState(NOW.getFullYear());
+  const [showEmpForm,setShowEmpForm]=useState(false);
+  const [editEmp,setEditEmp]=useState(null);
+  const [slip,setSlip]=useState(null);
+  const [search,setSearch]=useState("");
+  const [lvForm,setLvForm]=useState(null);
+  const [lnForm,setLnForm]=useState(null);
+  const [editCo,setEditCo]=useState(false);
+  const [coForm,setCoForm]=useState(co);
+  const [attendance,setAttendance]=useState(()=>genAttendance());
+  const [ffEmp,setFfEmp]=useState(null);
+  const [reimb,setReimb]=useState([]);
+  const [reimbForm,setReimbForm]=useState(null);
+
+  // ── Supabase state ────────────────────────────────────────────────────────────
+  const [dbReady,setDbReady]=useState(false);
+  const [loading,setLoading]=useState(true);
+  const [toast,setToast]=useState(null);
+
+  function showToast(msg,type="ok"){setToast({msg,type});setTimeout(()=>setToast(null),3500);}
+
+  // ── Load all data from Supabase on mount ────────────────────────────────────
+  useEffect(()=>{
+    async function loadAll(){
+      setLoading(true);
+      try{
+        const [empList,lvList,lnList,reList,runList,polData,coData]=await Promise.all([
+          db.getEmps(), db.getLeaves(), db.getLoans(), db.getReimb(),
+          db.getRuns(), db.getPolicies(), db.getCompany()
+        ]);
+        if(empList.length) setEmps(empList.map(fromDbEmp));
+        if(lvList.length)  setLeaves(lvList.map(fromDbLeave));
+        if(lnList.length)  setLoans(lnList.map(fromDbLoan));
+        if(reList.length)  setReimb(reList.map(fromDbReimb));
+        if(runList.length) setRuns(runList.map(fromDbRun));
+        if(polData && Object.keys(polData).length) setPol(p=>({...p,...polData}));
+        if(coData) setCo({...coData,pf:coData.pf_reg,esic:coData.esic_reg,pt:coData.pt_reg,addr:coData.addr,pin:coData.pin});
+        setDbReady(true);
+        showToast("Connected to Payrolla Database ✓");
+      }catch(e){
+        console.warn("DB error — using demo data:",e.message);
+        showToast("Demo mode (DB: "+e.message.slice(0,40)+")","warn");
+      }
+      setLoading(false);
+    }
+    loadAll();
+  },[]);
+
+  // ── Real-time attendance via Supabase channel ────────────────────────────────
+  useEffect(()=>{
+    if(!dbReady) return;
+    const channel = sb.channel("att").on("postgres_changes",
+      {event:"*",schema:"public",table:"attendance"},
+      (payload)=>{
+        const r=payload.new;
+        if(r?.employee_id && r?.date){
+          setAttendance(p=>{
+            const np={...p};
+            if(!np[r.employee_id]) np[r.employee_id]={};
+            np[r.employee_id][r.date]={status:r.status,in:r.in_time||"",out:r.out_time||"",hrs:+r.hrs||0,ot:+r.ot||0};
+            return np;
+          });
+        }
+      }).subscribe();
+    return ()=>sb.removeChannel(channel);
+  },[dbReady]);
+
+  // ── API-synced operations ────────────────────────────────────────────────────
+  async function apiSaveEmp(data){
+    setEmps(p=>editEmp?p.map(e=>e.id===data.id?data:e):[...p,data]);
+    setShowEmpForm(false);
+    try{
+      if(editEmp) await db.updateEmp(data);
+      else{ const r=await db.addEmp(data); setEmps(p=>p.map(e=>e.id===data.id?fromDbEmp(r):e)); }
+      showToast("Employee saved ✓");
+    }catch(e){showToast("Saved locally ("+e.message+")","warn");}
+  }
+
+  async function apiActionLeave(id,status){
+    setLeaves(p=>p.map(x=>x.id===id?{...x,status}:x));
+    try{ await db.actionLeave(id,status); showToast("Leave "+status+" ✓"); }
+    catch(e){showToast("Updated locally","warn");}
+  }
+
+  async function apiAddLeave(data){
+    setLeaves(p=>[...p,data]); setLvForm(null);
+    try{ await db.addLeave(data); showToast("Leave applied ✓"); }
+    catch(e){showToast("Saved locally","warn");}
+  }
+
+  async function apiActionLoan(id,status){
+    setLoans(p=>p.map(x=>x.id===id?{...x,status}:x));
+    try{ await db.actionLoan(id,status); showToast("Loan "+status+" ✓"); }
+    catch(e){showToast("Updated locally","warn");}
+  }
+
+  async function apiAddLoan(data){
+    setLoans(p=>[...p,data]); setLnForm(null);
+    try{ await db.addLoan(data); showToast("Loan applied ✓"); }
+    catch(e){showToast("Saved locally","warn");}
+  }
+
+  async function apiActionReimb(id,status){
+    setReimb(p=>p.map(x=>x.id===id?{...x,status}:x));
+    try{ await db.actionReimb(id,status); showToast("Reimbursement "+status+" ✓"); }
+    catch(e){showToast("Updated locally","warn");}
+  }
+
+  async function apiAddReimb(data){
+    setReimb(p=>[...p,data]); setReimbForm(null);
+    try{ await db.addReimb(data); showToast("Claim submitted ✓"); }
+    catch(e){showToast("Saved locally","warn");}
+  }
+
+  async function apiMarkAtt(eid,date,rec){
+    setAttendance(p=>{const np={...p};if(!np[eid])np[eid]={};np[eid][date]=rec;return np;});
+    try{ await db.markAtt(eid,date,rec.status,rec.in,rec.out,rec.hrs,rec.ot); }
+    catch(e){/* silent — UI already updated */}
+  }
+
+  async function apiMarkBulkAtt(date,status){
+    setAttendance(p=>{const np={...p};active.forEach(e=>{if(!np[e.id])np[e.id]={};np[e.id][date]={status,in:status==="P"?"09:00":"",out:status==="P"?"18:00":"",hrs:status==="P"?9:status==="HD"?4.5:0,ot:0};});return np;});
+    try{ await db.bulkAtt(active.map(e=>e.id),date,status); showToast("All marked "+status+" ✓"); }
+    catch(e){showToast("Marked locally","warn");}
+  }
+
+  async function apiSavePolicies(newPol){
+    setPol(newPol);
+    try{ await db.savePolicies(newPol); showToast("Policies saved ✓"); }
+    catch(e){showToast("Saved locally","warn");}
+  }
+
+  async function apiSaveCo(newCo){
+    setCo(newCo); setEditCo(false);
+    try{ await db.saveCompany(newCo); showToast("Company updated ✓"); }
+    catch(e){showToast("Saved locally","warn");}
+  }
+
+  const active=emps.filter(e=>e.status==="Active");
+  const active=emps.filter(e=>e.status==="Active");
+  const calcP=(e,lop=0)=>calcPay(e,lop,pol);
+  const filtered=emps.filter(e=>!search||e.name.toLowerCase().includes(search.toLowerCase())||e.code.toLowerCase().includes(search.toLowerCase())||e.dept.toLowerCase().includes(search.toLowerCase()));
+
+  function getLOP(eid){
+    const recs=attendance[eid]||{};
+    const mo=String(payMonth).padStart(2,"0");
+    return Object.entries(recs).filter(([d,r])=>d.startsWith(`${payYear}-${mo}`)&&r.status==="A").length;
+  }
+
+  async function runPayroll(){
+    const results=active.map(e=>{
+      const lop=getLOP(e.id);
+      const p=calcPay(e,lop,pol,payMonth,payYear);
+      const loanEmi=loans.filter(l=>l.eid===e.id&&l.status==="Approved"&&l.remaining>0).reduce((s,l)=>s+l.emi,0);
+      return{...e,...p,lop,loanEmi,netFinal:p.net-loanEmi};
+    });
+    const totalNet=results.reduce((s,e)=>s+e.netFinal,0);
+    const run={id:"PR"+uid(),month:payMonth,year:payYear,on:new Date().toLocaleDateString("en-IN"),total:totalNet,gross:results.reduce((s,e)=>s+e.g,0),count:results.length,results};
+    setRuns(p=>[run,...p]);setActiveRun(run);
+    // Auto-deduct loan EMIs
+    setLoans(ls=>ls.map(l=>l.status==="Approved"&&l.remaining>0?{...l,remaining:l.remaining-1}:l));
+    // Sync to Supabase
+    try{
+      await db.saveRun(payMonth, payYear, results);
+      showToast(`Payroll saved ✓ — ${results.length} employees`);
+    }catch(e){showToast("Payroll saved locally (DB: "+e.message+")","warn");}
+  }
+
+  const NAV=[["dashboard","📊","Dashboard"],["employees","👥","Employees"],["attendance","🕐","Attendance"],["payroll","💰","Payroll"],["leaves","🌴","Leave Mgmt"],["loans","💸","Loans"],["reimbursements","🧾","Reimbursements"],["compliance","📋","Compliance"],["fnf","⚖️","F&F Settlement"],["reports","📈","Reports"],["company","🏢","Company"],["policy","⚙️","Policy Settings"],["ai","🤖","AI Assistant"]];
+
+  return <Shell user={user} nav={NAV} tab={tab} setTab={setTab} onLogout={onLogout}>
+    {/* Toast notifications */}
+    {toast&&<div style={{position:"fixed",top:16,right:16,zIndex:9999,background:toast.type==="warn"?WN:OK,color:"#fff",padding:"10px 18px",borderRadius:10,fontWeight:600,fontSize:13,boxShadow:"0 4px 20px rgba(0,0,0,.25)",display:"flex",alignItems:"center",gap:8}}>
+      {toast.type==="warn"?"⚠":"✓"} {toast.msg}
+    </div>}
+    {/* API status banner */}
+    <div style={{background:dbReady?"#e8f5e9":"#fff8e1",borderBottom:`1px solid ${dbReady?"#a5d6a7":"#ffe082"}`,padding:"5px 20px",fontSize:11,color:dbReady?"#2e7d32":"#f57f17",display:"flex",alignItems:"center",gap:6}}>
+      <div style={{width:7,height:7,borderRadius:4,background:dbReady?"#2e7d32":"#f57f17"}}/>
+      {loading?"⏳ Loading data from database..."
+        :dbReady?"🟢 Connected to Payrolla Database — all data is live and persistent"
+        :"🟡 Demo mode — running with sample data. Connect API to persist data."}
+    </div>
+
+    {tab==="dashboard"&&<div>
+      <div style={{marginBottom:20}}><div style={{fontSize:22,fontWeight:800}}>HR Dashboard</div><div style={{fontSize:13,color:MT}}>{co.name} · {NOW.toLocaleDateString("en-IN",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div></div>
+      <G cols={4} gap={16}><Stat label="Total Employees" value={emps.length} sub={`${active.length} active`} icon="👥"/>
+        <Stat label="Monthly Payroll" value={INR(active.reduce((s,e)=>s+calcP(e).net,0))} sub="Net take-home" icon="💰" color={AC}/>
+        <Stat label="Present Today" value={emps.filter(e=>(attendance[e.id]||{})[TODAY]?.status==="P").length} sub={`of ${emps.length} employees`} icon="✅" color={OK}/>
+        <Stat label="Pending Actions" value={leaves.filter(l=>l.status==="Pending").length+loans.filter(l=>l.status==="Pending").length} sub="Leaves + Loans" icon="⚠️" color={WN}/></G>
+      <div style={{height:16}}/>
+      <G gap={16}>
+        <Card>
+          <div style={{fontWeight:700,marginBottom:14}}>Today's Attendance Summary</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+            {[["Present",emps.filter(e=>(attendance[e.id]||{})[TODAY]?.status==="P").length,OK],["Absent",emps.filter(e=>(attendance[e.id]||{})[TODAY]?.status==="A").length,DG],["Late",emps.filter(e=>(attendance[e.id]||{})[TODAY]?.status==="L").length,"#7b1fa2"],["Not Marked",emps.filter(e=>!(attendance[e.id]||{})[TODAY]?.status).length,MT]].map(([l,v,c])=>(
+              <div key={l} style={{textAlign:"center",background:c+"11",border:`1px solid ${c}33`,borderRadius:8,padding:"10px 0"}}><div style={{fontSize:22,fontWeight:800,color:c}}>{v}</div><div style={{fontSize:11,color:c,fontWeight:600}}>{l}</div></div>
+            ))}
+          </div>
+          <Btn v="ok" sz="sm" onClick={()=>setTab("attendance")}>Mark Attendance →</Btn>
+        </Card>
+        <Card>
+          <div style={{fontWeight:700,marginBottom:14}}>Department Headcount</div>
+          {Object.entries(emps.reduce((a,e)=>{a[e.dept]=(a[e.dept]||0)+1;return a},{})).map(([d,n])=>(
+            <div key={d} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+              <div style={{width:130,fontSize:13,color:MT}}>{d}</div>
+              <div style={{flex:1,background:BG,borderRadius:4,height:8}}><div style={{width:`${n/emps.length*100}%`,background:P,borderRadius:4,height:8}}/></div>
+              <div style={{fontSize:13,fontWeight:600,width:20}}>{n}</div>
+            </div>
+          ))}
+        </Card>
+      </G>
+    </div>}
+
+    {tab==="employees"&&<Sec title="Employees" action={<Btn onClick={()=>{setEditEmp(null);setShowEmpForm(true);}}>+ Add Employee</Btn>}>
+      <Card s={{marginBottom:16}}><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, code or department..." style={{width:"100%",padding:"9px 12px",border:`1.5px solid ${BD}`,borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box"}}/></Card>
+      <Card>
+        <Tbl cols={["Code","Name","Dept","Designation","Gross","Net","PF","ESIC","Status","Actions"]}
+          rows={filtered.map(e=>{const p=calcP(e);return[
+            <span style={{fontWeight:600,color:P}}>{e.code}</span>,
+            <div><div style={{fontWeight:600}}>{e.name}</div><div style={{fontSize:11,color:MT}}>{e.email}</div></div>,
+            e.dept,e.desig,INR(p.g),<b style={{color:OK}}>{INR(p.net)}</b>,
+            e.pf?<Badge t="Yes" c={OK}/>:<Badge t="No" c={MT}/>,
+            e.esic?<Badge t="Yes" c={AC}/>:<Badge t="No" c={MT}/>,
+            <Badge t={e.status} c={e.status==="Active"?OK:DG}/>,
+            <div style={{display:"flex",gap:5}}>
+              <Btn sz="sm" v="sec" onClick={()=>{setEditEmp(e);setShowEmpForm(true);}}>Edit</Btn>
+              <Btn sz="sm" v="ghost" onClick={()=>setSlip({emp:e,month:payMonth,year:payYear})}>Slip</Btn>
+            </div>
+          ]})}/>
+      </Card>
+      {showEmpForm&&<EmpForm emp={editEmp} pol={pol} onClose={()=>setShowEmpForm(false)} onSave={apiSaveEmp}/>}
+      {slip&&<SalarySlip emp={slip.emp} co={co} month={slip.month} year={slip.year} pol={pol} onClose={()=>setSlip(null)}/>}
+    </Sec>}
+
+    {tab==="attendance"&&<Sec title="Attendance Management">
+      <AttendanceModule emps={active} attendance={attendance} setAttendance={setAttendance} onMark={apiMarkAtt} onBulkMark={apiMarkBulkAtt}/>
+    </Sec>}
+
+    {tab==="payroll"&&<div>
+      <Sec title="Payroll Processing">
+        <Card s={{marginBottom:20}}>
+          <div style={{display:"flex",alignItems:"flex-end",gap:16,flexWrap:"wrap"}}>
+            <div><div style={{fontSize:12,fontWeight:600,color:MT,marginBottom:5,textTransform:"uppercase"}}>Month</div>
+              <select value={payMonth} onChange={e=>setPayMonth(+e.target.value)} style={{padding:"9px 14px",border:`1.5px solid ${BD}`,borderRadius:8,fontSize:14,outline:"none"}}>
+                {MONTHS.map((m,i)=><option key={m} value={i+1}>{m}</option>)}
+              </select></div>
+            <div><div style={{fontSize:12,fontWeight:600,color:MT,marginBottom:5,textTransform:"uppercase"}}>Year</div>
+              <select value={payYear} onChange={e=>setPayYear(+e.target.value)} style={{padding:"9px 14px",border:`1.5px solid ${BD}`,borderRadius:8,fontSize:14,outline:"none"}}>
+                {[2024,2025,2026].map(y=><option key={y}>{y}</option>)}
+              </select></div>
+            <Btn sz="lg" v="ok" onClick={runPayroll}>▶ Run Payroll</Btn>
+            {runs.length>0&&<select onChange={e=>{const r=runs.find(x=>x.id===e.target.value);if(r)setActiveRun(r);}} style={{padding:"9px 14px",border:`1.5px solid ${BD}`,borderRadius:8,fontSize:13,outline:"none"}}>
+              <option value="">View past runs...</option>
+              {runs.map(r=><option key={r.id} value={r.id}>{MONTHS[r.month-1]} {r.year} — {INR(r.total)}</option>)}
+            </select>}
+          </div>
+          <div style={{marginTop:14,background:PX,borderRadius:8,padding:"10px 14px",fontSize:12,color:P}}>
+            ℹ Payroll auto-calculates LOP (Loss of Pay) from attendance data. Absent days are deducted proportionally.
+          </div>
+        </Card>
+        {activeRun&&<Card>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div><div style={{fontWeight:800,fontSize:16}}>Payroll — {MONTHS[activeRun.month-1]} {activeRun.year}</div><div style={{fontSize:12,color:MT}}>Processed {activeRun.on} · {activeRun.count} employees</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontSize:11,color:MT}}>Total Net Payout</div><div style={{fontWeight:900,fontSize:22,color:OK}}>{INR(activeRun.total)}</div></div>
+          </div>
+          <G cols={5} gap={12}><div style={{background:PX,borderRadius:8,padding:"10px 14px"}}><div style={{fontSize:11,color:P,marginBottom:3}}>Gross</div><div style={{fontWeight:800,color:P}}>{INR(activeRun.results.reduce((s,e)=>s+e.g,0))}</div></div>
+            <div style={{background:AX,borderRadius:8,padding:"10px 14px"}}><div style={{fontSize:11,color:AC,marginBottom:3}}>PF (Employer)</div><div style={{fontWeight:800,color:AC}}>{INR(activeRun.results.reduce((s,e)=>s+e.pfR,0))}</div></div>
+            <div style={{background:WX,borderRadius:8,padding:"10px 14px"}}><div style={{fontSize:11,color:WN,marginBottom:3}}>TDS Total</div><div style={{fontWeight:800,color:WN}}>{INR(activeRun.results.reduce((s,e)=>s+e.tds,0))}</div></div>
+            <div style={{background:DX,borderRadius:8,padding:"10px 14px"}}><div style={{fontSize:11,color:DG,marginBottom:3}}>LOP Deductions</div><div style={{fontWeight:800,color:DG}}>{activeRun.results.filter(e=>e.lop>0).length} employees</div></div>
+            <div style={{background:OX,borderRadius:8,padding:"10px 14px"}}><div style={{fontSize:11,color:OK,marginBottom:3}}>Net Payout</div><div style={{fontWeight:800,color:OK}}>{INR(activeRun.total)}</div></div>
+          </G>
+          <div style={{marginTop:16}}>
+            <Tbl cols={["Employee","Days Paid","LOP","Gross","PF","ESIC","PT","TDS","Net Pay","Slip"]}
+              rows={activeRun.results.map(e=>[
+                <div><div style={{fontWeight:600}}>{e.name}</div><div style={{fontSize:11,color:MT}}>{e.code}</div></div>,
+                <span style={{color:OK,fontWeight:600}}>{26-(e.lop||0)}</span>,
+                e.lop>0?<Badge t={`${e.lop} days`} c={DG}/>:"—",
+                INR(e.g),INR(e.pfE),INR(e.esE),INR(e.pt),INR(e.tds),
+                <span style={{fontWeight:700,color:OK}}>{INR(e.netFinal??e.net)}</span>,
+                <Btn sz="sm" v="sec" onClick={()=>setSlip({emp:e,month:activeRun.month,year:activeRun.year,lop:e.lop||0})}>View</Btn>
+              ])}/>
+          </div>
+        </Card>}
+      </Sec>
+      {slip&&<SalarySlip emp={slip.emp} co={co} month={slip.month} year={slip.year} lopDays={slip.lop||0} pol={pol} onClose={()=>setSlip(null)}/>}
+    </div>}
+
+    {tab==="leaves"&&<Sec title="Leave Management" action={<Btn onClick={()=>setLvForm({eid:"",type:"Casual Leave",from:"",to:"",reason:""})}>+ Apply Leave</Btn>}>
+      <G cols={4} gap={16}><Stat label="Pending" value={leaves.filter(l=>l.status==="Pending").length} color={WN}/>
+        <Stat label="Approved" value={leaves.filter(l=>l.status==="Approved").length} color={OK}/>
+        <Stat label="Rejected" value={leaves.filter(l=>l.status==="Rejected").length} color={DG}/>
+        <Stat label="Total This Month" value={leaves.length} color={P}/></G>
+      <div style={{height:16}}/>
+      <Card>
+        <Tbl cols={["Employee","Type","From","To","Days","Reason","Status","Actions"]}
+          rows={leaves.map(l=>[
+            l.ename,<Badge t={l.type} c={P}/>,l.from,l.to,l.days,l.reason,
+            <Badge t={l.status} c={l.status==="Approved"?OK:l.status==="Rejected"?DG:WN}/>,
+            l.status==="Pending"?<div style={{display:"flex",gap:6}}>
+              <Btn sz="sm" v="ok" onClick={()=>apiActionLeave(l.id,"Approved")}>✓ Approve</Btn>
+              <Btn sz="sm" v="danger" onClick={()=>apiActionLeave(l.id,"Rejected")}>✗ Reject</Btn>
+            </div>:"—"
+          ])}/>
+      </Card>
+      {lvForm&&<Modal title="Apply Leave" onClose={()=>setLvForm(null)} w={480}>
+        <Inp label="Employee" val={lvForm.eid} set={v=>setLvForm(p=>({...p,eid:v}))} opts={emps.map(e=>({v:e.id,l:e.name}))}/>
+        <Inp label="Leave Type" val={lvForm.type} set={v=>setLvForm(p=>({...p,type:v}))} opts={pol.leave.types.map(lt=>lt.name)}/>
+        <G><Inp label="From" val={lvForm.from} set={v=>setLvForm(p=>({...p,from:v}))} type="date"/>
+        <Inp label="To" val={lvForm.to} set={v=>setLvForm(p=>({...p,to:v}))} type="date"/></G>
+        <Inp label="Reason" val={lvForm.reason} set={v=>setLvForm(p=>({...p,reason:v}))} ph="Brief reason..."/>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={()=>setLvForm(null)}>Cancel</Btn>
+          <Btn onClick={()=>{const emp=emps.find(e=>e.id===lvForm.eid);if(!emp||!lvForm.from||!lvForm.to){alert("Fill all fields.");return;}const days=Math.round((new Date(lvForm.to)-new Date(lvForm.from))/86400000)+1;apiAddLeave({id:"L"+uid(),eid:emp.id,ename:emp.name,...lvForm,days,status:"Pending",on:TODAY});}}>Submit</Btn>
+        </div>
+      </Modal>}
+    </Sec>}
+
+    {tab==="loans"&&<Sec title="Loans & Advances" action={<Btn onClick={()=>setLnForm({eid:"",type:"Personal Loan",amount:"",tenure:"",reason:""})}>+ Apply Loan</Btn>}>
+      <Card>
+        <Tbl cols={["Employee","Type","Amount","EMI","Tenure","Remaining","Status","Actions"]}
+          rows={loans.map(l=>[
+            l.ename,<Badge t={l.type} c={P}/>,<b>{INR(l.amount)}</b>,INR(l.emi),`${l.tenure} mo`,
+            <span style={{color:l.remaining>0?WN:OK,fontWeight:600}}>{l.remaining} mo</span>,
+            <Badge t={l.status} c={l.status==="Approved"?OK:l.status==="Rejected"?DG:WN}/>,
+            l.status==="Pending"?<div style={{display:"flex",gap:6}}>
+              <Btn sz="sm" v="ok" onClick={()=>apiActionLoan(l.id,"Approved")}>Approve</Btn>
+              <Btn sz="sm" v="danger" onClick={()=>apiActionLoan(l.id,"Rejected")}>Reject</Btn>
+            </div>:"—"
+          ])}/>
+      </Card>
+      {lnForm&&<Modal title="Apply Loan / Advance" onClose={()=>setLnForm(null)} w={480}>
+        <Inp label="Employee" val={lnForm.eid} set={v=>setLnForm(p=>({...p,eid:v}))} opts={emps.map(e=>({v:e.id,l:e.name}))}/>
+        <Inp label="Type" val={lnForm.type} set={v=>setLnForm(p=>({...p,type:v}))} opts={pol.loans.types.map(lt=>lt.name)}/>
+        <G><Inp label="Amount (₹)" val={lnForm.amount} set={v=>setLnForm(p=>({...p,amount:v}))} type="number"/>
+        <Inp label="Tenure (months)" val={lnForm.tenure} set={v=>setLnForm(p=>({...p,tenure:v}))} type="number"/></G>
+        <Inp label="Reason" val={lnForm.reason} set={v=>setLnForm(p=>({...p,reason:v}))} ph="Purpose..."/>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={()=>setLnForm(null)}>Cancel</Btn>
+          <Btn onClick={()=>{const emp=emps.find(e=>e.id===lnForm.eid);if(!emp||!lnForm.amount||!lnForm.tenure){alert("Fill all fields.");return;}const emi=Math.ceil(+lnForm.amount/+lnForm.tenure);apiAddLoan({id:"LN"+uid(),eid:emp.id,ename:emp.name,...lnForm,amount:+lnForm.amount,tenure:+lnForm.tenure,remaining:+lnForm.tenure,emi,status:"Pending",on:TODAY});}}>Submit</Btn>
+        </div>
+      </Modal>}
+    </Sec>}
+
+    {tab==="reimbursements"&&<Sec title="Reimbursements" action={<Btn onClick={()=>setReimbForm({eid:"",type:"Travel",amount:"",desc:"",date:TODAY})}>+ Add Claim</Btn>}>
+      <Card>
+        <Tbl cols={["Employee","Type","Amount","Date","Description","Status","Actions"]}
+          rows={reimb.map(r=>[
+            r.ename,<Badge t={r.type} c={AC}/>,<b style={{color:OK}}>{INR(r.amount)}</b>,r.date,r.desc,
+            <Badge t={r.status} c={r.status==="Approved"?OK:r.status==="Rejected"?DG:WN}/>,
+            r.status==="Pending"?<div style={{display:"flex",gap:6}}>
+              <Btn sz="sm" v="ok" onClick={()=>apiActionReimb(r.id,"Approved")}>Approve</Btn>
+              <Btn sz="sm" v="danger" onClick={()=>apiActionReimb(r.id,"Rejected")}>Reject</Btn>
+            </div>:"—"
+          ])}
+          empty="No reimbursement claims."/>
+      </Card>
+      {reimbForm&&<Modal title="Add Reimbursement Claim" onClose={()=>setReimbForm(null)} w={480}>
+        <Inp label="Employee" val={reimbForm.eid} set={v=>setReimbForm(p=>({...p,eid:v}))} opts={emps.map(e=>({v:e.id,l:e.name}))}/>
+        <Inp label="Type" val={reimbForm.type} set={v=>setReimbForm(p=>({...p,type:v}))} opts={pol.reimbursement.types.map(r=>r.name)}/>
+        <G><Inp label="Amount (₹)" val={reimbForm.amount} set={v=>setReimbForm(p=>({...p,amount:v}))} type="number"/>
+        <Inp label="Date" val={reimbForm.date} set={v=>setReimbForm(p=>({...p,date:v}))} type="date"/></G>
+        <Inp label="Description" val={reimbForm.desc} set={v=>setReimbForm(p=>({...p,desc:v}))} ph="Details of the expense..."/>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={()=>setReimbForm(null)}>Cancel</Btn>
+          <Btn onClick={()=>{const emp=emps.find(e=>e.id===reimbForm.eid);if(!emp||!reimbForm.amount){alert("Fill all fields.");return;}apiAddReimb({id:"R"+uid(),eid:emp.id,ename:emp.name,...reimbForm,amount:+reimbForm.amount,status:"Pending"});}}>Submit Claim</Btn>
+        </div>
+      </Modal>}
+    </Sec>}
+
+    {tab==="compliance"&&<Sec title="Statutory Compliance">
+      <G gap={20}>
+        {[{icon:"🏛️",t:"PF / EPF",s:"Employees Provident Fund",d:"ECR filing due 15th every month. Includes both employee (12%) and employer (12%) contributions.",btns:["Generate ECR","PF Challan","Form 19","Form 10C"],c:P},
+          {icon:"🏥",t:"ESIC",s:"Employee State Insurance",d:"Monthly contributions. Employee 0.75%, Employer 3.25%. Applicable if gross ≤ ₹21,000.",btns:["ESIC Challan","Half-Yearly Return","Form 37-A","ESIC Cards"],c:AC},
+          {icon:"📄",t:"TDS (Form 24Q)",s:"Tax Deducted at Source",d:"Quarterly return for salary TDS. Q1: Jul 31, Q2: Oct 31, Q3: Jan 31, Q4: May 31.",btns:["Form 24Q","Form 16 (All)","TDS Certificate","26AS Reconcile"],c:WN},
+          {icon:"📋",t:"Professional Tax",s:"State Tax",d:"Monthly PT deduction & challan. Maharashtra: ₹200/mo (gross >₹15K), ₹150 (>₹10K).",btns:["PT Challan","PT Return","Enrollment Cert","Exemption Form"],c:DG},
+          {icon:"📑",t:"Labour Law Returns",s:"Factories / Shops Act",d:"Annual Form D, Register of Wages, Muster Roll, Overtime Register, Leave Register.",btns:["Form D","Wage Register","Muster Roll","Leave Register"],c:"#6a1b9a"},
+          {icon:"⚖️",t:"Gratuity & Bonus",s:"Statutory Payments",d:"Gratuity: 15 days salary × years of service. Bonus: 8.33% to 20% of basic (Payment of Bonus Act).",btns:["Gratuity Report","Bonus Calculation","Form A","Bonus Register"],c:"#00695c"},
+        ].map(({icon,t,s,d,btns,c})=>(
+          <Card key={t}>
+            <div style={{display:"flex",gap:12,marginBottom:10}}><div style={{fontSize:26}}>{icon}</div><div><div style={{fontWeight:700,fontSize:15}}>{t}</div><div style={{fontSize:12,color:MT}}>{s}</div></div></div>
+            <p style={{fontSize:13,color:MT,lineHeight:1.6,marginBottom:12}}>{d}</p>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{btns.map(b=><Btn key={b} sz="sm" v="sec" onClick={()=>{
+                if(b==="Leave Register"){const rows=[];leaves.forEach(l=>rows.push([l.ename,l.type,l.from,l.to,l.days,l.status]));downloadExcel("Leave_Register",[{name:"Leaves",headers:["Employee","Type","From","To","Days","Status"],rows}]);}
+                else if(b==="Wage Register"&&activeRun){downloadExcel("Wage_Register",[{name:"Wages",headers:["Code","Name","Basic","Gross","Deductions","Net"],rows:activeRun.results.map(e=>[e.code,e.name,e.basic,e.g,e.ded,e.net])}]);}
+                else if(b==="Generate ECR"&&activeRun){downloadExcel("PF_ECR",[{name:"ECR",headers:["UAN","Name","Gross","EPF Wages","EPS Wages","EE Contrib","EPS","ER Contrib","NCP Days"],rows:activeRun.results.filter(e=>e.pf).map((e,i)=>[`UAN${1001+i}`,e.name,e.g,e.pfBase||+e.basic,e.pfBase||+e.basic,e.pfE,Math.round((e.pfBase||+e.basic)*0.0833),e.pfR,e.lopDays||0])}]);}
+                else if(b==="Gratuity Report"){downloadExcel("Gratuity",[{name:"Gratuity",headers:["Code","Name","DOJ","Years","Basic","Gratuity","Status"],rows:emps.map(e=>{const p=calcPay(e,0,pol);const y=p.yrs||0;return[e.code,e.name,e.doj,y.toFixed(1),+e.basic,p.gratuity,y>=5?"Eligible":"Not Yet"];})}]);}
+                else if(b==="ESIC Challan"&&activeRun){downloadExcel("ESIC_Challan",[{name:"ESIC",headers:["IP No","Name","Days","Wages","EE ESIC","ER ESIC","Total"],rows:activeRun.results.filter(e=>e.esic).map((e,i)=>[`IP${2001+i}`,e.name,26-(e.lopDays||0),e.g,e.esE,e.esR,e.esE+e.esR])}]);}
+                else alert(b+" — connect to government portal in production (EPFO / ESIC / TRACES / State PT portal).");
+              }} s={{color:c,borderColor:c+"44",background:c+"11"}}>{b}</Btn>)}</div>
+          </Card>
+        ))}
+      </G>
+      <Card s={{marginTop:20}}>
+        <div style={{fontWeight:700,marginBottom:12}}>Compliance Calendar — {MONTHS[NOW.getMonth()]} {NOW.getFullYear()}</div>
+        <Tbl cols={["Due Date","Filing","Authority","Frequency","Status"]} rows={[
+          ["7th","TDS Deposit","Income Tax Dept","Monthly",<Badge t="Upcoming" c={WN}/>],
+          ["15th","PF ECR + Challan","EPFO","Monthly",<Badge t="Upcoming" c={WN}/>],
+          ["15th","ESIC Contribution","ESIC","Monthly",<Badge t="Upcoming" c={WN}/>],
+          ["21st","PT Challan (MH)","Govt of Maharashtra","Monthly",<Badge t="Due" c={DG}/>],
+          ["31st","Form 24Q","Income Tax Dept","Quarterly",<Badge t="Upcoming" c={MT}/>],
+          ["Sep 30","ESIC Half-Yearly Return","ESIC","Half-yearly",<Badge t="Upcoming" c={MT}/>],
+        ]}/>
+      </Card>
+    </Sec>}
+
+    {tab==="fnf"&&<Sec title="Full & Final Settlement">
+      <Card s={{marginBottom:20}}>
+        <div style={{fontWeight:700,marginBottom:14}}>Select Employee for F&F</div>
+        <G>
+          <Inp label="Employee" val={ffEmp?.id||""} set={v=>setFfEmp(emps.find(e=>e.id===v)||null)} opts={emps.map(e=>({v:e.id,l:`${e.name} (${e.code})`}))}/>
+          <Inp label="Last Working Day" val={ffEmp?.lwd||TODAY} set={v=>setFfEmp(p=>p?{...p,lwd:v}:p)} type="date"/>
+        </G>
+      </Card>
+      {ffEmp&&<Card>
+        <div style={{fontWeight:700,fontSize:16,marginBottom:16}}>F&F Calculation — {ffEmp.name}</div>
+        {(()=>{
+          const p=calcP(ffEmp);
+          const yrs=Math.max(0,(new Date(ffEmp.lwd||TODAY)-new Date(ffEmp.doj||TODAY))/(365.25*24*3600*1000));
+          const gratuity=yrs>=5?Math.round((+ffEmp.basic||0)/26*15*Math.floor(yrs)):0;
+          const bonus=Math.round((+ffEmp.basic||0)*0.0833*12);
+          const elLeave=Math.round((+ffEmp.basic||0)/26*15);
+          const noticePay=p.g;
+          const total=gratuity+bonus+elLeave+noticePay-p.ded;
+          return <div>
+            <G cols={2} gap={16}>
+              <div>
+                <div style={{fontWeight:700,color:OK,marginBottom:8}}>Payables to Employee</div>
+                {[["Last Month Salary",INR(p.net)],["Gratuity (if >5 yrs)",INR(gratuity)],["Earned Leave Encashment",INR(elLeave)],["Statutory Bonus",INR(bonus)],["Notice Pay (if applicable)",INR(noticePay)]].map(([l,v])=>(
+                  <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${BG}`,fontSize:13}}><span style={{color:MT}}>{l}</span><span style={{fontWeight:600,color:OK}}>{v}</span></div>
+                ))}
+              </div>
+              <div>
+                <div style={{fontWeight:700,color:DG,marginBottom:8}}>Deductions / Recoveries</div>
+                {[["PF Employee",INR(p.pfE)],["TDS",INR(p.tds)],["Loan Recovery",INR(loans.find(l=>l.eid===ffEmp.id&&l.status==="Approved")?.emi||0)],["Notice Period Recovery","₹0"]].map(([l,v])=>(
+                  <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${BG}`,fontSize:13}}><span style={{color:MT}}>{l}</span><span style={{fontWeight:600,color:DG}}>{v}</span></div>
+                ))}
+              </div>
+            </G>
+            <div style={{background:`linear-gradient(135deg,${SB},${PL})`,color:"#fff",borderRadius:12,padding:20,marginTop:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div><div style={{fontSize:13,opacity:.8}}>Net F&F Amount Payable</div><div style={{fontSize:11,opacity:.6}}>Years of Service: {yrs.toFixed(1)} years</div></div>
+              <div style={{fontWeight:900,fontSize:28}}>{INR(total)}</div>
+            </div>
+            <div style={{display:"flex",gap:10,marginTop:14}}>
+              <Btn onClick={()=>{
+                const rows=[["Employee",ffEmp.name],["Department",ffEmp.dept],["Last Working Day",lwd],["Years of Service",yrs.toFixed(1)],["",""],["Last Month Net",net],["Gratuity",gratuity],["EL Encashment",elEncash],["Notice Pay",noticePay],["Bonus",bonus],["PF Deduction",-pFinal.pfE],["TDS",-pFinal.tds],["Loan Recovery",-loanBal],["",""],["NET F&F PAYABLE",total]];
+                downloadExcel(`FnF_${ffEmp.name.replace(/ /g,"_")}`,[{name:"FnF",headers:["Component","Amount (₹)"],rows}]);
+              }}>⬇ F&F CSV</Btn>
+              <Btn v="sec" onClick={()=>{
+                const html=`<table><thead><tr><th>Component</th><th>Amount</th></tr></thead><tbody><tr><td>Employee</td><td><b>${ffEmp.name}</b></td></tr><tr><td>Dept / Designation</td><td>${ffEmp.dept} / ${ffEmp.desig}</td></tr><tr><td>Date of Joining</td><td>${ffEmp.doj}</td></tr><tr><td>Last Working Day</td><td>${lwd}</td></tr><tr><td>Years of Service</td><td><b>${yrs.toFixed(1)} yrs</b></td></tr><tr><td colspan="2" style="background:#e8f5e9;font-weight:bold;padding:6px 9px">PAYABLES</td></tr><tr><td>Last Month Net Salary</td><td class="net">${INR(net)}</td></tr><tr><td>Gratuity</td><td class="net">${INR(gratuity)}</td></tr><tr><td>EL Encashment</td><td class="net">${INR(elEncash)}</td></tr><tr><td>Notice Pay</td><td class="net">${INR(noticePay)}</td></tr><tr><td>Bonus</td><td class="net">${INR(bonus)}</td></tr><tr><td colspan="2" style="background:#ffebee;font-weight:bold;padding:6px 9px">DEDUCTIONS</td></tr><tr><td>PF Deduction</td><td class="red">(${INR(pFinal.pfE)})</td></tr><tr><td>TDS</td><td class="red">(${INR(pFinal.tds)})</td></tr><tr><td>Loan Recovery</td><td class="red">(${INR(loanBal)})</td></tr><tr style="font-size:13px;font-weight:bold"><td>NET F&F PAYABLE</td><td class="net">${INR(total)}</td></tr></tbody></table>`;
+                printHTML(`FnF_Settlement_${ffEmp.name}`,html);
+              }}>🖨 F&F PDF</Btn>
+              <Btn v="ghost" onClick={()=>alert("Submit PF Form 19 on EPFO portal (epfindia.gov.in) using the employee's UAN number.")}>Form 19 (PF)</Btn>
+            </div>
+          </div>;
+        })()}
+      </Card>}
+    </Sec>}
+
+    {tab==="reports"&&<Sec title="Reports & Downloads">
+      {!activeRun&&<div style={{background:WX,border:`1px solid ${WN}44`,borderRadius:9,padding:"10px 14px",fontSize:13,color:WN,marginBottom:14}}>⚠ Run payroll first (Payroll tab) to enable payroll-based reports.</div>}
+      {activeRun&&<Card s={{marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <span style={{fontSize:13,fontWeight:600,color:MT}}>Active Payroll Run:</span>
+          <select onChange={e=>{const r=runs.find(x=>x.id===e.target.value);if(r)setActiveRun(r);}} style={{padding:"7px 11px",border:`1.5px solid ${BD}`,borderRadius:8,fontSize:13,outline:"none"}}>
+            {runs.map(r=><option key={r.id} value={r.id}>{MONTHS[r.month-1]} {r.year} — {INR(r.total)} net</option>)}
+          </select>
+          <span style={{fontSize:12,color:OK,fontWeight:600}}>{activeRun.count} employees · {INR(activeRun.total)} net payout</span>
+        </div>
+      </Card>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:13}}>
+
+        {/* Payroll Summary */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>📊</div><div style={{fontWeight:700,marginBottom:3}}>Payroll Summary</div><div style={{fontSize:12,color:MT,marginBottom:12}}>Full salary breakup for all employees</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{if(!activeRun){alert("Run payroll first.");return;}downloadExcel(`Payroll_${MONTHS[activeRun.month-1]}_${activeRun.year}`,[{name:"Payroll",headers:["Code","Name","Dept","Desig","LOP","Days Paid","Basic","HRA","Conv","Med","Spl","LTA","Gross","PF Emp","PF Emr","ESIC Emp","ESIC Emr","PT","TDS","Loan EMI","Total Ded","Net Pay","CTC"],rows:activeRun.results.map(e=>[e.code,e.name,e.dept,e.desig,e.lopDays||0,26-(e.lopDays||0),e.basic,e.hra,e.conv,e.med,e.spl,e.lta,e.g,e.pfE,e.pfR,e.esE,e.esR,e.pt,e.tds,e.loanEmi||0,e.ded,e.net,e.ctc])}]);}}>⬇ CSV</Btn>
+            <Btn sz="sm" v="ghost" onClick={()=>{if(!activeRun){alert("Run payroll first.");return;}const gross=activeRun.results.reduce((s,e)=>s+e.g,0);const html=`<div class="stats"><div class="stat"><div class="v">${activeRun.count}</div><div class="l">Employees</div></div><div class="stat"><div class="v">${INR(gross)}</div><div class="l">Total Gross</div></div><div class="stat"><div class="v">${INR(activeRun.results.reduce((s,e)=>s+e.pfE+e.pfR,0))}</div><div class="l">Total PF</div></div><div class="stat"><div class="v">${INR(activeRun.total)}</div><div class="l" style="color:#2e7d32">Net Payout</div></div></div><table><thead><tr><th>Code</th><th>Name</th><th>Dept</th><th>LOP</th><th>Gross</th><th>PF</th><th>ESIC</th><th>PT</th><th>TDS</th><th class="net">Net Pay</th></tr></thead><tbody>${activeRun.results.map(e=>`<tr><td>${e.code}</td><td>${e.name}</td><td>${e.dept}</td><td>${e.lopDays||0}</td><td>${INR(e.g)}</td><td>${INR(e.pfE)}</td><td>${INR(e.esE)}</td><td>${INR(e.pt)}</td><td>${INR(e.tds)}</td><td class="net">${INR(e.net)}</td></tr>`).join("")}</tbody></table>`;printHTML(`Payroll_${MONTHS[activeRun.month-1]}_${activeRun.year}`,html);}}>🖨 PDF</Btn>
+          </div>
+        </Card>
+
+        {/* Bank Transfer */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>🏦</div><div style={{fontWeight:700,marginBottom:3}}>Bank Transfer File</div><div style={{fontSize:12,color:MT,marginBottom:12}}>NEFT/RTGS salary disbursement</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{if(!activeRun){alert("Run payroll first.");return;}downloadExcel(`BankTransfer_${MONTHS[activeRun.month-1]}_${activeRun.year}`,[{name:"Bank",headers:["Sl","Employee Name","Bank Name","Account Number","IFSC Code","Net Amount","Narration"],rows:activeRun.results.map((e,i)=>[i+1,e.name,e.bank,e.acc,e.ifsc,e.net,`Salary ${MONTHS[activeRun.month-1]} ${activeRun.year}`])}]);}}>⬇ CSV</Btn>
+          </div>
+        </Card>
+
+        {/* PF ECR */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>🏛️</div><div style={{fontWeight:700,marginBottom:3}}>PF ECR</div><div style={{fontSize:12,color:MT,marginBottom:12}}>EPFO Electronic Challan cum Return</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{if(!activeRun){alert("Run payroll first.");return;}downloadExcel(`PF_ECR_${MONTHS[activeRun.month-1]}_${activeRun.year}`,[{name:"PF_ECR",headers:["UAN","Member Name","Gross Wages","EPF Wages","EPS Wages","EPF Contribution(EE)","EPS Contribution","EPF Contribution(ER)","NCP Days","Refund Advances"],rows:activeRun.results.filter(e=>e.pf).map((e,i)=>[`UAN${1001+i}`,e.name,e.g,e.pfBase||+e.basic,e.pfBase||+e.basic,e.pfE,Math.round((e.pfBase||+e.basic)*0.0833),e.pfR,e.lopDays||0,0])}]);}}>⬇ CSV</Btn>
+          </div>
+        </Card>
+
+        {/* ESIC */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>🏥</div><div style={{fontWeight:700,marginBottom:3}}>ESIC Return</div><div style={{fontSize:12,color:MT,marginBottom:12}}>Monthly ESIC contribution file</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{if(!activeRun){alert("Run payroll first.");return;}downloadExcel(`ESIC_${MONTHS[activeRun.month-1]}_${activeRun.year}`,[{name:"ESIC",headers:["IP Number","IP Name","Days Worked","Gross Wages","ESIC Employee","ESIC Employer","Total ESIC"],rows:activeRun.results.filter(e=>e.esic).map((e,i)=>[`IP${2001+i}`,e.name,26-(e.lopDays||0),e.g,e.esE,e.esR,e.esE+e.esR])}]);}}>⬇ CSV</Btn>
+          </div>
+        </Card>
+
+        {/* Employee Master */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>👥</div><div style={{fontWeight:700,marginBottom:3}}>Employee Master</div><div style={{fontSize:12,color:MT,marginBottom:12}}>All employee records & salary</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{downloadExcel("Employee_Master",[{name:"Employees",headers:["Code","Name","Dept","Designation","DOJ","Email","Phone","PAN","Basic","HRA","Conv","Med","Spl","LTA","Gross","Net Pay","CTC","PF","ESIC","Status","Bank","Account","IFSC"],rows:emps.map(e=>{const p=calcPay(e,0,pol);return[e.code,e.name,e.dept,e.desig,e.doj,e.email,e.phone,e.pan,+e.basic,+e.hra,+e.conv||0,+e.med||0,+e.spl||0,+e.lta||0,p.g,p.net,p.ctc,e.pf?"Yes":"No",e.esic?"Yes":"No",e.status,e.bank,e.acc,e.ifsc];})}]);}}>⬇ CSV</Btn>
+          </div>
+        </Card>
+
+        {/* Attendance */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>🕐</div><div style={{fontWeight:700,marginBottom:3}}>Attendance Report</div><div style={{fontSize:12,color:MT,marginBottom:12}}>Full attendance register</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{const rows=[];emps.forEach(e=>Object.entries(attendance[e.id]||{}).sort().forEach(([d,r])=>rows.push([e.code,e.name,e.dept,d,{P:"Present",A:"Absent",HD:"Half Day",L:"Late",WO:"Week Off",H:"Holiday",OD:"On Duty"}[r.status]||r.status,r.in||"",r.out||"",r.hrs||0,r.ot||0])));downloadExcel("Attendance_Register",[{name:"Attendance",headers:["Code","Name","Dept","Date","Status","In Time","Out Time","Hours","OT Hours"],rows}]);}}>⬇ CSV</Btn>
+          </div>
+        </Card>
+
+        {/* Leave Register */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>🌴</div><div style={{fontWeight:700,marginBottom:3}}>Leave Register</div><div style={{fontSize:12,color:MT,marginBottom:12}}>All leave applications & status</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{downloadExcel("Leave_Register",[{name:"Leaves",headers:["Employee","Leave Type","From","To","Days","Reason","Status","Applied On"],rows:leaves.map(l=>[l.ename,l.type,l.from,l.to,l.days,l.reason,l.status,l.on])}]);}}>⬇ CSV</Btn>
+          </div>
+        </Card>
+
+        {/* Loan Statement */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>💸</div><div style={{fontWeight:700,marginBottom:3}}>Loan Statement</div><div style={{fontSize:12,color:MT,marginBottom:12}}>Outstanding loan balances</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{downloadExcel("Loan_Statement",[{name:"Loans",headers:["Employee","Loan Type","Amount","EMI","Tenure","Remaining Months","Outstanding","Status"],rows:loans.map(l=>[l.ename,l.type,l.amount,l.emi,l.tenure,l.remaining,l.remaining*l.emi,l.status])}]);}}>⬇ CSV</Btn>
+          </div>
+        </Card>
+
+        {/* CTC Report */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>💼</div><div style={{fontWeight:700,marginBottom:3}}>CTC Report</div><div style={{fontSize:12,color:MT,marginBottom:12}}>Full cost-to-company breakup</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{downloadExcel("CTC_Report",[{name:"CTC",headers:["Code","Name","Dept","Designation","Basic","HRA","Conv","Med","Spl","LTA","Gross","PF Employer","ESIC Employer","Monthly CTC","Annual CTC"],rows:emps.map(e=>{const p=calcPay(e,0,pol);return[e.code,e.name,e.dept,e.desig,+e.basic,+e.hra,+e.conv||0,+e.med||0,+e.spl||0,+e.lta||0,p.g,p.pfR,p.esR,p.ctc,p.ctc*12];})}]);}}>⬇ CSV</Btn>
+          </div>
+        </Card>
+
+        {/* Gratuity Register */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>⚖️</div><div style={{fontWeight:700,marginBottom:3}}>Gratuity Register</div><div style={{fontSize:12,color:MT,marginBottom:12}}>Eligibility & gratuity provision</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{downloadExcel("Gratuity_Register",[{name:"Gratuity",headers:["Code","Name","DOJ","Years of Service","Basic","Gratuity Amount","Eligibility"],rows:emps.map(e=>{const p=calcPay(e,0,pol);const yrs=p.yrs||0;return[e.code,e.name,e.doj,yrs.toFixed(1),+e.basic,p.gratuity,yrs>=(pol.gratuity?.minServiceYears||5)?"Eligible":"Not Eligible"];})}]);}}>⬇ CSV</Btn>
+          </div>
+        </Card>
+
+        {/* Reimbursements */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>🧾</div><div style={{fontWeight:700,marginBottom:3}}>Reimbursements</div><div style={{fontSize:12,color:MT,marginBottom:12}}>Expense claims summary</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{downloadExcel("Reimbursements",[{name:"Reimb",headers:["Employee","Type","Amount","Date","Description","Status"],rows:reimb.map(r=>[r.ename,r.type,r.amount,r.date,r.desc||"",r.status])}]);}}>⬇ CSV</Btn>
+          </div>
+        </Card>
+
+        {/* Dept-wise */}
+        <Card><div style={{fontSize:22,marginBottom:6}}>🏢</div><div style={{fontWeight:700,marginBottom:3}}>Dept-wise Report</div><div style={{fontSize:12,color:MT,marginBottom:12}}>Headcount & salary by department</div>
+          <div style={{display:"flex",gap:7}}>
+            <Btn sz="sm" v="sec" onClick={()=>{const depts={};emps.forEach(e=>{if(!depts[e.dept])depts[e.dept]={dept:e.dept,count:0,gross:0,net:0,ctc:0};const p=calcPay(e,0,pol);depts[e.dept].count++;depts[e.dept].gross+=p.g;depts[e.dept].net+=p.net;depts[e.dept].ctc+=p.ctc;});downloadExcel("Dept_Report",[{name:"Departments",headers:["Department","Headcount","Total Gross","Total Net","Total CTC","Avg CTC/emp"],rows:Object.values(depts).map(d=>[d.dept,d.count,d.gross,d.net,d.ctc,Math.round(d.ctc/d.count)])}]);}}>⬇ CSV</Btn>
+          </div>
+        </Card>
+
+      </div>
+    </Sec>}
+
+    {tab==="company"&&<Sec title="Company Profile" action={<Btn v="sec" onClick={()=>{setCoForm(co);setEditCo(true);}}>Edit</Btn>}>
+      <G gap={20}>
+        {[{title:"Basic Info",fields:[["Company Name",co.name],["Nature",co.nature],["Type",co.type],["Est. Year",co.est],["PAN",co.pan],["TAN",co.tan],["GSTIN",co.gstin]]},
+          {title:"Contact",fields:[["Address",co.addr],["City",co.city],["State",co.state],["PIN",co.pin],["Phone",co.phone],["Email",co.email]]},
+          {title:"Work Policy",fields:[["Working Hours",co.wHours+" hrs/day"],["Working Days",co.wDays],["Half Day Hours",co.halfDay+" hrs"],["OT Rate",INR(co.otRate)+"/hr"]]},
+        ].map(({title,fields})=>(
+          <Card key={title}><div style={{fontWeight:700,color:P,marginBottom:12}}>{title}</div>{fields.map(([l,v])=>(
+            <div key={l} style={{display:"flex",padding:"7px 0",borderBottom:`1px solid ${BG}`,fontSize:13}}><span style={{width:180,color:MT,fontWeight:500}}>{l}</span><span style={{fontWeight:600}}>{v||"—"}</span></div>
+          ))}</Card>
+        ))}
+        <Card s={{gridColumn:"1/-1"}}><div style={{fontWeight:700,color:P,marginBottom:12}}>Statutory Registrations</div>
+          <G cols={3} gap={16}>{[["PF Registration",co.pf],["ESIC Registration",co.esic],["PT Registration",co.pt]].map(([l,v])=>(
+            <div key={l} style={{background:PX,borderRadius:8,padding:"12px 16px"}}><div style={{fontSize:12,color:MT,marginBottom:4}}>{l}</div><div style={{fontWeight:700,color:P}}>{v||"—"}</div></div>
+          ))}</G>
+        </Card>
+      </G>
+      {editCo&&<Modal title="Edit Company" onClose={()=>setEditCo(false)} w={680}>
+        <G>{[["name","Company Name"],["pan","PAN"],["tan","TAN"],["gstin","GSTIN"],["addr","Address"],["city","City"],["state","State"],["pin","PIN"],["phone","Phone"],["email","Email"],["pf","PF Reg No"],["esic","ESIC Reg No"],["pt","PT Reg No"]].map(([k,l])=>(
+          <Inp key={k} label={l} val={coForm[k]||""} set={v=>setCoForm(p=>({...p,[k]:v}))}/>
+        ))}</G>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:8}}>
+          <Btn v="ghost" onClick={()=>setEditCo(false)}>Cancel</Btn>
+          <Btn onClick={()=>{apiSaveCo(coForm);}}>Save</Btn>
+        </div>
+      </Modal>}
+    </Sec>}
+
+    {/* ── POLICY SETTINGS ── */}
+    {tab==="policy"&&<div style={{padding:"0 0 24px"}}>
+      <div style={{marginBottom:16}}><div style={{fontSize:21,fontWeight:800}}>Policy Settings</div><div style={{fontSize:12,color:MT}}>Changes apply to all future payroll runs automatically</div></div>
+      <PolicyTab pol={pol} setPol={setPol} onSave={apiSavePolicies}/>
+    </div>}
+
+    {/* ── AI ASSISTANT ── */}
+    {tab==="ai"&&<AIAssistant emps={emps} runs={runs} activeRun={activeRun} leaves={leaves} loans={loans} reimb={reimb} attendance={attendance} pol={pol} co={co} payMonth={payMonth} payYear={payYear}/>}
+
+  </Shell>;
+}
+
+// ── Employee Portal ───────────────────────────────────
+function EmployeePortal({user,onLogout}){
+  const [tab,setTab]=useState("dashboard");
+  const emp=EMPS0.find(e=>e.id===user.eid);
+  const [myLeaves,setMyLeaves]=useState(LEAVES0.filter(l=>l.eid===user.eid));
+  const [myLoans,setMyLoans]=useState(LOANS0.filter(l=>l.eid===user.eid));
+  const [myReimb,setMyReimb]=useState([]);
+  const [lvApp,setLvApp]=useState(null);
+  const [lnApp,setLnApp]=useState(null);
+  const [rApp,setRApp]=useState(null);
+  const [decl,setDecl]=useState({s80c:"",nps:"",hra:"",other:""});
+  const [attendance]=useState(()=>genAttendance());
+
+  if(!emp) return <div style={{padding:40}}>Employee not found.</div>;
+  const p=calcPay(emp);
+  const myAtt=attendance[emp.id]||{};
+  const attVals=Object.entries(myAtt).filter(([d])=>d.startsWith(TODAY.slice(0,7)));
+  const presentDays=attVals.filter(([,r])=>r.status==="P"||r.status==="L").length;
+  const absentDays=attVals.filter(([,r])=>r.status==="A").length;
+  const totalOT=attVals.reduce((s,[,r])=>s+(r.ot||0),0).toFixed(1);
+
+  const NAV=[["dashboard","📊","Dashboard"],["attendance","🕐","My Attendance"],["payslips","💸","Pay Slips"],["profile","👤","My Profile"],["leaves","🌴","My Leaves"],["loans","💰","Loans"],["reimbursements","🧾","Reimbursements"],["tax","📄","Tax & IT"],["docs","📁","Documents"]];
+
+  return <Shell user={{name:emp.name,role:"Employee"}} nav={NAV} tab={tab} setTab={setTab} onLogout={onLogout}>
+    {tab==="dashboard"&&<div>
+      <div style={{marginBottom:16}}><div style={{fontSize:22,fontWeight:800}}>Welcome, {emp.name.split(" ")[0]}! 👋</div><div style={{fontSize:13,color:MT}}>{emp.desig} · {emp.dept}</div></div>
+      <div style={{background:`linear-gradient(135deg,${SB},${PL})`,borderRadius:16,padding:28,color:"#fff",marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div><div style={{fontSize:13,opacity:.7,marginBottom:4}}>Net Take-Home — {MONTHS[NOW.getMonth()]} {NOW.getFullYear()}</div><div style={{fontSize:40,fontWeight:900,letterSpacing:-1}}>{INR(p.net)}</div><div style={{fontSize:13,opacity:.7,marginTop:4}}>Gross: {INR(p.g)} · Deductions: {INR(p.ded)}</div></div>
+        <div style={{fontSize:60,opacity:.2}}>💰</div>
+      </div>
+      <G cols={4} gap={16}><Stat label="Basic Salary" value={INR(emp.basic)} icon="💼"/>
+        <Stat label="PF Deducted" value={INR(p.pfE)} color={AC} icon="🏛️"/>
+        <Stat label="TDS / Month" value={INR(p.tds)} color={WN} icon="📄"/>
+        <Stat label="OT This Month" value={`${totalOT}h`} color={OK} icon="⏱️"/></G>
+      <div style={{height:16}}/>
+      <G gap={16}>
+        <Card><div style={{fontWeight:700,marginBottom:12}}>Earnings Breakdown</div>
+          {[["Basic",+emp.basic||0],["HRA",+emp.hra||0],["Conveyance",+emp.conv||0],["Medical",+emp.med||0],["Special Allowance",+emp.spl||0],["LTA",+emp.lta||0]].filter(([,v])=>v>0).map(([l,v])=>(
+            <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${BG}`,fontSize:13}}><span style={{color:MT}}>{l}</span><span style={{fontWeight:600}}>{INR(v)}</span></div>
+          ))}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"10px 0",fontWeight:800,color:OK,fontSize:14}}><span>Gross Total</span><span>{INR(p.g)}</span></div>
+        </Card>
+        <Card><div style={{fontWeight:700,marginBottom:12}}>Deductions</div>
+          {[["PF (Employee)",p.pfE],["ESIC",p.esE],["Professional Tax",p.pt],["TDS",p.tds]].map(([l,v])=>(
+            <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${BG}`,fontSize:13}}><span style={{color:MT}}>{l}</span><span style={{fontWeight:600,color:DG}}>{INR(v)}</span></div>
+          ))}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"10px 0",fontWeight:800,color:DG,fontSize:14}}><span>Total Deductions</span><span>{INR(p.ded)}</span></div>
+        </Card>
+      </G>
+    </div>}
+
+    {tab==="attendance"&&<Sec title="My Attendance">
+      <G cols={4} gap={16}><Stat label="Present This Month" value={presentDays} color={OK}/>
+        <Stat label="Absent" value={absentDays} color={DG}/>
+        <Stat label="Overtime Hours" value={`${totalOT}h`} color={WN}/>
+        <Stat label="Late Mark" value={attVals.filter(([,r])=>r.status==="L").length} color={"#7b1fa2"}/></G>
+      <div style={{height:16}}/>
+      <Card>
+        <div style={{fontWeight:700,marginBottom:14}}>Attendance This Month</div>
+        {(()=>{
+          const [yr,mo]=[NOW.getFullYear(),NOW.getMonth()+1];
+          const firstDay=new Date(yr,mo-1,1).getDay();
+          const daysInMonth=new Date(yr,mo,0).getDate();
+          const cells=[];
+          for(let i=0;i<firstDay;i++) cells.push(null);
+          for(let d=1;d<=daysInMonth;d++) cells.push(d);
+          return <>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:6}}>
+              {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=><div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,color:MT}}>{d}</div>)}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+              {cells.map((d,i)=>{
+                if(!d) return <div key={i}/>;
+                const ds=`${yr}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+                const rec=myAtt[ds];
+                const st=rec?.status||"";
+                const c=STATUS_COLOR[st]||"#f0f0f0";
+                return <div key={i} style={{borderRadius:6,padding:"6px 2px",textAlign:"center",background:st?c+"22":"#f9f9f9",border:`1px solid ${st?c+"66":BD}`,minHeight:46}}>
+                  <div style={{fontWeight:700,fontSize:12}}>{d}</div>
+                  {st&&<div style={{fontSize:9,fontWeight:700,color:c}}>{st}</div>}
+                  {rec?.in&&<div style={{fontSize:8,color:MT}}>{rec.in}</div>}
+                </div>;
+              })}
+            </div>
+          </>;
+        })()}
+      </Card>
+      <Card s={{marginTop:16}}>
+        <div style={{fontWeight:700,marginBottom:12}}>Recent Records</div>
+        <Tbl cols={["Date","Status","In Time","Out Time","Hours","Overtime"]}
+          rows={Object.entries(myAtt).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,15).map(([d,r])=>[
+            d,
+            r.status?<Badge t={STATUS_LABEL[r.status]||r.status} c={STATUS_COLOR[r.status]||MT}/>:"—",
+            <span style={{color:OK,fontWeight:600}}>{r.in||"—"}</span>,
+            <span style={{color:DG,fontWeight:600}}>{r.out||"—"}</span>,
+            <span style={{fontWeight:r.hrs>9?700:400,color:r.hrs>9?WN:MT}}>{r.hrs||0}h</span>,
+            <span style={{color:r.ot>0?WN:MT,fontWeight:r.ot>0?700:400}}>{r.ot||0}h</span>
+          ])}/>
+      </Card>
+    </Sec>}
+
+    {tab==="payslips"&&<Sec title="Pay Slips">
+      {[0,1,2,3].map(i=>{const d=new Date(NOW.getFullYear(),NOW.getMonth()-i,1);return(
+        <Card key={i} s={{marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div><div style={{fontWeight:700,fontSize:15}}>{MONTHS[d.getMonth()]} {d.getFullYear()}</div><div style={{fontSize:13,color:MT}}>Gross: {INR(p.g)} · Net: {INR(p.net)}</div></div>
+            <div style={{display:"flex",gap:10,alignItems:"center"}}><Badge t="Paid" c={OK}/><Btn sz="sm" v="sec" onClick={()=>{
+              const p2=calcPay(emp);
+              const html=`<div class="slip-meta">${[["Emp Code",emp.code],["Name",emp.name],["Designation",emp.desig],["Department",emp.dept],["Bank",emp.bank],["Account",emp.acc],["IFSC",emp.ifsc]].map(([l,v])=>`<div class="slip-cell"><span style="color:#546e7a">${l}: </span><b>${v||""}</b></div>`).join("")}</div><div class="earn-ded"><div style="border-right:1px solid #e0e0e0"><div class="ehdr">EARNINGS</div>${[["Basic",+emp.basic||0],["HRA",+emp.hra||0],["Conveyance",+emp.conv||0],["Medical",+emp.med||0],["Special Allowance",+emp.spl||0],["LTA",+emp.lta||0]].filter(([,v])=>v>0).map(([l,v])=>`<div class="erow"><span>${l}</span><span>${INR(v)}</span></div>`).join("")}<div class="etot"><span>Gross</span><span>${INR(p2.g)}</span></div></div><div><div class="dhdr">DEDUCTIONS</div>${[["PF (12%)",p2.pfE],["ESIC",p2.esE],["Prof. Tax",p2.pt],["TDS",p2.tds]].map(([l,v])=>`<div class="drow"><span>${l}</span><span class="red">${INR(v)}</span></div>`).join("")}<div class="dtot"><span>Total</span><span>${INR(p2.ded)}</span></div></div></div><div class="netpay"><span>NET PAY</span><span>${INR(p2.net)}</span></div><div class="ctcrow">CTC/month: ${INR(p2.ctc)} | Annual CTC: ${INR(p2.ctc*12)}</div>`;
+              printHTML(`Salary_Slip_${emp.name.replace(/ /g,"_")}_${MONTHS[d.getMonth()]}_${d.getFullYear()}`,html);
+            }}>⬇ Download PDF</Btn></div>
+          </div>
+        </Card>
+      );})}
+    </Sec>}
+
+    {tab==="profile"&&<Sec title="My Profile">
+      <G gap={20}>
+        {[{title:"Personal",fields:[["Name",emp.name],["Date of Birth",emp.dob],["Gender",emp.gen],["Phone",emp.phone],["PAN",emp.pan],["Aadhaar",emp.aadhaar]]},
+          {title:"Employment",fields:[["Employee Code",emp.code],["Date of Joining",emp.doj],["Department",emp.dept],["Designation",emp.desig],["Category",emp.cat],["Shift",emp.shift],["Status",emp.status]]},
+          {title:"Bank Details",fields:[["Bank Name",emp.bank],["Account Number",emp.acc],["IFSC Code",emp.ifsc]]},
+          {title:"Statutory & CTC",fields:[["PF Enrolled",emp.pf?"Yes":"No"],["ESIC Enrolled",emp.esic?"Yes":"No"],["PT Applicable",emp.pt?"Yes":"No"],["Monthly CTC",INR(p.ctc)],["Annual CTC",INR(p.ctc*12)]]},
+        ].map(({title,fields})=>(
+          <Card key={title}><div style={{fontWeight:700,color:P,marginBottom:12}}>{title}</div>{fields.map(([l,v])=>(
+            <div key={l} style={{display:"flex",padding:"7px 0",borderBottom:`1px solid ${BG}`,fontSize:13}}><span style={{width:160,color:MT,fontWeight:500}}>{l}</span><span style={{fontWeight:600}}>{v||"—"}</span></div>
+          ))}</Card>
+        ))}
+      </G>
+    </Sec>}
+
+    {tab==="leaves"&&<Sec title="My Leaves" action={<Btn onClick={()=>setLvApp({type:"Casual Leave",from:"",to:"",reason:""})}>+ Apply Leave</Btn>}>
+      <G cols={3} gap={16}>{[["Casual Leave","8","12",P],["Sick Leave","3","12",AC],["Earned Leave","15","24",OK]].map(([l,u,t,c])=>(
+        <Card key={l} s={{textAlign:"center"}}><div style={{fontSize:12,color:MT,marginBottom:4}}>{l}</div><div style={{fontSize:28,fontWeight:800,color:c}}>{u}<span style={{fontSize:14,color:MT}}>/{t}</span></div><div style={{fontSize:11,color:MT}}>Used / Total</div></Card>
+      ))}</G>
+      <div style={{height:16}}/>
+      <Card><Tbl cols={["Type","From","To","Days","Reason","Applied","Status"]}
+        rows={myLeaves.map(l=>[l.type,l.from,l.to,l.days,l.reason,l.on,<Badge t={l.status} c={l.status==="Approved"?OK:l.status==="Rejected"?DG:WN}/>])}
+        empty="No leave applications."/></Card>
+      {lvApp&&<Modal title="Apply for Leave" onClose={()=>setLvApp(null)} w={460}>
+        <Inp label="Leave Type" val={lvApp.type} set={v=>setLvApp(p=>({...p,type:v}))} opts={["Casual Leave","Sick Leave","Earned Leave","LOP"]}/>
+        <G><Inp label="From Date" val={lvApp.from} set={v=>setLvApp(p=>({...p,from:v}))} type="date"/>
+        <Inp label="To Date" val={lvApp.to} set={v=>setLvApp(p=>({...p,to:v}))} type="date"/></G>
+        <Inp label="Reason" val={lvApp.reason} set={v=>setLvApp(p=>({...p,reason:v}))} ph="Brief reason..."/>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={()=>setLvApp(null)}>Cancel</Btn>
+          <Btn onClick={()=>{if(!lvApp.from||!lvApp.to){alert("Select dates.");return;}const days=Math.round((new Date(lvApp.to)-new Date(lvApp.from))/86400000)+1;setMyLeaves(p=>[...p,{id:"L"+uid(),eid:emp.id,ename:emp.name,...lvApp,days,status:"Pending",on:TODAY}]);setLvApp(null);}}>Submit</Btn>
+        </div>
+      </Modal>}
+    </Sec>}
+
+    {tab==="loans"&&<Sec title="Loans & Advances" action={<Btn onClick={()=>setLnApp({type:"Personal Loan",amount:"",tenure:"",reason:""})}>+ Apply</Btn>}>
+      <Card><Tbl cols={["Type","Amount","EMI","Tenure","Remaining","Status"]}
+        rows={myLoans.map(l=>[l.type,INR(l.amount),INR(l.emi),l.tenure+" mo",<span style={{color:l.remaining>0?WN:OK}}>{l.remaining} mo</span>,<Badge t={l.status} c={l.status==="Approved"?OK:l.status==="Rejected"?DG:WN}/>])}
+        empty="No loan applications."/></Card>
+      {lnApp&&<Modal title="Apply for Loan" onClose={()=>setLnApp(null)} w={460}>
+        <Inp label="Loan Type" val={lnApp.type} set={v=>setLnApp(p=>({...p,type:v}))} opts={["Personal Loan","Salary Advance","Medical Emergency","Vehicle Loan"]}/>
+        <G><Inp label="Amount (₹)" val={lnApp.amount} set={v=>setLnApp(p=>({...p,amount:v}))} type="number"/>
+        <Inp label="Tenure (months)" val={lnApp.tenure} set={v=>setLnApp(p=>({...p,tenure:v}))} type="number"/></G>
+        <Inp label="Reason" val={lnApp.reason} set={v=>setLnApp(p=>({...p,reason:v}))} ph="Purpose..."/>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={()=>setLnApp(null)}>Cancel</Btn>
+          <Btn onClick={()=>{if(!lnApp.amount||!lnApp.tenure){alert("Fill all fields.");return;}const emi=Math.ceil(+lnApp.amount/+lnApp.tenure);setMyLoans(p=>[...p,{id:"LN"+uid(),eid:emp.id,ename:emp.name,...lnApp,amount:+lnApp.amount,tenure:+lnApp.tenure,remaining:+lnApp.tenure,emi,status:"Pending",on:TODAY}]);setLnApp(null);}}>Submit</Btn>
+        </div>
+      </Modal>}
+    </Sec>}
+
+    {tab==="reimbursements"&&<Sec title="My Reimbursements" action={<Btn onClick={()=>setRApp({type:"Travel",amount:"",date:TODAY,desc:""})}>+ Add Claim</Btn>}>
+      <Card><Tbl cols={["Type","Amount","Date","Description","Status"]}
+        rows={myReimb.map(r=>[<Badge t={r.type} c={AC}/>,<b style={{color:OK}}>{INR(r.amount)}</b>,r.date,r.desc,<Badge t={r.status} c={r.status==="Approved"?OK:r.status==="Rejected"?DG:WN}/>])}
+        empty="No reimbursement claims yet."/></Card>
+      {rApp&&<Modal title="Add Reimbursement Claim" onClose={()=>setRApp(null)} w={460}>
+        <Inp label="Type" val={rApp.type} set={v=>setRApp(p=>({...p,type:v}))} opts={pol.reimbursement.types.map(r=>r.name)}/>
+        <G><Inp label="Amount (₹)" val={rApp.amount} set={v=>setRApp(p=>({...p,amount:v}))} type="number"/>
+        <Inp label="Date" val={rApp.date} set={v=>setRApp(p=>({...p,date:v}))} type="date"/></G>
+        <Inp label="Description" val={rApp.desc} set={v=>setRApp(p=>({...p,desc:v}))} ph="Details of the expense..."/>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn v="ghost" onClick={()=>setRApp(null)}>Cancel</Btn>
+          <Btn onClick={()=>{if(!rApp.amount){alert("Enter amount.");return;}setMyReimb(p=>[...p,{id:"R"+uid(),...rApp,amount:+rApp.amount,status:"Pending"}]);setRApp(null);}}>Submit</Btn>
+        </div>
+      </Modal>}
+    </Sec>}
+
+    {tab==="tax"&&<Sec title="Tax & IT Declaration">
+      <G gap={20}>
+        <Card>
+          <div style={{fontWeight:700,marginBottom:14}}>Tax Computation — FY 2025-26 (New Regime)</div>
+          {[["Annual Gross",INR(p.g*12)],["Less: Standard Deduction","₹50,000"],["Taxable Income",INR(p.ti)],["Tax Slab",p.ti>1000000?"30%":p.ti>500000?"20%":p.ti>300000?"5%":"Nil"],["Annual Tax (+ 4% Cess)",INR(p.annTax)],["Monthly TDS",INR(p.tds)]].map(([l,v])=>(
+            <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:`1px solid ${BG}`,fontSize:13}}><span style={{color:MT}}>{l}</span><span style={{fontWeight:700}}>{v}</span></div>
+          ))}
+        </Card>
+        <Card>
+          <div style={{fontWeight:700,marginBottom:14}}>Investment Declaration (Old Regime)</div>
+          <div style={{background:WX,borderRadius:8,padding:"10px 12px",fontSize:12,color:WN,marginBottom:14}}>Declare to evaluate Old Regime vs New Regime benefit.</div>
+          {[["s80c","Section 80C (Max ₹1.5L)"],["nps","NPS 80CCD(1B) (Max ₹50K)"],["hra","HRA Exemption"],["other","Other Deductions"]].map(([k,l])=>(
+            <Inp key={k} label={l} val={decl[k]} set={v=>setDecl(p=>({...p,[k]:v}))} type="number" ph="0"/>
+          ))}
+          <div style={{background:PX,borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:14}}>
+            <span style={{color:MT}}>Total Declarations: </span><b style={{color:P}}>{INR((+decl.s80c||0)+(+decl.nps||0)+(+decl.hra||0)+(+decl.other||0))}</b>
+          </div>
+          <Btn onClick={()=>alert("Declaration saved! HR will update TDS.")} s={{width:"100%"}}>Save Declaration</Btn>
+        </Card>
+      </G>
+    </Sec>}
+
+    {tab==="docs"&&<Sec title="My Documents">
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
+        {[["📄","Salary Slips","Monthly pay slips"],["📑","Form 16","Annual TDS certificate"],["🏛️","PF Passbook","EPF account statement"],["🏥","ESIC Card","Health insurance card"],["💼","Offer Letter","Employment offer"],["📋","Appointment Letter","Formal appointment"],["🔖","Salary Certificate","Employment proof"],["📊","CTC Breakup","Full cost to company"],["🪪","Experience Letter","On separation"]].map(([icon,title,desc])=>(
+          <Card key={title} s={{textAlign:"center"}}>
+            <div style={{fontSize:32,marginBottom:8}}>{icon}</div>
+            <div style={{fontWeight:700,marginBottom:4}}>{title}</div>
+            <div style={{fontSize:12,color:MT,marginBottom:14}}>{desc}</div>
+            <Btn sz="sm" v="sec" onClick={()=>{
+              const p2=calcPay(emp);
+              if(title==="CTC Breakup"){downloadExcel("CTC_"+emp.name.replace(/ /g,"_"),[{name:"CTC",headers:["Component","Monthly (₹)","Annual (₹)"],rows:[["Basic",+emp.basic,(+emp.basic)*12],["HRA",+emp.hra,(+emp.hra)*12],["Conveyance",+emp.conv||0,(+emp.conv||0)*12],["Medical",+emp.med||0,(+emp.med||0)*12],["Special Allowance",+emp.spl||0,(+emp.spl||0)*12],["LTA",+emp.lta||0,(+emp.lta||0)*12],["Gross",p2.g,p2.g*12],["PF Employer",p2.pfR,p2.pfR*12],["ESIC Employer",p2.esR,p2.esR*12],["Monthly CTC",p2.ctc,p2.ctc*12]]}]);}
+              else if(title==="Salary Slip"){const html=`<div class="slip-meta">${[["Name",emp.name],["Code",emp.code],["Designation",emp.desig]].map(([l,v])=>`<div class="slip-cell"><span style="color:#546e7a">${l}: </span><b>${v}</b></div>`).join("")}</div><div class="earn-ded"><div style="border-right:1px solid #e0e0e0"><div class="ehdr">EARNINGS</div>${[["Basic",+emp.basic||0],["HRA",+emp.hra||0],["Conv",+emp.conv||0],["Med",+emp.med||0],["Special",+emp.spl||0]].filter(([,v])=>v>0).map(([l,v])=>`<div class="erow"><span>${l}</span><span>${INR(v)}</span></div>`).join("")}<div class="etot"><span>Gross</span><span>${INR(p2.g)}</span></div></div><div><div class="dhdr">DEDUCTIONS</div>${[["PF",p2.pfE],["ESIC",p2.esE],["PT",p2.pt],["TDS",p2.tds]].map(([l,v])=>`<div class="drow"><span>${l}</span><span class="red">${INR(v)}</span></div>`).join("")}<div class="dtot"><span>Total</span><span>${INR(p2.ded)}</span></div></div></div><div class="netpay"><span>NET PAY</span><span>${INR(p2.net)}</span></div>`;printHTML("Salary_Slip_"+emp.name,html);}
+              else alert(title+" — request from HR department.");
+            }}>Download</Btn>
+          </Card>
+        ))}
+      </div>
+    </Sec>}
+  </Shell>;
+}
+
+// ── Super Admin ───────────────────────────────────────
+function SuperAdmin({user,onLogout}){
+  const [tab,setTab]=useState("dashboard");
+  const [cos]=useState([
+    {id:"C1",name:"TechCorp India Pvt Ltd",plan:"Pro",city:"Mumbai",emps:48,mrr:7152,active:true},
+    {id:"C2",name:"Garg Shekhar & Company",plan:"Starter",city:"Meerut",emps:12,mrr:588,active:true},
+    {id:"C3",name:"Sunrise Textiles Ltd",plan:"Growth",city:"Surat",emps:87,mrr:8613,active:true},
+    {id:"C4",name:"Delhi Pharma Pvt Ltd",plan:"Growth",city:"Delhi",emps:55,mrr:5445,active:false},
+  ]);
+  const NAV=[["dashboard","📊","Dashboard"],["companies","🏢","Companies"],["billing","💳","Billing"]];
+  const totalMRR=cos.filter(c=>c.active).reduce((s,c)=>s+c.mrr,0);
+  return <Shell user={user} nav={NAV} tab={tab} setTab={setTab} onLogout={onLogout}>
+    {tab==="dashboard"&&<div>
+      <div style={{fontSize:22,fontWeight:800,marginBottom:20}}>Super Admin Dashboard</div>
+      <G cols={4} gap={16}><Stat label="Total Companies" value={cos.length} icon="🏢"/>
+        <Stat label="Active" value={cos.filter(c=>c.active).length} color={OK} icon="✅"/>
+        <Stat label="Total Employees" value={cos.reduce((s,c)=>s+c.emps,0)} color={AC} icon="👥"/>
+        <Stat label="Monthly Revenue" value={INR(totalMRR)} color={WN} icon="💰"/></G>
+      <div style={{height:16}}/>
+      <Card><div style={{fontWeight:700,marginBottom:14}}>All Companies</div>
+        <Tbl cols={["Company","Plan","City","Employees","MRR","Status"]}
+          rows={cos.map(c=>[c.name,<Badge t={c.plan} c={P}/>,c.city,c.emps,INR(c.mrr),<Badge t={c.active?"Active":"Inactive"} c={c.active?OK:DG}/>])}/></Card>
+    </div>}
+    {tab==="companies"&&<Sec title="Companies"><div style={{display:"grid",gap:14}}>
+      {cos.map(c=><Card key={c.id}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div><div style={{fontWeight:700}}>{c.name}</div><div style={{fontSize:13,color:MT}}>{c.city} · {c.emps} employees · MRR: {INR(c.mrr)}</div></div>
+        <div style={{display:"flex",gap:8}}><Badge t={c.plan} c={P}/><Badge t={c.active?"Active":"Inactive"} c={c.active?OK:DG}/></div>
+      </div></Card>)}
+    </div></Sec>}
+    {tab==="billing"&&<Sec title="Billing">
+      <G cols={3} gap={16}>{[["Starter","₹49/emp","12 clients"],["Growth","₹99/emp","8 clients"],["Pro","₹149/emp","5 clients"]].map(([p,pr,cl])=>(
+        <Card key={p} s={{textAlign:"center"}}><div style={{fontWeight:700,fontSize:16,marginBottom:4}}>{p}</div><div style={{fontSize:22,fontWeight:800,color:P}}>{pr}</div><div style={{fontSize:13,color:MT}}>{cl}</div></Card>
+      ))}</G>
+    </Sec>}
+  </Shell>;
+}
+
+// ── Root ──────────────────────────────────────────────
+export default function App(){
+  const [session,setSession]=useState(null);
+
+  function handleLogin(s){ setSession(s); }
+  async function handleLogout(){ await sbLogout(); setSession(null); }
+
+  if(!session) return <Login onLogin={handleLogin}/>;
+  if(session.role==="sa")  return <SuperAdmin user={{name:session.name||"Super Admin",role:"Super Admin"}} onLogout={handleLogout}/>;
+  if(session.role==="hr")  return <HRAdmin user={{...session,name:session.name||"HR Admin",role:"HR Admin"}} onLogout={handleLogout}/>;
+  if(session.role==="emp") return <EmployeePortal user={{name:session.name,role:"Employee",eid:session.eid||session.employee_id}} onLogout={handleLogout}/>;
+  return null;
+}
