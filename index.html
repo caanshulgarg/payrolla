@@ -3,60 +3,30 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Payrolla.in — Indian Payroll & HRMS</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
-
-  <!-- ═══════════════════════════════════════════════════════
-       CONFIGURE YOUR SUPABASE HERE — fill in your 2 values
-       ═══════════════════════════════════════════════════════ -->
-  <script>
-    window.PAYROLLA_CONFIG = {
-      supabaseUrl:     "https://ughybjrpggoutpoutkpz.supabase.co",
-      supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnaHlianJwZ2dvdXRwb3V0a3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NTI2NTAsImV4cCI6MjA5ODAyODY1MH0.EjNOd3euAs_fEyDL_aE93L-r9aosMLqyamnyDk1AY7c"
-    };
-  </script>
-  <!-- ═══════════════════════════════════════════════════════ -->
-
-  <!-- Supabase -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <!-- React 18 -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <!-- Babel (transforms JSX in browser) -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; }
-    #loading {
-      position: fixed; inset: 0; background: #0d1b4b;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      color: #fff; font-family: 'Segoe UI', sans-serif;
-      z-index: 99999;
-    }
-    #loading h1 { font-size: 32px; font-weight: 900; margin-bottom: 8px; }
-    #loading h1 span { color: #64b5f6; }
-    #loading p { font-size: 14px; opacity: .6; margin-bottom: 32px; }
-    .spinner {
-      width: 40px; height: 40px; border: 4px solid rgba(255,255,255,.2);
-      border-top-color: #64b5f6; border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+  <title>Payrolla.in</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-  <!-- Loading screen shown while Babel compiles JSX -->
-  <div id="loading">
-    <h1>Payrolla<span>.in</span></h1>
-    <p>Indian Payroll & HRMS Platform</p>
-    <div class="spinner"></div>
+  <div id="root">
+    <!-- shown while JS loads -->
+    <div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;font-family:Segoe UI,sans-serif">
+      <div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div>
+      <div style="font-size:13px;opacity:.6;margin-bottom:28px">Loading payroll system...</div>
+      <div style="width:36px;height:36px;border:3px solid rgba(255,255,255,.2);border-top-color:#64b5f6;border-radius:50%;animation:spin .8s linear infinite"></div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </div>
   </div>
 
-  <div id="root"></div>
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <script type="text/babel" data-presets="react">
+  <script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+const { createClient } = supabase;
+
 // React hooks from CDN global
 const { useState, useEffect, useCallback, useRef } = React;
 
@@ -67,8 +37,8 @@ const { useState, useEffect, useCallback, useRef } = React;
 // Supabase from CDN global
 const { createClient } = supabase;
 
-const SUPABASE_URL      = window.PAYROLLA_CONFIG?.supabaseUrl      || "https://YOUR_PROJECT.supabase.co";
-const SUPABASE_ANON_KEY = window.PAYROLLA_CONFIG?.supabaseAnonKey  || "YOUR_ANON_KEY";
+const SUPABASE_URL      = "https://ughybjrpggoutpoutkpz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnaHlianJwZ2dvdXRwb3V0a3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NTI2NTAsImV4cCI6MjA5ODAyODY1MH0.EjNOd3euAs_fEyDL_aE93L-r9aosMLqyamnyDk1AY7c";
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
@@ -2626,12 +2596,16 @@ function App(){
 }
 
 
-    // Mount the app
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(App));
-
-    // Hide loading screen
-    document.getElementById('loading').style.display = 'none';
+try {
+  ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+} catch(err) {
+  document.getElementById("root").innerHTML = `
+    <div style="padding:40px;font-family:monospace;background:#1a1a2e;color:#fff;min-height:100vh">
+      <h2 style="color:#ff6b6b;margin-bottom:16px">⚠ JavaScript Error</h2>
+      <pre style="background:#0d0d1a;padding:16px;border-radius:8px;overflow:auto;font-size:12px">${err.message}\n\n${err.stack}</pre>
+      <p style="margin-top:16px;opacity:.6;font-size:12px">Press F12 → Console for more details</p>
+    </div>`;
+}
   </script>
 </body>
 </html>
