@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v5.0 BUILD 20260627 -->
+<!-- PAYROLLA v6.0 BUILD 20260627 -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v5.0...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v6.0...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -569,161 +569,215 @@ function Login({ onLogin, onRegister }) {
     setErr("");
   }, style: { flex: 1, padding: "7px 4px", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer", background: role === r ? P : "transparent", color: role === r ? "#fff" : MT } }, l))), /* @__PURE__ */ React.createElement("div", { style: { background: "#e3f2fd", border: "1px solid #90caf9", borderRadius: 9, padding: "9px 13px", fontSize: 12, color: "#1565c0", marginBottom: 20 } }, /* @__PURE__ */ React.createElement("b", null, "Demo:"), " ", hints[role]), /* @__PURE__ */ React.createElement(Inp, { label: "Email", val: email, set: setEmail, ph: "Enter email" }), /* @__PURE__ */ React.createElement(Inp, { label: "Password", val: pw, set: setPw, type: "password", ph: "Enter password" }), err && /* @__PURE__ */ React.createElement("div", { style: { background: DX, border: `1px solid ${DG}44`, borderRadius: 8, padding: "9px 13px", fontSize: 13, color: DG, marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement(Btn, { onClick: go, sz: "lg", s: { width: "100%", marginTop: 4 } }, loggingIn ? "Signing in..." : "Sign In \u2192"), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: 16, fontSize: 13, color: "rgba(255,255,255,.7)" } }, "No account? ", /* @__PURE__ */ React.createElement("span", { onClick: onRegister, style: { color: "#90caf9", cursor: "pointer", fontWeight: 700, textDecoration: "underline" } }, "Start 30-day free trial \u2192"))));
 }
-function SalarySlip({ emp, co, month, year, lopDays = 0, onClose, pol: pol2 }) {
-  const SPOL = pol2 || DEFAULT_POLICIES;
-  const p = calcPay(emp, lopDays, SPOL, month, year);
-  return /* @__PURE__ */ React.createElement(Modal, { title: "Salary Slip", onClose, w: 640 }, p.joiningNote && /* @__PURE__ */ React.createElement("div", { style: { background: "#fff3e0", border: "1px solid #e65100", borderRadius: 8, padding: "8px 14px", marginBottom: 10, fontSize: 12, color: "#e65100" } }, "\u26A0 ", /* @__PURE__ */ React.createElement("b", null, "Mid-month joiner:"), " ", p.joiningNote, ". Salary prorated to ", INR(p.g), " (", Math.round(p.joiningProration * 100), "% of full month)."), /* @__PURE__ */ React.createElement("div", { style: { border: `2px solid ${P}`, borderRadius: 10, overflow: "hidden", fontSize: 13 } }, /* @__PURE__ */ React.createElement("div", { style: { background: P, color: "#fff", padding: "16px 22px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 900, fontSize: 17 } }, co.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, opacity: 0.8 } }, co.addr, ", ", co.city, " | PAN: ", co.pan, " | PF: ", co.pf, " | ESIC: ", co.esic), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginTop: 6, fontSize: 14 } }, "SALARY SLIP \u2014 ", MONTHS[month - 1].toUpperCase(), " ", year)), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", background: "#f8fafc" } }, [["Emp Code", emp.code], ["Name", emp.name], ["Designation", emp.desig], ["Department", emp.dept], ["Date of Joining", emp.doj], ["PAN", emp.pan], ["Bank / IFSC", `${emp.bank} / ${emp.ifsc}`], ["Account No", emp.acc], ["Working Days", "26"], ["LOP Days", lopDays], ["Days Paid", p.joiningNote ? `${Math.round(p.joiningProration * 26)}` : 26 - lopDays], ["PF Enrolled", emp.pf ? "Yes" : "No"]].map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { padding: "6px 14px", borderBottom: `1px solid ${BD}`, fontSize: 12 } }, /* @__PURE__ */ React.createElement("span", { style: { color: MT } }, l, ": "), /* @__PURE__ */ React.createElement("b", null, v)))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr" } }, /* @__PURE__ */ React.createElement("div", { style: { borderRight: `1px solid ${BD}` } }, /* @__PURE__ */ React.createElement("div", { style: { background: OX, padding: "8px 14px", fontWeight: 700, color: OK, borderBottom: `1px solid ${BD}` } }, "EARNINGS"), [["Basic Salary", +emp.basic || 0], ["HRA", +emp.hra || 0], ["Conveyance", +emp.conv || 0], ["Medical Allowance", +emp.med || 0], ["Special Allowance", +emp.spl || 0], ["LTA", +emp.lta || 0]].filter(([, v]) => v > 0).map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { display: "flex", justifyContent: "space-between", padding: "7px 14px", borderBottom: `1px solid #f0f0f0` } }, /* @__PURE__ */ React.createElement("span", null, l), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600 } }, INR(Math.round(v * (26 - lopDays) / 26))))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", padding: "10px 14px", background: OX, fontWeight: 800 } }, /* @__PURE__ */ React.createElement("span", null, "Gross Earnings"), /* @__PURE__ */ React.createElement("span", null, INR(p.g)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { background: DX, padding: "8px 14px", fontWeight: 700, color: DG, borderBottom: `1px solid ${BD}` } }, "DEDUCTIONS"), [["PF Employee (12%)", p.pfE], ["ESIC Employee (0.75%)", p.esE], ["Professional Tax", p.pt], ["TDS / Income Tax" + (p.tdsOverride && +p.tdsOverride > 0 ? " (custom)" : ""), p.tds || 0], ["LOP Deduction", lopDays > 0 ? INR(Math.round((+emp.basic || 0) / 26 * lopDays)) : "Nil"]].map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { display: "flex", justifyContent: "space-between", padding: "7px 14px", borderBottom: `1px solid #f0f0f0` } }, /* @__PURE__ */ React.createElement("span", null, l), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, color: DG } }, typeof v === "number" ? INR(v) : v))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", padding: "10px 14px", background: DX, fontWeight: 800 } }, /* @__PURE__ */ React.createElement("span", null, "Total Deductions"), /* @__PURE__ */ React.createElement("span", { style: { color: DG } }, INR(p.ded))))), /* @__PURE__ */ React.createElement("div", { style: { background: P, color: "#fff", padding: "14px 22px", display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 15 } }, "NET PAY (Take Home)"), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 900, fontSize: 22 } }, INR(p.net))), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 14px", background: "#fffde7", fontSize: 11, color: "#795548" } }, "Employer Contributions: PF ", INR(p.pfR), " + ESIC ", INR(p.esR), " | CTC this month: ", INR(p.ctc))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Btn, { v: "sec", onClick: () => {
-    const html = `<div class="slip-meta">${[["Emp Code", emp.code], ["Name", emp.name], ["Designation", emp.desig], ["Department", emp.dept], ["Date of Joining", emp.doj], ["PAN", emp.pan], ["Bank", emp.bank], ["Account No", emp.acc], ["IFSC", emp.ifsc], ["Working Days", "26"], ["LOP Days", lopDays], ["Days Paid", 26 - lopDays]].map(([l, v]) => `<div class="slip-cell"><span style="color:#546e7a">${l}: </span><b>${v || ""}</b></div>`).join("")}</div><div class="earn-ded"><div style="border-right:1px solid #e0e0e0"><div class="ehdr">EARNINGS</div>${[["Basic Salary", +emp.basic || 0], ["HRA", +emp.hra || 0], ["Conveyance", +emp.conv || 0], ["Medical", +emp.med || 0], ["Special Allowance", +emp.spl || 0], ["LTA", +emp.lta || 0]].filter(([, v]) => v > 0).map(([l, v]) => `<div class="erow"><span>${l}</span><span>${INR(Math.round(v * (26 - lopDays) / 26))}</span></div>`).join("")}<div class="etot"><span>Gross Earnings</span><span>${INR(p.g)}</span></div></div><div><div class="dhdr">DEDUCTIONS</div>${[["PF Employee (12%)", p.pfE], ["ESIC (0.75%)", p.esE], ["Professional Tax", p.pt], ["TDS / Income Tax", p.tds]].map(([l, v]) => `<div class="drow"><span>${l}</span><span class="red">${INR(v)}</span></div>`).join("")}<div class="dtot"><span>Total Deductions</span><span>${INR(p.ded)}</span></div></div></div><div class="netpay"><span>NET PAY (Take Home)</span><span>${INR(p.net)}</span></div><div class="ctcrow">Employer PF: ${INR(p.pfR)} | ESIC: ${INR(p.esR)} | Monthly CTC: ${INR(p.ctc)} | Annual CTC: ${INR(p.ctc * 12)}</div>`;
-    printHTML(`Salary_Slip_${emp.name.replace(/ /g, "_")}_${MONTHS[month - 1]}_${year}`, html);
-  } }, "\u2B07 Download PDF"), /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: onClose }, "Close")));
+function SalarySlip({ slip, emps, runs, co, pol: pol2, onClose }) {
+  const { emp: slipEmp, month, year } = slip || {};
+  const emp = (emps == null ? void 0 : emps.find((e) => e.id === (slipEmp == null ? void 0 : slipEmp.id))) || slipEmp;
+  if (!emp) return null;
+  const attData = (slip == null ? void 0 : slip.attendance) || {};
+  const monthStr = `${year}-${String(month).padStart(2, "0")}`;
+  const summary = getMonthSummary(emp.id, monthStr, attData, []);
+  const lopDays = summary.lop || 0;
+  const p = calcPay(emp, lopDays, pol2, month, year);
+  const perDay = summary.working > 0 ? p.g / summary.working : 0;
+  const earned = summary.working > 0 ? Math.round(perDay * summary.netPaid) : p.g;
+  const lopAmt = p.g - earned;
+  const ac = (co == null ? void 0 : co.accentColor) || "#1a237e";
+  const compName = (co == null ? void 0 : co.name) || "Company Name";
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/>
+<title>Salary Slip \u2014 ${emp.name} \u2014 ${MONTHS[month - 1]} ${year}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",Arial,sans-serif;font-size:12px;color:#222;background:#fff}
+.page{max-width:780px;margin:0 auto;padding:32px 40px;min-height:1050px}
+@media print{.page{padding:20px 28px}.no-print{display:none!important}}
+
+/* Header */
+.header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:3px solid ${ac};margin-bottom:18px}
+.company-name{font-size:22px;font-weight:900;color:${ac}}
+.slip-title{background:${ac};color:#fff;padding:6px 16px;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:1px}
+
+/* Employee info */
+.emp-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;margin-bottom:16px}
+.emp-row{display:flex;padding:6px 12px;border-bottom:1px solid #f0f0f0}
+.emp-row:last-child{border-bottom:none}
+.emp-label{color:#888;width:140px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.emp-val{font-weight:600;color:#222}
+
+/* Attendance box */
+.att-box{background:#f8f9ff;border:1.5px solid #c5cae9;border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.att-title{font-weight:800;color:${ac};font-size:13px;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+.att-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.att-cell{text-align:center;padding:8px 4px;border-radius:6px}
+.att-num{font-size:18px;font-weight:900}
+.att-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;margin-bottom:14px}
+th{background:${ac};color:#fff;padding:8px 10px;font-size:11px;font-weight:700;text-align:left;letter-spacing:.3px}
+td{padding:7px 10px;border-bottom:1px solid #f0f0f0;font-size:12px}
+tr:nth-child(even) td{background:#fafafa}
+tr.subtotal td{background:#fff9e6!important;font-weight:700}
+tr.deduction td{background:#fff8f8!important;color:#c62828}
+tr.net-pay td{background:${ac}!important;color:#fff!important;font-weight:900;font-size:14px}
+td.amount{text-align:right;font-weight:600}
+
+/* Net pay banner */
+.net-banner{background:linear-gradient(135deg,${ac},#283593);color:#fff;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.net-amount{font-size:26px;font-weight:900}
+.net-words{font-size:11px;opacity:.85;margin-top:2px}
+
+/* Footer */
+.footer-sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:32px;padding-top:16px;border-top:1px solid #e0e0e0}
+.sig-line{border-top:1px solid #888;padding-top:6px;margin-top:36px;font-size:11px;color:#666}
+.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:80px;opacity:.03;font-weight:900;color:${ac};pointer-events:none}
+</style></head><body>
+<div class="watermark">${compName.substring(0, 6).toUpperCase()}</div>
+<div class="page">
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="company-name">${compName}</div>
+    <div style="font-size:11px;color:#888;margin-top:3px">${(co == null ? void 0 : co.addr) || ""} ${(co == null ? void 0 : co.city) ? "\xB7 " + co.city : ""} ${(co == null ? void 0 : co.gstin) ? "\xB7 GSTIN: " + co.gstin : ""}</div>
+  </div>
+  <div style="text-align:right">
+    <div class="slip-title">SALARY SLIP</div>
+    <div style="font-size:13px;font-weight:700;color:${ac};margin-top:6px">${MONTHS[month - 1]} ${year}</div>
+  </div>
+</div>
+
+<!-- EMPLOYEE DETAILS -->
+<div class="emp-grid">
+  <div>
+    <div class="emp-row"><span class="emp-label">Employee Name</span><span class="emp-val">${emp.name}</span></div>
+    <div class="emp-row"><span class="emp-label">Employee Code</span><span class="emp-val">${emp.code || "\u2014"}</span></div>
+    <div class="emp-row"><span class="emp-label">Designation</span><span class="emp-val">${emp.desig || "\u2014"}</span></div>
+    <div class="emp-row"><span class="emp-label">Department</span><span class="emp-val">${emp.dept || "\u2014"}</span></div>
+  </div>
+  <div>
+    <div class="emp-row"><span class="emp-label">Date of Joining</span><span class="emp-val">${emp.doj || "\u2014"}</span></div>
+    <div class="emp-row"><span class="emp-label">PAN Number</span><span class="emp-val">${emp.pan || "\u2014"}</span></div>
+    <div class="emp-row"><span class="emp-label">PF Number / UAN</span><span class="emp-val">${emp.pfNo || "\u2014"} / ${emp.uan || "\u2014"}</span></div>
+    <div class="emp-row"><span class="emp-label">Bank & Account</span><span class="emp-val">${emp.bank || "\u2014"} \xB7 ${emp.acc || "\u2014"}</span></div>
+  </div>
+</div>
+
+<!-- ATTENDANCE SUMMARY -->
+<div class="att-box">
+  <div class="att-title">\u{1F4C5} Attendance Summary \u2014 ${MONTHS[month - 1]} ${year}</div>
+  <div class="att-grid">
+    <div class="att-cell" style="background:#e8eaf6">
+      <div class="att-num" style="color:#1a237e">${summary.total}</div>
+      <div class="att-lbl" style="color:#3949ab">Calendar Days</div>
+    </div>
+    <div class="att-cell" style="background:#e0f2f1">
+      <div class="att-num" style="color:#00695c">${summary.working}</div>
+      <div class="att-lbl" style="color:#00897b">Working Days</div>
+    </div>
+    <div class="att-cell" style="background:#e8f5e9">
+      <div class="att-num" style="color:#1b5e20">${summary.present}</div>
+      <div class="att-lbl" style="color:#2e7d32">Present</div>
+    </div>
+    <div class="att-cell" style="background:#ffebee">
+      <div class="att-num" style="color:#b71c1c">${summary.absent}</div>
+      <div class="att-lbl" style="color:#c62828">Absent</div>
+    </div>
+    <div class="att-cell" style="background:#f3e5f5">
+      <div class="att-num" style="color:#6a1b9a">${summary.leaves}</div>
+      <div class="att-lbl" style="color:#7b1fa2">Leave</div>
+    </div>
+    <div class="att-cell" style="background:#eceff1">
+      <div class="att-num" style="color:#546e7a">${summary.weekOffs}</div>
+      <div class="att-lbl" style="color:#607d8b">Week Off</div>
+    </div>
+    ${summary.halfDays > 0 ? `<div class="att-cell" style="background:#fff3e0"><div class="att-num" style="color:#e65100">${summary.halfDays}</div><div class="att-lbl" style="color:#f57c00">Half Days</div></div>` : ""}
+    ${summary.wfh > 0 ? `<div class="att-cell" style="background:#e3f2fd"><div class="att-num" style="color:#0d47a1">${summary.wfh}</div><div class="att-lbl" style="color:#1565c0">WFH</div></div>` : ""}
+    ${summary.publicHols > 0 ? `<div class="att-cell" style="background:#e8eaf6"><div class="att-num" style="color:#1565c0">${summary.publicHols}</div><div class="att-lbl" style="color:#1976d2">Holidays</div></div>` : ""}
+    <div class="att-cell" style="background:#ffcdd2">
+      <div class="att-num" style="color:#c62828">${summary.lop}</div>
+      <div class="att-lbl" style="color:#d32f2f">LOP Days</div>
+    </div>
+    <div class="att-cell" style="background:#c8e6c9">
+      <div class="att-num" style="color:#1b5e20">${summary.netPaid}</div>
+      <div class="att-lbl" style="color:#2e7d32">Paid Days</div>
+    </div>
+  </div>
+  ${lopDays > 0 ? `<div style="margin-top:10px;padding:8px 12px;background:#fff8f8;border-radius:6px;font-size:11px;color:#c62828;border:1px solid #ffcdd2">
+    <b>LOP Deduction:</b> \u20B9${perDay.toLocaleString("en-IN", { maximumFractionDigits: 0 })}/day \xD7 ${lopDays} days = 
+    <b>\u20B9${lopAmt.toLocaleString("en-IN")}</b> deducted from gross salary
+  </div>` : ""}
+</div>
+
+<!-- EARNINGS & DEDUCTIONS -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
+  <div>
+    <table>
+      <tr><th colspan="2">Earnings</th></tr>
+      ${[["Basic Salary", +emp.basic || 0], ["House Rent Allowance (HRA)", +emp.hra || 0], ["Conveyance Allowance", +emp.conv || 0], ["Medical Allowance", +emp.med || 0], ["Special Allowance", +emp.spl || 0], ["LTA", +emp.lta || 0]].filter(([, v]) => v > 0).map(([l, v]) => `<tr><td>${l}</td><td class="amount">\u20B9${v.toLocaleString("en-IN")}</td></tr>`).join("")}
+      ${lopDays > 0 ? `<tr><td style="color:#c62828">LOP Deduction (${lopDays} days)</td><td class="amount" style="color:#c62828">- \u20B9${Math.round(lopAmt).toLocaleString("en-IN")}</td></tr>` : ""}
+      <tr class="subtotal"><td>Gross Earned Salary</td><td class="amount">\u20B9${earned.toLocaleString("en-IN")}</td></tr>
+    </table>
+  </div>
+  <div>
+    <table>
+      <tr><th colspan="2">Deductions</th></tr>
+      ${p.pfE > 0 ? `<tr class="deduction"><td>PF \u2014 Employee (12%)</td><td class="amount">\u20B9${p.pfE.toLocaleString("en-IN")}</td></tr>` : ""}
+      ${p.esE > 0 ? `<tr class="deduction"><td>ESIC \u2014 Employee (0.75%)</td><td class="amount">\u20B9${p.esE.toLocaleString("en-IN")}</td></tr>` : ""}
+      ${p.pt > 0 ? `<tr class="deduction"><td>Professional Tax</td><td class="amount">\u20B9${p.pt.toLocaleString("en-IN")}</td></tr>` : ""}
+      ${p.tds > 0 ? `<tr class="deduction"><td>TDS (Income Tax)</td><td class="amount">\u20B9${p.tds.toLocaleString("en-IN")}</td></tr>` : ""}
+      ${(p.lwfE || 0) > 0 ? `<tr class="deduction"><td>Labour Welfare Fund</td><td class="amount">\u20B9${(p.lwfE || 0).toLocaleString("en-IN")}</td></tr>` : ""}
+      <tr class="subtotal"><td>Total Deductions</td><td class="amount">\u20B9${p.ded.toLocaleString("en-IN")}</td></tr>
+    </table>
+    <div style="margin-top:10px;padding:10px 12px;background:#e8f5e9;border-radius:6px;font-size:11px">
+      <div>Employer PF: <b>\u20B9${p.pfR.toLocaleString("en-IN")}</b> \xB7 Employer ESIC: <b>\u20B9${p.esR.toLocaleString("en-IN")}</b></div>
+      <div style="margin-top:3px;color:#888">Not deducted from salary \u2014 shown for CTC reference only</div>
+    </div>
+  </div>
+</div>
+
+<!-- NET PAY BANNER -->
+<div class="net-banner">
+  <div>
+    <div style="font-size:11px;opacity:.8;font-weight:700;letter-spacing:1px;text-transform:uppercase">Net Salary Payable</div>
+    <div class="net-amount">\u20B9${p.net.toLocaleString("en-IN")}</div>
+    <div class="net-words" id="net-words">Paid Days: ${summary.netPaid} of ${summary.working} working days</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:11px;opacity:.7;text-transform:uppercase">Payment Month</div>
+    <div style="font-size:16px;font-weight:800">${MONTHS[month - 1]} ${year}</div>
+    <div style="font-size:11px;opacity:.7;margin-top:4px">Mode: Bank Transfer</div>
+  </div>
+</div>
+
+<!-- SIGNATURES -->
+<div class="footer-sigs">
+  <div>
+    <div class="sig-line">
+      <div style="font-weight:700">${compName}</div>
+      <div>Authorised Signatory</div>
+    </div>
+  </div>
+  <div>
+    <div class="sig-line">
+      <div style="font-weight:700">${emp.name}</div>
+      <div>Employee Signature</div>
+    </div>
+  </div>
+</div>
+<div style="text-align:center;margin-top:20px;font-size:10px;color:#aaa">
+  This is a computer-generated salary slip and does not require a signature. | Generated by Payrolla.in
+</div>
+</div>
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`;
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, "_blank");
+  setTimeout(() => URL.revokeObjectURL(url), 6e4);
+  if (onClose) onClose();
+  return null;
 }
-const BLANK_EMP = {
-  code: "",
-  name: "",
-  dob: "",
-  doj: "",
-  gen: "",
-  fatherName: "",
-  maritalStatus: "",
-  location: "",
-  email: "",
-  phone: "",
-  pan: "",
-  aadhaar: "",
-  dept: "",
-  desig: "",
-  cat: "Permanent",
-  shift: "General",
-  status: "Active",
-  basic: "",
-  hra: "",
-  conv: "1600",
-  med: "1250",
-  spl: "",
-  lta: "0",
-  pf: true,
-  pfNo: "",
-  esic: false,
-  esicNo: "",
-  pt: true,
-  uan: "",
-  itRegime: "",
-  tdsOverride: "",
-  decl80c: "",
-  decl80d: "",
-  declNps: "",
-  declHra: "",
-  declOther: "",
-  bank: "",
-  bankBranch: "",
-  acc: "",
-  ifsc: "",
-  mwCategory: "unskilled",
-  note: ""
-};
-const V = {
-  // Phone: 10 digits, starts with 6/7/8/9
-  phone: (v) => {
-    if (!v) return null;
-    const d = v.replace(/\D/g, "");
-    if (d.length !== 10) return "Phone must be exactly 10 digits";
-    if (!/^[6-9]/.test(d)) return "Indian mobile must start with 6, 7, 8 or 9";
-    return null;
-  },
-  // PAN: ABCDE1234F format
-  pan: (v) => {
-    if (!v) return null;
-    if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v))
-      return "PAN format: 5 letters + 4 digits + 1 letter (e.g. ABCDE1234F)";
-    return null;
-  },
-  // Aadhaar: exactly 12 digits
-  aadhaar: (v) => {
-    if (!v) return null;
-    const d = v.replace(/\s/g, "");
-    if (!/^\d{12}$/.test(d)) return "Aadhaar must be exactly 12 digits";
-    return null;
-  },
-  // Email
-  email: (v) => {
-    if (!v) return null;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Invalid email format";
-    return null;
-  },
-  // IFSC: 4 letters + 0 + 6 alphanumeric
-  ifsc: (v) => {
-    if (!v) return null;
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(v))
-      return "IFSC: 4 letters + 0 + 6 alphanumeric (e.g. SBIN0001234)";
-    return null;
-  },
-  // UAN: exactly 12 digits
-  uan: (v) => {
-    if (!v) return null;
-    if (!/^\d{12}$/.test(v)) return "UAN must be exactly 12 digits";
-    return null;
-  },
-  // ESIC: exactly 10 digits
-  esic: (v) => {
-    if (!v) return null;
-    if (!/^\d{10}$/.test(v)) return "ESIC number must be exactly 10 digits";
-    return null;
-  },
-  // Account number: digits only, 9-18 digits
-  acc: (v) => {
-    if (!v) return null;
-    if (!/^\d{9,18}$/.test(v)) return "Account number: 9-18 digits, numbers only";
-    return null;
-  },
-  // Name: letters, spaces, dots and hyphens only
-  name: (v) => {
-    if (!v) return "Name is required";
-    if (v.length < 2) return "Name must be at least 2 characters";
-    if (/[0-9]/.test(v)) return "Name cannot contain numbers";
-    return null;
-  },
-  // Employee code: alphanumeric, no spaces
-  code: (v) => {
-    if (!v) return "Employee code is required";
-    if (/\s/.test(v)) return "Employee code cannot have spaces";
-    return null;
-  },
-  // Basic salary
-  basic: (v) => {
-    if (!v || +v <= 0) return "Basic salary must be greater than 0";
-    if (+v < 1e3) return "Basic salary seems too low (minimum \u20B91,000)";
-    if (+v > 1e6) return "Basic salary above \u20B910 Lakh \u2014 please verify";
-    return null;
-  },
-  // DOB vs DOJ: must be 18+ years
-  age: (dob, doj) => {
-    if (!dob || !doj) return null;
-    const birth = new Date(dob), join = new Date(doj);
-    let age = join.getFullYear() - birth.getFullYear();
-    const m = join.getMonth() - birth.getMonth();
-    if (m < 0 || m === 0 && join.getDate() < birth.getDate()) age--;
-    if (age < 0) return "Date of Birth is after Date of Joining";
-    if (age < 18) return `Employee is only ${age} years old at joining \u2014 minimum age is 18`;
-    if (age > 70) return `Employee age at joining is ${age} years \u2014 please verify`;
-    return null;
-  },
-  // Pin code
-  pin: (v) => {
-    if (!v) return null;
-    if (!/^\d{6}$/.test(v)) return "Pincode must be exactly 6 digits";
-    return null;
-  }
-};
-const FMT = {
-  phone: (v) => v.replace(/\D/g, "").substring(0, 10),
-  pan: (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 10),
-  aadhaar: (v) => v.replace(/\D/g, "").substring(0, 12),
-  ifsc: (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 11),
-  uan: (v) => v.replace(/\D/g, "").substring(0, 12),
-  esic: (v) => v.replace(/\D/g, "").substring(0, 10),
-  acc: (v) => v.replace(/\D/g, "").substring(0, 18),
-  code: (v) => v.toUpperCase().replace(/\s/g, "")
-};
 function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
   const [f, setF] = useState(emp ? { ...BLANK_EMP, ...emp } : { ...BLANK_EMP });
@@ -805,535 +859,311 @@ function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
     onSave(empData);
   } }, emp ? "Save Changes" : "Add Employee")));
 }
-function AttendanceModule({ emps, attendance, setAttendance, onMark, onBulkMark }) {
-  var _a, _b;
-  const [viewDate, setViewDate] = useState(TODAY);
-  const [viewEmp, setViewEmp] = useState("all");
-  const [bulkModal, setBulkModal] = useState(false);
-  const [editModal, setEditModal] = useState(null);
-  const [editForm, setEditForm] = useState({ status: "P", in: "09:00", out: "18:00" });
-  const [viewMode, setViewMode] = useState("daily");
-  const [monthEmp, setMonthEmp] = useState(((_a = emps[0]) == null ? void 0 : _a.id) || "");
-  const [monthDate, setMonthDate] = useState(TODAY.slice(0, 7));
-  const [bulkDoneMsg, setBulkDoneMsg] = useState("");
-  const [showFullMonthModal, setShowFullMonthModal] = useState(false);
-  const [fullMonthTarget, setFullMonthTarget] = useState("all");
-  const [fullMonthMonth, setFullMonthMonth] = useState(TODAY.slice(0, 7));
-  const dates = (() => {
-    const d = new Date(viewDate);
-    const arr = [];
-    for (let i = 6; i >= 0; i--) {
-      const x = new Date(d);
-      x.setDate(x.getDate() - i);
-      arr.push(x.toISOString().slice(0, 10));
+const ATT_STATUS = {
+  P: { label: "Present", short: "P", color: "#1b5e20", bg: "#e8f5e9", lop: 0, paid: true },
+  WFH: { label: "Work From Home", short: "WFH", color: "#0d47a1", bg: "#e3f2fd", lop: 0, paid: true },
+  HD: { label: "Half Day", short: "HD", color: "#e65100", bg: "#fff3e0", lop: 0.5, paid: true },
+  L: { label: "Leave", short: "L", color: "#6a1b9a", bg: "#f3e5f5", lop: 0, paid: true },
+  PL: { label: "Paid Leave", short: "PL", color: "#6a1b9a", bg: "#ede7f6", lop: 0, paid: true },
+  A: { label: "Absent", short: "A", color: "#b71c1c", bg: "#ffebee", lop: 1, paid: false },
+  WO: { label: "Week Off", short: "WO", color: "#546e7a", bg: "#eceff1", lop: 0, paid: false },
+  H: { label: "Holiday", short: "H", color: "#1565c0", bg: "#e3f2fd", lop: 0, paid: false },
+  OT: { label: "OT Present", short: "OT", color: "#2e7d32", bg: "#c8e6c9", lop: 0, paid: true },
+  LWP: { label: "Leave w/o Pay", short: "LWP", color: "#c62828", bg: "#ffcdd2", lop: 1, paid: false },
+  CO: { label: "Comp Off", short: "CO", color: "#558b2f", bg: "#f1f8e9", lop: 0, paid: true }
+};
+function getMonthSummary(empId, monthStr, attendance, holidays = []) {
+  const [yr, mo] = monthStr.split("-").map(Number);
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+  const recs = attendance[empId] || {};
+  let total = 0, working = 0, present = 0, absent = 0, halfDays = 0, leaves = 0, wfh = 0, weekOffs = 0, publicHols = 0, lop = 0, ot = 0, lwp = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${yr}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const dow = new Date(dateStr).getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const isHoliday = holidays.includes(dateStr);
+    const rec = recs[dateStr];
+    const status = (rec == null ? void 0 : rec.status) || (isHoliday ? "H" : isWeekend ? "WO" : null);
+    total++;
+    if (status === "WO" || isWeekend && !rec) {
+      weekOffs++;
+      continue;
     }
-    return arr;
-  })();
-  function markSingle(eid, date, rec) {
-    setAttendance((p) => ({ ...p, [eid]: { ...p[eid], [date]: rec } }));
+    if (status === "H" || isHoliday && !rec) {
+      publicHols++;
+      continue;
+    }
+    working++;
+    switch (status) {
+      case "P":
+        present++;
+        break;
+      case "WFH":
+        present++;
+        wfh++;
+        break;
+      case "OT":
+        present++;
+        ot++;
+        break;
+      case "HD":
+        halfDays++;
+        lop += 0.5;
+        break;
+      case "L":
+      case "PL":
+      case "CO":
+        leaves++;
+        break;
+      case "A":
+        absent++;
+        lop++;
+        break;
+      case "LWP":
+        lwp++;
+        lop++;
+        break;
+      default:
+        absent++;
+        lop++;
+        break;
+    }
   }
-  function markBulkToday(status) {
-    const today = viewDate;
+  const netPaid = Math.max(0, working - lop);
+  return { total, working, present, absent, halfDays, leaves, wfh, weekOffs, publicHols, lop, ot, lwp, netPaid, daysInMonth };
+}
+function AttendanceModule({ emps, attendance, setAttendance, holidays = [], onMark, onBulkMark }) {
+  const [month, setMonth] = useState(TODAY.slice(0, 7));
+  const [selEmp, setSelEmp] = useState("all");
+  const [view, setView] = useState("summary");
+  const [editCell, setEditCell] = useState(null);
+  const [uploadPreview, setUploadPreview] = useState([]);
+  const [uploadErrors, setUploadErrors] = useState([]);
+  const [showFullModal, setShowFullModal] = useState(false);
+  const [fullTarget, setFullTarget] = useState("all");
+  const [fullMonth, setFullMonth] = useState(TODAY.slice(0, 7));
+  const [bulkMsg, setBulkMsg] = useState("");
+  const [yr, mo] = month.split("-").map(Number);
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const activeEmps = selEmp === "all" ? emps : emps.filter((e) => e.id === selEmp);
+  function setStatus(empId, date, status) {
+    setAttendance((p) => ({ ...p, [empId]: { ...p[empId], [date]: { status, in: ["P", "WFH", "OT"].includes(status) ? "09:00" : "", out: ["P", "WFH", "OT"].includes(status) ? "18:00" : "", hrs: ["P", "WFH", "OT"].includes(status) ? 9 : ["HD"].includes(status) ? 4.5 : 0, ot: 0 } } }));
+  }
+  function markFullMonthFn(target, ms, overwrite = false) {
+    const [y, m2] = ms.split("-").map(Number);
+    const dim = new Date(y, m2, 0).getDate();
+    const targets = target === "all" ? emps : emps.filter((e) => e.id === target);
     setAttendance((p) => {
       const np = { ...p };
-      emps.forEach((e) => {
-        np[e.id] = { ...np[e.id], [today]: { status, in: status === "P" ? "09:00" : "", out: status === "P" ? "18:00" : "", hrs: status === "P" ? 9 : 0, ot: 0 } };
+      targets.forEach((e) => {
+        if (!np[e.id]) np[e.id] = {};
+        for (let d = 1; d <= dim; d++) {
+          const ds = `${y}-${String(m2).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          const dow = new Date(ds).getDay();
+          const isWO = dow === 0 || dow === 6;
+          const isH = holidays.includes(ds);
+          if (!overwrite && np[e.id][ds]) continue;
+          np[e.id][ds] = { status: isH ? "H" : isWO ? "WO" : "P", in: isWO || isH ? "" : "09:00", out: isWO || isH ? "" : "18:00", hrs: isWO || isH ? 0 : 9, ot: 0 };
+        }
       });
       return np;
     });
-    setBulkModal(false);
+    setBulkMsg(`\u2713 Marked ${ms} for ${targets.length} employees`);
+    setTimeout(() => setBulkMsg(""), 4e3);
+    setShowFullModal(false);
   }
-  function markFullMonth(empIds = "all", monthStr = null) {
-    const ms = monthStr || viewDate.slice(0, 7);
-    const [yr, mo] = ms.split("-").map(Number);
-    const daysInMonth = new Date(yr, mo, 0).getDate();
-    const targetEmps = empIds === "all" ? emps : emps.filter((e) => empIds.includes(e.id));
-    setAttendance((p) => {
-      const np = { ...p };
-      targetEmps.forEach((e) => {
-        if (!np[e.id]) np[e.id] = {};
-        for (let d = 1; d <= daysInMonth; d++) {
-          const dateStr = `${yr}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-          const dow = new Date(dateStr).getDay();
-          const isWeekend = dow === 0 || dow === 6;
-          if (!np[e.id][dateStr]) {
-            np[e.id][dateStr] = {
-              status: isWeekend ? "WO" : "P",
-              in: isWeekend ? "" : "09:00",
-              out: isWeekend ? "" : "18:00",
-              hrs: isWeekend ? 0 : 9,
-              ot: 0
-            };
+  function parseAttendanceFile(file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target.result;
+      const rows = text.split("\n").map((r) => r.split(",").map((c) => c.trim().replace(/"/g, "")));
+      const headers = rows[0].map((h) => h.toLowerCase());
+      const errors = [];
+      const preview = [];
+      const hasDateCol = headers.includes("date") || headers.includes("att_date");
+      const hasStatusCol = headers.includes("status") || headers.includes("attendance");
+      if (hasDateCol && hasStatusCol) {
+        const codeIdx = headers.indexOf("code") >= 0 ? headers.indexOf("code") : 0;
+        const dateIdx = headers.indexOf("date") >= 0 ? headers.indexOf("date") : headers.indexOf("att_date");
+        const statusIdx = headers.indexOf("status") >= 0 ? headers.indexOf("status") : headers.indexOf("attendance");
+        rows.slice(1).forEach((row, i) => {
+          var _a;
+          if (row.length < 3 || !row[codeIdx]) return;
+          const empCode = row[codeIdx].toUpperCase();
+          const date = row[dateIdx];
+          const status = (_a = row[statusIdx]) == null ? void 0 : _a.toUpperCase();
+          const emp = emps.find((e) => {
+            var _a2, _b;
+            return ((_a2 = e.code) == null ? void 0 : _a2.toUpperCase()) === empCode || ((_b = e.name) == null ? void 0 : _b.toLowerCase()) === empCode.toLowerCase();
+          });
+          if (!emp) {
+            errors.push(`Row ${i + 2}: Employee '${empCode}' not found`);
+            return;
           }
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            errors.push(`Row ${i + 2}: Invalid date '${date}' (use YYYY-MM-DD)`);
+            return;
+          }
+          if (!ATT_STATUS[status]) {
+            errors.push(`Row ${i + 2}: Unknown status '${status}'. Valid: ${Object.keys(ATT_STATUS).join(", ")}`);
+            return;
+          }
+          preview.push({ empId: emp.id, empName: emp.name, date, status });
+        });
+      } else {
+        const codeIdx = 0;
+        const dataStart = headers.findIndex((h) => /^\d+$/.test(h));
+        if (dataStart < 0) {
+          errors.push("Cannot detect format. Use either: (Code,Date,Status) or (Code,Name,1,2,...,31)");
+        } else {
+          rows.slice(1).forEach((row, i) => {
+            if (!row[codeIdx]) return;
+            const empCode = row[codeIdx].toUpperCase();
+            const emp = emps.find((e) => {
+              var _a, _b;
+              return ((_a = e.code) == null ? void 0 : _a.toUpperCase()) === empCode || ((_b = e.name) == null ? void 0 : _b.toLowerCase()) === empCode.toLowerCase();
+            });
+            if (!emp) {
+              errors.push(`Row ${i + 2}: Employee '${empCode}' not found`);
+              return;
+            }
+            headers.forEach((h, colIdx) => {
+              var _a;
+              if (!/^\d+$/.test(h)) return;
+              const day = parseInt(h);
+              const status = (_a = row[colIdx]) == null ? void 0 : _a.toUpperCase().trim();
+              if (!status || status === "-" || status === "") return;
+              if (!ATT_STATUS[status]) {
+                errors.push(`${empCode} day ${h}: Unknown status '${status}'`);
+                return;
+              }
+              const date = `${yr}-${String(mo).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              preview.push({ empId: emp.id, empName: emp.name, date, status });
+            });
+          });
         }
-      });
-      return np;
-    });
-    showBulkDoneToast(targetEmps.length, ms);
+      }
+      setUploadPreview(preview);
+      setUploadErrors(errors);
+    };
+    reader.readAsText(file);
   }
-  function markMonthAllPresent(empIds = "all", monthStr = null) {
-    const ms = monthStr || viewDate.slice(0, 7);
-    const [yr, mo] = ms.split("-").map(Number);
-    const daysInMonth = new Date(yr, mo, 0).getDate();
-    const targetEmps = empIds === "all" ? emps : emps.filter((e) => empIds.includes(e.id));
+  function applyUpload() {
     setAttendance((p) => {
       const np = { ...p };
-      targetEmps.forEach((e) => {
-        if (!np[e.id]) np[e.id] = {};
-        for (let d = 1; d <= daysInMonth; d++) {
-          const dateStr = `${yr}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-          const dow = new Date(dateStr).getDay();
-          const isWeekend = dow === 0 || dow === 6;
-          np[e.id][dateStr] = {
-            status: isWeekend ? "WO" : "P",
-            in: isWeekend ? "" : "09:00",
-            out: isWeekend ? "" : "18:00",
-            hrs: isWeekend ? 0 : 9,
-            ot: 0
-          };
-        }
+      uploadPreview.forEach(({ empId, date, status }) => {
+        if (!np[empId]) np[empId] = {};
+        np[empId][date] = { status, in: ["P", "WFH", "OT"].includes(status) ? "09:00" : "", out: ["P", "WFH", "OT"].includes(status) ? "18:00" : "", hrs: ["P", "WFH", "OT"].includes(status) ? 9 : ["HD"].includes(status) ? 4.5 : 0, ot: 0 };
       });
       return np;
     });
+    setBulkMsg(`\u2713 Imported ${uploadPreview.length} attendance records`);
+    setTimeout(() => setBulkMsg(""), 5e3);
+    setUploadPreview([]);
+    setUploadErrors([]);
+    setView("summary");
   }
-  function showBulkDoneToast(n, ms) {
-    setBulkDoneMsg("\u2713 Full month attendance marked for " + n + " employees in " + ms);
-    setTimeout(() => setBulkDoneMsg(""), 4e3);
+  function downloadTemplate() {
+    const header = "Code,Name,Date,Status";
+    const statusGuide = `
+
+# STATUS GUIDE:
+# P=Present  A=Absent  HD=Half Day  L=Leave  WO=Week Off
+# H=Holiday  WFH=Work From Home  OT=OT Present  LWP=Leave Without Pay  PL=Paid Leave`;
+    const rows = emps.slice(0, 3).map((e) => `${e.code},${e.name},${month}-01,P
+${e.code},${e.name},${month}-02,WO`);
+    const csv = header + "\n" + rows.join("\n") + statusGuide;
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `attendance_template_${month}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
-  function getStats(eid) {
-    const recs = attendance[eid] || {};
-    const vals = Object.values(recs);
-    return { P: vals.filter((r) => r.status === "P").length, A: vals.filter((r) => r.status === "A").length, HD: vals.filter((r) => r.status === "HD").length, L: vals.filter((r) => r.status === "L").length, WO: vals.filter((r) => r.status === "WO").length, totalHrs: vals.reduce((s, r) => s + (r.hrs || 0), 0).toFixed(1), totalOT: vals.reduce((s, r) => s + (r.ot || 0), 0).toFixed(1) };
-  }
-  function MonthlyView() {
-    const emp = emps.find((e) => e.id === monthEmp);
-    if (!emp) return /* @__PURE__ */ React.createElement("div", { style: { color: MT, padding: 20 } }, "Select an employee.");
-    const [yr, mo] = monthDate.split("-").map(Number);
-    const firstDay = new Date(yr, mo - 1, 1).getDay();
-    const daysInMonth = new Date(yr, mo, 0).getDate();
-    const cells = [];
-    for (let i = 0; i < firstDay; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-    const recs = attendance[emp.id] || {};
-    const stats = getStats(emp.id);
-    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 } }, [["Present", stats.P, OK], ["Absent", stats.A, DG], ["Half Day", stats.HD, WN], ["Late", stats.L, "#7b1fa2"]].map(([l, v, c]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { background: c + "18", border: `1px solid ${c}44`, borderRadius: 8, padding: "10px 14px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: c, fontWeight: 700 } }, l), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: c } }, v)))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 8 } }, ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => /* @__PURE__ */ React.createElement("div", { key: d, style: { textAlign: "center", fontSize: 11, fontWeight: 700, color: MT, padding: "4px 0" } }, d))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 } }, cells.map((d, i) => {
-      if (!d) return /* @__PURE__ */ React.createElement("div", { key: i });
-      const ds = `${yr}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const rec = recs[ds];
-      const st = (rec == null ? void 0 : rec.status) || "";
-      const c = STATUS_COLOR[st] || "#e0e0e0";
-      return /* @__PURE__ */ React.createElement(
-        "div",
-        {
-          key: i,
-          onClick: () => {
-            setEditModal({ eid: emp.id, date: ds, rec });
-            setEditForm({ status: (rec == null ? void 0 : rec.status) || "P", in: (rec == null ? void 0 : rec.in) || "09:00", out: (rec == null ? void 0 : rec.out) || "18:00" });
-          },
-          style: { borderRadius: 8, padding: "8px 4px", textAlign: "center", background: st ? c + "22" : "#f9f9f9", border: `1px solid ${st ? c + "66" : BD}`, cursor: "pointer", minHeight: 52 }
-        },
-        /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13 } }, d),
-        st && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: c, marginTop: 2 } }, st),
-        (rec == null ? void 0 : rec.in) && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: MT } }, rec.in)
-      );
-    })), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, fontSize: 12, color: MT } }, "Total Hours: ", /* @__PURE__ */ React.createElement("b", null, stats.totalHrs), " | Overtime: ", /* @__PURE__ */ React.createElement("b", null, stats.totalOT, " hrs"), " | Week Off: ", /* @__PURE__ */ React.createElement("b", null, stats.WO), " days"));
-  }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 20, alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", background: BG, borderRadius: 10, padding: 3, gap: 3 } }, [["daily", "Daily View"], ["monthly", "Monthly Calendar"]].map(([v, l]) => /* @__PURE__ */ React.createElement("button", { key: v, onClick: () => setViewMode(v), style: { padding: "7px 16px", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer", background: viewMode === v ? P : "transparent", color: viewMode === v ? "#fff" : MT } }, l))), viewMode === "daily" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("input", { type: "date", value: viewDate, onChange: (e) => setViewDate(e.target.value), style: { padding: "8px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }), /* @__PURE__ */ React.createElement(Btn, { v: "ok", onClick: () => setBulkModal(true) }, "\u2713 Bulk Mark Attendance")), viewMode === "monthly" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("input", { type: "month", value: monthDate, onChange: (e) => setMonthDate(e.target.value), style: { padding: "8px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }), /* @__PURE__ */ React.createElement("select", { value: monthEmp, onChange: (e) => setMonthEmp(e.target.value), style: { padding: "8px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }, emps.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name))))), viewMode === "monthly" && /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement(MonthlyView, null)), viewMode === "daily" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14 } }, "Attendance for ", new Date(viewDate).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })), /* @__PURE__ */ React.createElement(
-    Tbl,
-    {
-      cols: ["Employee", "Shift", "Status", "In Time", "Out Time", "Hrs", "OT Hrs", "Action"],
-      rows: emps.map((e) => {
-        const rec = (attendance[e.id] || {})[viewDate] || { status: "", in: "", out: "", hrs: 0, ot: 0 };
-        const c = STATUS_COLOR[rec.status] || MT;
-        return [
-          /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600 } }, e.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, e.code)),
-          /* @__PURE__ */ React.createElement(Badge, { t: e.shift || "General", c: P }),
-          rec.status ? /* @__PURE__ */ React.createElement(Badge, { t: STATUS_LABEL[rec.status] || rec.status, c }) : /* @__PURE__ */ React.createElement("span", { style: { color: MT, fontSize: 12 } }, "Not marked"),
-          /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, color: OK } }, rec.in || "\u2014"),
-          /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, color: DG } }, rec.out || "\u2014"),
-          /* @__PURE__ */ React.createElement("span", { style: { fontWeight: rec.hrs > 0 ? 600 : 400, color: rec.hrs > 9 ? WN : MT } }, rec.hrs || 0, "h"),
-          /* @__PURE__ */ React.createElement("span", { style: { color: rec.ot > 0 ? WN : MT, fontWeight: rec.ot > 0 ? 700 : 400 } }, rec.ot || 0, "h"),
-          /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" } }, ["P", "A", "HD", "L", "OD"].map((s) => /* @__PURE__ */ React.createElement(
-            "button",
-            {
-              key: s,
-              onClick: () => markSingle(e.id, viewDate, { status: s, in: s === "P" || s === "L" ? "09:00" : "", out: s === "P" ? "18:00" : s === "HD" ? "13:30" : "", hrs: s === "P" ? 9 : s === "HD" ? 4.5 : 0, ot: 0 }),
-              style: { padding: "3px 8px", border: `1px solid ${STATUS_COLOR[s] || MT}44`, borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: "pointer", background: rec.status === s ? (STATUS_COLOR[s] || MT) + "22" : "transparent", color: STATUS_COLOR[s] || MT }
-            },
-            s
-          )), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-            setEditModal({ eid: e.id, date: viewDate, rec });
-            setEditForm({ status: rec.status || "P", in: rec.in || "09:00", out: rec.out || "18:00" });
-          }, style: { padding: "3px 8px", border: `1px solid ${BD}`, borderRadius: 5, fontSize: 11, cursor: "pointer", background: "transparent", color: MT } }, "\u270F"))
-        ];
-      })
-    }
-  )), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14 } }, "7-Day Summary"), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: PX } }, /* @__PURE__ */ React.createElement("th", { style: { textAlign: "left", padding: "8px 12px", color: P, fontWeight: 700 } }, "Employee"), dates.map((d) => /* @__PURE__ */ React.createElement("th", { key: d, style: { textAlign: "center", padding: "8px 10px", color: P, fontWeight: 700, minWidth: 70 } }, /* @__PURE__ */ React.createElement("div", null, new Date(d).toLocaleDateString("en-IN", { weekday: "short" })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 400 } }, d.slice(5)))), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center", padding: "8px 12px", color: P, fontWeight: 700 } }, "Summary"))), /* @__PURE__ */ React.createElement("tbody", null, emps.map((e, i) => {
-    const stats = getStats(e.id);
-    return /* @__PURE__ */ React.createElement("tr", { key: e.id, style: { borderBottom: `1px solid ${BD}`, background: i % 2 ? "#fafafa" : "#fff" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "10px 12px", fontWeight: 600 } }, e.name), dates.map((d) => {
-      const rec = (attendance[e.id] || {})[d] || {};
-      const c = STATUS_COLOR[rec.status] || "#e0e0e0";
-      return /* @__PURE__ */ React.createElement("td", { key: d, style: { padding: "6px 8px", textAlign: "center" } }, rec.status ? /* @__PURE__ */ React.createElement("div", { style: { background: c + "22", color: c, border: `1px solid ${c}66`, borderRadius: 5, padding: "3px 6px", fontSize: 11, fontWeight: 700 } }, rec.status) : /* @__PURE__ */ React.createElement("div", { style: { color: "#ccc", fontSize: 10 } }, "\u2014"));
-    }), /* @__PURE__ */ React.createElement("td", { style: { padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11 } }, /* @__PURE__ */ React.createElement("span", { style: { color: OK, fontWeight: 700 } }, stats.P, "P"), " ", /* @__PURE__ */ React.createElement("span", { style: { color: DG, fontWeight: 700 } }, stats.A, "A"), " ", /* @__PURE__ */ React.createElement("span", { style: { color: WN, fontWeight: 700 } }, stats.HD, "HD")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: MT } }, stats.totalOT, "h OT")));
-  })))))), bulkModal && /* @__PURE__ */ React.createElement(Modal, { title: `Bulk Mark \u2014 ${viewDate}`, onClose: () => setBulkModal(false), w: 400 }, /* @__PURE__ */ React.createElement("p", { style: { color: MT, fontSize: 13, marginBottom: 20 } }, "Mark attendance for ALL ", emps.length, " employees for ", new Date(viewDate).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" }), ":"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12 } }, [["P", "\u2713 Present", OK], ["A", "\u2717 Absent", DG], ["HD", "\xBD Half Day", WN], ["H", "\u{1F389} Holiday", P], ["WO", "\u{1F3D6} Week Off", MT]].map(([s, l, c]) => /* @__PURE__ */ React.createElement("button", { key: s, onClick: () => markBulkToday(s), style: { padding: "14px", border: `2px solid ${c}`, borderRadius: 10, background: c + "11", color: c, fontWeight: 700, fontSize: 14, cursor: "pointer" } }, l)))), editModal && /* @__PURE__ */ React.createElement(Modal, { title: "Edit Attendance Record", onClose: () => setEditModal(null), w: 420 }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: MT } }, (_b = emps.find((e) => e.id === editModal.eid)) == null ? void 0 : _b.name, " \xB7 ", editModal.date), /* @__PURE__ */ React.createElement(Inp, { label: "Status", val: editForm.status, set: (v) => setEditForm((p) => ({ ...p, status: v })), opts: Object.entries(STATUS_LABEL).map(([v, l]) => ({ v, l })) }), /* @__PURE__ */ React.createElement(G, null, /* @__PURE__ */ React.createElement(Inp, { label: "In Time", val: editForm.in, set: (v) => setEditForm((p) => ({ ...p, in: v })), type: "time" }), /* @__PURE__ */ React.createElement(Inp, { label: "Out Time", val: editForm.out, set: (v) => setEditForm((p) => ({ ...p, out: v })), type: "time" })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setEditModal(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
-    const inT = editForm.in ? editForm.in.split(":").map(Number) : null;
-    const outT = editForm.out ? editForm.out.split(":").map(Number) : null;
-    const hrs = inT && outT ? parseFloat((outT[0] + outT[1] / 60 - (inT[0] + inT[1] / 60)).toFixed(1)) : 0;
-    const ot = Math.max(0, hrs - 9);
-    markSingle(editModal.eid, editModal.date, { status: editForm.status, in: editForm.in, out: editForm.out, hrs, ot: parseFloat(ot.toFixed(1)) });
-    setEditModal(null);
-  } }, "Save Record"))), showFullMonthModal && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setShowFullMonthModal(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 14, padding: 28, width: 480, boxShadow: "0 20px 60px rgba(0,0,0,.3)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 16, marginBottom: 6 } }, "\u{1F4C5} Mark Full Month Attendance"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 20 } }, "Marks all weekdays as Present and all Sundays/Saturdays as Week Off for the selected month. Existing entries are preserved unless you choose to overwrite."), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement(
+  const StatusBtn = ({ s, empId, date }) => {
+    var _a, _b;
+    const cur = ((_b = (_a = attendance[empId]) == null ? void 0 : _a[date]) == null ? void 0 : _b.status) || "";
+    const st = ATT_STATUS[s];
+    return /* @__PURE__ */ React.createElement("button", { onClick: () => setStatus(empId, date, s), style: { padding: "3px 6px", border: `1.5px solid ${cur === s ? st.color : "#ddd"}`, borderRadius: 5, background: cur === s ? st.bg : "#fff", color: cur === s ? st.color : "#999", fontSize: 10, fontWeight: cur === s ? 700 : 400, cursor: "pointer", minWidth: 34, transition: "all .1s" } }, st.short);
+  };
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 16, padding: "12px 16px", background: "#f8f9ff", borderRadius: 10, border: "1px solid #e0e0e0" } }, /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "month",
-      value: fullMonthMonth,
-      onChange: (e) => setFullMonthMonth(e.target.value),
-      style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 14, outline: "none" }
+      value: month,
+      onChange: (e) => setMonth(e.target.value),
+      style: { padding: "7px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 14, outline: "none", fontWeight: 600 }
     }
-  )), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 5, textTransform: "uppercase" } }, "Apply to"), /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement(
     "select",
     {
-      value: fullMonthTarget,
-      onChange: (e) => setFullMonthTarget(e.target.value),
-      style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
+      value: selEmp,
+      onChange: (e) => setSelEmp(e.target.value),
+      style: { padding: "7px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", flex: 1, minWidth: 160 }
     },
-    /* @__PURE__ */ React.createElement("option", { value: "all" }, "All active employees (", emps.length, ")"),
+    /* @__PURE__ */ React.createElement("option", { value: "all" }, "All Employees (", emps.length, ")"),
     emps.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name, " \u2014 ", e.code))
-  )), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff3e0", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#e65100", marginBottom: 16 } }, "\u26A0 This will fill empty days only. Days already marked will NOT be changed. To overwrite all, use the Overwrite option below."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setShowFullMonthModal(false), style: { padding: "9px 16px", border: "1px solid #ddd", borderRadius: 8, background: "#fff", cursor: "pointer", fontSize: 13 } }, "Cancel"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    markFullMonth(fullMonthTarget, fullMonthMonth);
-    setShowFullMonthModal(false);
-  }, style: { padding: "9px 16px", border: "none", borderRadius: 8, background: "#1a237e", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700 } }, "\u{1F4C5} Mark Empty Days"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    markMonthAllPresent(fullMonthTarget, fullMonthMonth);
-    setShowFullMonthModal(false);
-  }, style: { padding: "9px 16px", border: "none", borderRadius: 8, background: "#2e7d32", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700 } }, "\u2713 Overwrite All Days")))), bulkDoneMsg && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 20, right: 20, background: "#2e7d32", color: "#fff", padding: "12px 20px", borderRadius: 10, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 12px rgba(0,0,0,.2)", zIndex: 2e3 } }, bulkDoneMsg));
+  ), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, background: "#fff", border: "1px solid #ddd", borderRadius: 8, padding: 3 } }, [["summary", "\u{1F4CA} Summary"], ["calendar", "\u{1F4C5} Calendar"], ["upload", "\u{1F4E4} Upload"]].map(([v, l]) => /* @__PURE__ */ React.createElement("button", { key: v, onClick: () => setView(v), style: { padding: "5px 12px", border: "none", borderRadius: 6, background: view === v ? "#1a237e" : "transparent", color: view === v ? "#fff" : "#666", fontWeight: view === v ? 700 : 400, fontSize: 12, cursor: "pointer" } }, l))), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowFullModal(true), style: { padding: "7px 14px", border: "none", borderRadius: 8, background: "#2e7d32", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u{1F4C5} Full Month")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 } }, Object.entries(ATT_STATUS).map(([k, s]) => /* @__PURE__ */ React.createElement("span", { key: k, style: { fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, background: s.bg, color: s.color, border: `1px solid ${s.color}44` } }, s.short, " = ", s.label))), view === "summary" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", border: "1px solid #e0e0e0", borderRadius: 12 } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: "#1a237e", color: "#fff" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 12px", textAlign: "left", minWidth: 160, position: "sticky", left: 0, background: "#1a237e", zIndex: 2 } }, "Employee"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px" } }, "Calendar", /* @__PURE__ */ React.createElement("br", null), "Days"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px" } }, "Working", /* @__PURE__ */ React.createElement("br", null), "Days"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px", background: "#1b5e20" } }, "Present"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px", background: "#006064" } }, "WFH"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px", background: "#e65100" } }, "Half", /* @__PURE__ */ React.createElement("br", null), "Day"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px", background: "#6a1b9a" } }, "Leave"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px", background: "#b71c1c" } }, "Absent"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px" } }, "Week", /* @__PURE__ */ React.createElement("br", null), "Off"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px" } }, "Holiday"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px", background: "#c62828" } }, "LOP", /* @__PURE__ */ React.createElement("br", null), "Days"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px", background: "#1b5e20" } }, "Net Paid", /* @__PURE__ */ React.createElement("br", null), "Days"), /* @__PURE__ */ React.createElement("th", { style: { padding: "10px 8px" } }, "Actions"))), /* @__PURE__ */ React.createElement("tbody", null, activeEmps.map((emp) => {
+    const s = getMonthSummary(emp.id, month, attendance, holidays);
+    const hasIssues = s.absent > 3 || s.lop > 3;
+    return /* @__PURE__ */ React.createElement("tr", { key: emp.id, style: { borderBottom: "1px solid #f0f0f0", background: hasIssues ? "#fff8f8" : "#fff" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 12px", fontWeight: 600, position: "sticky", left: 0, background: hasIssues ? "#fff8f8" : "#fff", zIndex: 1 } }, /* @__PURE__ */ React.createElement("div", null, emp.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888" } }, emp.code, " \xB7 ", emp.desig || "\u2014")), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", padding: 6 } }, s.total), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", padding: 6, fontWeight: 600 } }, s.working), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", padding: 6, background: "#e8f5e9", color: "#1b5e20", fontWeight: 700 } }, s.present), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", padding: 6, background: "#e3f2fd", color: "#0d47a1" } }, s.wfh || "\u2014"), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", padding: 6, background: "#fff3e0", color: "#e65100" } }, s.halfDays || "\u2014"), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", padding: 6, background: "#f3e5f5", color: "#6a1b9a" } }, s.leaves || "\u2014"), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", padding: 6, background: "#ffebee", color: "#b71c1c", fontWeight: 700 } }, s.absent || "\u2014"), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", padding: 6, color: "#546e7a" } }, s.weekOffs), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", padding: 6, color: "#1565c0" } }, s.publicHols || "\u2014"), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", padding: 6, background: s.lop > 0 ? "#ffebee" : "#f5f5f5", color: s.lop > 0 ? "#c62828" : "#333", fontWeight: 700 } }, s.lop || "0"), /* @__PURE__ */ React.createElement("td", { style: { textAlign: "center", padding: 6, background: "#e8f5e9", color: "#1b5e20", fontWeight: 700, fontSize: 13 } }, s.netPaid), /* @__PURE__ */ React.createElement("td", { style: { padding: "4px 8px" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setSelEmp(emp.id);
+      setView("calendar");
+    }, style: { padding: "4px 10px", border: "1px solid #1a237e", borderRadius: 6, background: "#fff", color: "#1a237e", fontSize: 11, cursor: "pointer", fontWeight: 600 } }, "Mark \u2192")));
+  })))), activeEmps.length > 1 && (() => {
+    const totals = activeEmps.reduce((acc, emp) => {
+      const s = getMonthSummary(emp.id, month, attendance, holidays);
+      return { present: acc.present + s.present, absent: acc.absent + s.absent, lop: acc.lop + s.lop, leaves: acc.leaves + s.leaves };
+    }, { present: 0, absent: 0, lop: 0, leaves: 0 });
+    return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, padding: "10px 16px", background: "#e8eaf6", borderRadius: 8, display: "flex", gap: 20, fontSize: 13, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, color: "#1a237e" } }, "Totals (", activeEmps.length, " employees) \u2192"), /* @__PURE__ */ React.createElement("span", null, "Present: ", /* @__PURE__ */ React.createElement("b", { style: { color: "#1b5e20" } }, totals.present)), /* @__PURE__ */ React.createElement("span", null, "Absent: ", /* @__PURE__ */ React.createElement("b", { style: { color: "#b71c1c" } }, totals.absent)), /* @__PURE__ */ React.createElement("span", null, "Leave: ", /* @__PURE__ */ React.createElement("b", { style: { color: "#6a1b9a" } }, totals.leaves)), /* @__PURE__ */ React.createElement("span", null, "LOP Days: ", /* @__PURE__ */ React.createElement("b", { style: { color: "#c62828" } }, totals.lop)));
+  })()), view === "calendar" && (() => {
+    const emp = selEmp !== "all" ? emps.find((e) => e.id === selEmp) : null;
+    if (!emp) return /* @__PURE__ */ React.createElement("div", { style: { padding: 20, textAlign: "center", color: "#888" } }, "Please select a specific employee to use the calendar view.");
+    const s = getMonthSummary(emp.id, month, attendance, holidays);
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 8, marginBottom: 14 } }, [["Working Days", s.working, "#333"], ["Present", s.present, "#1b5e20"], ["Absent", s.absent, "#b71c1c"], ["Leave", s.leaves, "#6a1b9a"], ["LOP", s.lop, "#c62828"], ["Net Paid", s.netPaid, "#1b5e20"]].map(([l, v, c]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { background: "#f8f9ff", borderRadius: 8, padding: "10px", textAlign: "center", border: "1px solid #e0e0e0" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: c } }, v), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, l)))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 14 } }, ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => /* @__PURE__ */ React.createElement("div", { key: d, style: { textAlign: "center", fontSize: 11, fontWeight: 700, color: "#888", padding: 4 } }, d)), Array.from({ length: new Date(yr, mo - 1, 1).getDay() }).map((_, i) => /* @__PURE__ */ React.createElement("div", { key: "blank" + i })), days.map((d) => {
+      var _a;
+      const date = `${yr}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const dow = new Date(date).getDay();
+      const isWO = dow === 0 || dow === 6;
+      const isH = holidays.includes(date);
+      const rec = (_a = attendance[emp.id]) == null ? void 0 : _a[date];
+      const status = (rec == null ? void 0 : rec.status) || (isH ? "H" : isWO ? "WO" : null);
+      const st = status ? ATT_STATUS[status] : null;
+      const isToday = date === TODAY;
+      return /* @__PURE__ */ React.createElement("div", { key: d, onClick: () => setEditCell({ empId: emp.id, date }), style: { border: `2px solid ${isToday ? "#1a237e" : (editCell == null ? void 0 : editCell.date) === date ? "#e65100" : "#ddd"}`, borderRadius: 8, padding: "6px 4px", cursor: "pointer", background: st ? st.bg : "#fff", textAlign: "center", minHeight: 64, transition: "all .1s", position: "relative" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: isToday ? "#1a237e" : "#555", marginBottom: 2 } }, d), st && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 800, color: st.color } }, st.short), (rec == null ? void 0 : rec.ot) > 0 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#e65100" } }, "OT:", rec.ot, "h"), !status && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#ccc" } }, "\u2014"));
+    })), (editCell == null ? void 0 : editCell.empId) === emp.id && /* @__PURE__ */ React.createElement("div", { style: { padding: 16, background: "#f8f9ff", borderRadius: 10, border: "2px solid #1a237e" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 10, color: "#1a237e" } }, "Mark ", editCell.date), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, Object.entries(ATT_STATUS).map(([k, s2]) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: k,
+        onClick: () => {
+          setStatus(emp.id, editCell.date, k);
+          setEditCell(null);
+        },
+        style: { padding: "6px 14px", border: `1.5px solid ${s2.color}`, borderRadius: 8, background: s2.bg, color: s2.color, fontWeight: 700, fontSize: 12, cursor: "pointer" }
+      },
+      s2.short,
+      " \u2014 ",
+      s2.label
+    )), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setAttendance((p) => {
+        const np = { ...p };
+        if (np[emp.id]) delete np[emp.id][editCell.date];
+        return np;
+      });
+      setEditCell(null);
+    }, style: { padding: "6px 14px", border: "1.5px solid #999", borderRadius: 8, background: "#fff", color: "#666", fontSize: 12, cursor: "pointer" } }, "\u2715 Clear"))));
+  })(), view === "upload" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { padding: 20, border: "2px dashed #1a237e", borderRadius: 12, textAlign: "center", background: "#f8f9ff" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32, marginBottom: 8 } }, "\u{1F4E4}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 6 } }, "Upload Attendance File"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 16, lineHeight: 1.7 } }, "Supported formats:", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, "Vertical:"), " Code, Date (YYYY-MM-DD), Status", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, "Horizontal:"), " Code, Name, 1, 2, 3...31 (day numbers as columns)"), /* @__PURE__ */ React.createElement("label", { style: { padding: "10px 20px", background: "#1a237e", color: "#fff", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: "pointer", display: "inline-block" } }, "Choose File (.csv / .xlsx)", /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".csv,.txt", style: { display: "none" }, onChange: (e) => {
+    if (e.target.files[0]) parseAttendanceFile(e.target.files[0]);
+  } })), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12 } }, /* @__PURE__ */ React.createElement("button", { onClick: downloadTemplate, style: { padding: "8px 16px", border: "1px solid #1a237e", borderRadius: 8, background: "#fff", color: "#1a237e", fontSize: 12, cursor: "pointer", fontWeight: 600 } }, "\u2B07 Download CSV Template"))), /* @__PURE__ */ React.createElement("div", { style: { padding: 16, background: "#fff", border: "1px solid #e0e0e0", borderRadius: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 10 } }, "Status Codes Reference"), Object.entries(ATT_STATUS).map(([k, s]) => /* @__PURE__ */ React.createElement("div", { key: k, style: { display: "flex", gap: 8, alignItems: "center", padding: "4px 0", borderBottom: "1px solid #f5f5f5" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 800, color: s.color, background: s.bg, padding: "2px 8px", borderRadius: 4, fontSize: 11, minWidth: 36, textAlign: "center" } }, k), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12 } }, s.label), s.lop > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, background: "#ffebee", color: "#c62828", padding: "1px 5px", borderRadius: 3, marginLeft: "auto" } }, "-", s.lop, " day"))))), uploadErrors.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, padding: 14, background: "#ffebee", border: "1px solid #ef9a9a", borderRadius: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#c62828", marginBottom: 8 } }, "\u26A0 ", uploadErrors.length, " errors found:"), uploadErrors.slice(0, 10).map((e, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { fontSize: 12, color: "#c62828", marginBottom: 3 } }, "\u2022 ", e)), uploadErrors.length > 10 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888" } }, "...and ", uploadErrors.length - 10, " more")), uploadPreview.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#1b5e20" } }, "\u2713 ", uploadPreview.length, " records ready to import"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    setUploadPreview([]);
+    setUploadErrors([]);
+  }, style: { padding: "7px 14px", border: "1px solid #ddd", borderRadius: 8, background: "#fff", fontSize: 12, cursor: "pointer" } }, "Discard"), /* @__PURE__ */ React.createElement("button", { onClick: applyUpload, style: { padding: "7px 16px", border: "none", borderRadius: 8, background: "#1b5e20", color: "#fff", fontWeight: 700, fontSize: 12, cursor: "pointer" } }, "\u2713 Apply ", uploadPreview.length, " Records"))), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", border: "1px solid #e0e0e0", borderRadius: 8 } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: "#f5f5f5" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px", textAlign: "left" } }, "Employee"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px" } }, "Date"), /* @__PURE__ */ React.createElement("th", { style: { padding: "8px 12px" } }, "Status"))), /* @__PURE__ */ React.createElement("tbody", null, uploadPreview.slice(0, 20).map((r, i) => {
+    const st = ATT_STATUS[r.status];
+    return /* @__PURE__ */ React.createElement("tr", { key: i, style: { borderTop: "1px solid #f0f0f0" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 12px" } }, r.empName), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 12px" } }, r.date), /* @__PURE__ */ React.createElement("td", { style: { padding: "6px 12px" } }, /* @__PURE__ */ React.createElement("span", { style: { background: st == null ? void 0 : st.bg, color: st == null ? void 0 : st.color, padding: "2px 8px", borderRadius: 4, fontWeight: 700, fontSize: 11 } }, r.status, " \u2014 ", st == null ? void 0 : st.label)));
+  }))), uploadPreview.length > 20 && /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 12px", fontSize: 12, color: "#888", textAlign: "center" } }, "...and ", uploadPreview.length - 20, " more records")))), showFullModal && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setShowFullModal(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 14, padding: 28, width: 480, boxShadow: "0 20px 60px rgba(0,0,0,.3)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 16, marginBottom: 6 } }, "\u{1F4C5} Mark Full Month"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 16, lineHeight: 1.6 } }, "Marks all weekdays as Present (P) and weekends as Week Off (WO). Public holidays marked as H if configured."), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement("input", { type: "month", value: fullMonth, onChange: (e) => setFullMonth(e.target.value), style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 14, outline: "none" } })), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 5, textTransform: "uppercase" } }, "Apply to"), /* @__PURE__ */ React.createElement("select", { value: fullTarget, onChange: (e) => setFullTarget(e.target.value), style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" } }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All employees (", emps.length, ")"), emps.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setShowFullModal(false), style: { padding: "9px 16px", border: "1px solid #ddd", borderRadius: 8, background: "#fff", cursor: "pointer", fontSize: 13 } }, "Cancel"), /* @__PURE__ */ React.createElement("button", { onClick: () => markFullMonthFn(fullTarget, fullMonth, false), style: { padding: "9px 16px", border: "none", borderRadius: 8, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Fill Empty Days"), /* @__PURE__ */ React.createElement("button", { onClick: () => markFullMonthFn(fullTarget, fullMonth, true), style: { padding: "9px 16px", border: "none", borderRadius: 8, background: "#1b5e20", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Overwrite All Days")))), bulkMsg && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 20, right: 20, background: "#1b5e20", color: "#fff", padding: "12px 20px", borderRadius: 10, fontWeight: 700, fontSize: 13, boxShadow: "0 4px 12px rgba(0,0,0,.25)", zIndex: 2e3 } }, bulkMsg));
 }
-const DEFAULT_POLICIES = {
-  // ── Leave Policy ──────────────────────────────────────────────────────────
-  leave: {
-    types: [
-      { id: "L1", name: "Casual Leave", code: "CL", annual: 12, carryForward: false, maxCarry: 0, encashable: false, paid: true, halfDay: true, minDays: 0.5, maxDays: 3, gender: "all", probation: false, notice: 0, desc: "For personal/casual reasons" },
-      { id: "L2", name: "Sick Leave", code: "SL", annual: 12, carryForward: false, maxCarry: 0, encashable: false, paid: true, halfDay: true, minDays: 0.5, maxDays: 7, gender: "all", probation: false, notice: 0, desc: "For illness/medical reasons" },
-      { id: "L3", name: "Earned Leave", code: "EL", annual: 24, carryForward: true, maxCarry: 30, encashable: true, paid: true, halfDay: true, minDays: 1, maxDays: 30, gender: "all", probation: false, notice: 7, desc: "Accrued @ 2 days/month. Encashable on exit." },
-      { id: "L4", name: "Maternity Leave", code: "ML", annual: 182, carryForward: false, maxCarry: 0, encashable: false, paid: true, halfDay: false, minDays: 182, maxDays: 182, gender: "female", probation: false, notice: 30, desc: "As per Maternity Benefit Act \u2014 26 weeks paid" },
-      { id: "L5", name: "Paternity Leave", code: "PL", annual: 7, carryForward: false, maxCarry: 0, encashable: false, paid: true, halfDay: false, minDays: 1, maxDays: 7, gender: "male", probation: false, notice: 7, desc: "7 days paid paternity leave" },
-      { id: "L6", name: "Loss of Pay", code: "LOP", annual: 0, carryForward: false, maxCarry: 0, encashable: false, paid: false, halfDay: true, minDays: 0.5, maxDays: 999, gender: "all", probation: true, notice: 0, desc: "Unpaid leave \u2014 salary deducted proportionally" },
-      { id: "L7", name: "Compensatory Off", code: "CO", annual: 0, carryForward: true, maxCarry: 12, encashable: false, paid: true, halfDay: true, minDays: 0.5, maxDays: 5, gender: "all", probation: true, notice: 1, desc: "In lieu of working on holidays/weekends" },
-      { id: "L8", name: "Bereavement Leave", code: "BL", annual: 3, carryForward: false, maxCarry: 0, encashable: false, paid: true, halfDay: false, minDays: 1, maxDays: 3, gender: "all", probation: false, notice: 0, desc: "Death of immediate family member" }
-    ],
-    accrualMethod: "monthly",
-    // monthly | quarterly | yearly
-    accrualDay: 1,
-    // day of month to credit leave
-    leaveYear: "april",
-    // april (India standard) | january
-    probationLeaves: ["LOP"],
-    // leave types allowed during probation
-    sandwichRule: true,
-    // weekends between leave days counted
-    backdatedDays: 3,
-    // max days employee can apply backdated leave
-    approvalLevels: 1,
-    // 1 = direct manager, 2 = manager + HR
-    autoApprove: false,
-    holidayList: [
-      { id: "H1", name: "Republic Day", date: "2025-01-26", type: "national" },
-      { id: "H2", name: "Holi", date: "2025-03-14", type: "festival" },
-      { id: "H3", name: "Good Friday", date: "2025-04-18", type: "optional" },
-      { id: "H4", name: "Independence Day", date: "2025-08-15", type: "national" },
-      { id: "H5", name: "Gandhi Jayanti", date: "2025-10-02", type: "national" },
-      { id: "H6", name: "Diwali", date: "2025-10-20", type: "festival" },
-      { id: "H7", name: "Christmas", date: "2025-12-25", type: "festival" }
-    ]
-  },
-  // ── Leave Encashment Policy ───────────────────────────────────────────────
-  encashment: {
-    enabled: true,
-    encashableTypes: ["EL"],
-    // which leave types can be encashed
-    maxEncashPerYear: 15,
-    // max days encashable per year (without separation)
-    onSeparation: true,
-    // allow full encashment on resignation/termination
-    formula: "basic",
-    // basic | gross — which salary for calculation
-    // Encashment = (Basic or Gross / 26) × days
-    taxable: true,
-    // is encashment taxable?
-    taxExemptLimit: 3e5,
-    // ₹3 lakh exempt under Sec 10(10AA) for govt
-    minServiceMonths: 12,
-    // min service before encashment allowed
-    timingRestriction: "any"
-    // any | year-end | separation-only
-  },
-  // ── Gratuity Policy ───────────────────────────────────────────────────────
-  gratuity: {
-    enabled: true,
-    applicableAct: "Payment of Gratuity Act 1972",
-    minServiceYears: 5,
-    // min years of service (4y 240d counts as 5y)
-    formula: "15/26",
-    // (Basic / 26) × 15 × years
-    maxLimit: 2e6,
-    // ₹20 lakh (statutory max as of 2024)
-    taxExemptLimit: 2e6,
-    // ₹20 lakh exempt under Sec 10(10)
-    payOn: ["resignation", "retirement", "death", "disability", "retrenchment"],
-    rounding: "nearest_year",
-    // nearest_year | completed_years
-    // Gratuity = (Last Basic / 26) × 15 × completed years of service
-    fundCreation: false,
-    // maintain gratuity fund/provision
-    monthlyProvision: true
-    // accrue monthly provision in books
-  },
-  // ── Provident Fund (PF/EPF) Policy ───────────────────────────────────────
-  pf: {
-    enabled: true,
-    applicableAct: "Employees Provident Fund Act 1952",
-    wageLimit: 15e3,
-    // ₹15,000 wage ceiling for mandatory PF
-    employeeRate: 12,
-    // % of basic (employee contribution)
-    employerRate: 12,
-    // % of basic (employer total)
-    eps: 8.33,
-    // % of basic to EPS (pension scheme) — from employer share
-    edli: 0.5,
-    // % to EDLI (insurance scheme)
-    pfAdmin: 0.5,
-    // % admin charges on EPF
-    epsAdmin: 0,
-    // EPS admin charges
-    maxPfWage: 15e3,
-    // cap PF calculation at ₹15K even if basic > ₹15K
-    voluntaryPF: false,
-    // allow VPF contributions above 12%
-    voluntaryRate: 0,
-    internationalWorkers: false,
-    dueDate: 15
-    // file by 15th of next month
-  },
-  // ── ESIC Policy ──────────────────────────────────────────────────────────
-  esic: {
-    enabled: true,
-    applicableAct: "Employees State Insurance Act 1948",
-    wageLimit: 21e3,
-    // ₹21,000 — employees above this exempt
-    employeeRate: 0.75,
-    // % of gross wages
-    employerRate: 3.25,
-    // % of gross wages
-    dueDate: 15,
-    applicableStates: ["all"]
-    // ESIC not applicable in some areas — configure if needed
-  },
-  // ── Professional Tax Policy ───────────────────────────────────────────────
-  pt: {
-    enabled: true,
-    state: "Maharashtra",
-    slabs: [
-      { from: 0, to: 1e4, monthly: 0 },
-      { from: 10001, to: 15e3, monthly: 150 },
-      { from: 15001, to: 999999, monthly: 200 }
-    ],
-    // Different states have different slabs — configurable
-    deductMonth: "all",
-    // all | specific months
-    annualLimit: 2500,
-    // ₹2,500 max PT per year
-    exemptions: ["disability"]
-  },
-  // ── TDS / Income Tax Policy ───────────────────────────────────────────────
-  tds: {
-    regime: "new",
-    // new | old — company default
-    financialYear: "2025-26",
-    standardDeduction: 5e4,
-    newRegimeSlabs: [
-      { from: 0, to: 3e5, rate: 0 },
-      { from: 300001, to: 7e5, rate: 5 },
-      { from: 700001, to: 1e6, rate: 10 },
-      { from: 1000001, to: 12e5, rate: 15 },
-      { from: 1200001, to: 15e5, rate: 20 },
-      { from: 1500001, to: 9999999, rate: 30 }
-    ],
-    oldRegimeSlabs: [
-      { from: 0, to: 25e4, rate: 0 },
-      { from: 250001, to: 5e5, rate: 5 },
-      { from: 500001, to: 1e6, rate: 20 },
-      { from: 1000001, to: 9999999, rate: 30 }
-    ],
-    surcharge: [
-      { from: 5e6, to: 1e7, rate: 10 },
-      { from: 10000001, to: 2e7, rate: 15 },
-      { from: 20000001, to: 5e7, rate: 25 },
-      { from: 50000001, to: 9999999999, rate: 37 }
-    ],
-    cess: 4,
-    // Health & Education cess %
-    declarationDeadline: "2025-04-30",
-    projectionMethod: "average",
-    // average | actual
-    form12BB: true
-    // require Form 12BB declaration
-  },
-  // ── Bonus Policy ─────────────────────────────────────────────────────────
-  bonus: {
-    enabled: true,
-    applicableAct: "Payment of Bonus Act 1965",
-    eligibilityWage: 21e3,
-    // employees with salary ≤ ₹21,000
-    calculationWage: 7e3,
-    // max wage for bonus calculation = ₹7,000 or MWA
-    minRate: 8.33,
-    // % minimum bonus (statutory)
-    maxRate: 20,
-    // % maximum bonus
-    currentRate: 8.33,
-    // company's current rate
-    formula: "basic",
-    // basic | basic+da
-    minServiceMonths: 30,
-    // 30 working days in the accounting year
-    payBy: "november",
-    // month to pay (within 8 months of year end)
-    accountingYear: "april",
-    // April-March (same as leave year)
-    exGratia: {
-      // bonus beyond statutory (discretionary)
-      enabled: false,
-      rate: 0,
-      eligibility: "all"
-    }
-  },
-  // ── Payroll Policy ────────────────────────────────────────────────────────
-  payroll: {
-    paymentDay: 5,
-    // pay salary by 5th of next month
-    paymentMode: "bank",
-    // bank | cash | cheque
-    workingDays: 26,
-    // standard working days for calculation
-    lopMethod: "calendar",
-    // calendar | working — which days for LOP calc
-    overtimeEnabled: true,
-    otRate: 2,
-    // multiplier (2x for OT — Factory Act)
-    otEligible: ["contractual", "worker"],
-    // categories eligible for OT
-    hraExemption: {
-      metro: 50,
-      // % of basic for metro cities HRA exemption
-      nonMetro: 40,
-      // % for non-metro
-      metroCities: ["Mumbai", "Delhi", "Chennai", "Kolkata"]
-    },
-    ctcComponents: ["basic", "hra", "conveyance", "medical", "special", "lta", "pf_employer", "esic_employer"],
-    salaryRevision: "april"
-    // month for annual increments
-  },
-  // ── F&F (Full & Final) Policy ─────────────────────────────────────────────
-  fnf: {
-    noticePeriod: {
-      probation: 7,
-      // days notice during probation
-      confirmed: 30,
-      // days notice for confirmed employees
-      senior: 60
-      // days for senior/management roles
-    },
-    noticePeriodWaiverAllowed: true,
-    settlementDays: 45,
-    // days within which F&F must be settled
-    components: {
-      lastSalary: true,
-      gratuity: true,
-      elEncashment: true,
-      bonus: true,
-      noticePay: true,
-      loanRecovery: true,
-      reimbursementPending: true
-    },
-    form16Timing: "june",
-    // issue Form 16 by June 15
-    experienceLetter: true,
-    relievingLetter: true
-  },
-  // ── Reimbursement Policy ─────────────────────────────────────────────────
-  reimbursement: {
-    types: [
-      { id: "R1", name: "Travel (Local)", limit: 5e3, period: "monthly", taxable: false, proof: "bill" },
-      { id: "R2", name: "Travel (Outstation)", limit: 25e3, period: "trip", taxable: false, proof: "bill+boarding" },
-      { id: "R3", name: "Mobile/Internet", limit: 1500, period: "monthly", taxable: false, proof: "bill" },
-      { id: "R4", name: "Medical", limit: 15e3, period: "yearly", taxable: false, proof: "prescription" },
-      { id: "R5", name: "Food/Meal", limit: 2200, period: "monthly", taxable: false, proof: "none" },
-      { id: "R6", name: "Training/Course", limit: 5e4, period: "yearly", taxable: false, proof: "certificate" },
-      { id: "R7", name: "Fuel", limit: 3e3, period: "monthly", taxable: false, proof: "bill" },
-      { id: "R8", name: "Entertainment", limit: 1e4, period: "quarterly", taxable: true, proof: "bill" }
-    ],
-    submissionDeadline: 30,
-    // days after expense to submit claim
-    approvalRequired: true,
-    doubleApproval: false
-    // manager only, or manager + HR
-  },
-  // ── Shift & Working Hours Policy ──────────────────────────────────────────
-  shifts: {
-    workWeek: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    weeklyOff: ["Sat", "Sun"],
-    alternateOff: false,
-    // 2nd/4th Saturday off?
-    alternateSaturdays: [],
-    shifts: [
-      { id: "S1", name: "General", start: "09:00", end: "18:00", grace: 15, breakMins: 60 },
-      { id: "S2", name: "Morning", start: "07:00", end: "16:00", grace: 10, breakMins: 30 },
-      { id: "S3", name: "Evening", start: "14:00", end: "23:00", grace: 10, breakMins: 30 },
-      { id: "S4", name: "Night", start: "22:00", end: "07:00", grace: 15, breakMins: 30 }
-    ],
-    halfDayHours: 4.5,
-    lateMarkAfter: 15,
-    // minutes after shift start = late mark
-    absentIfBelow: 2,
-    // hours below which = absent
-    otStartAfter: 9
-    // hours after which OT starts
-  },
-  // ── Loan Policy ───────────────────────────────────────────────────────────
-  loans: {
-    enabled: true,
-    types: [
-      { id: "LT1", name: "Salary Advance", maxAmount: "1_month_salary", maxTenure: 3, interest: 0, minService: 0 },
-      { id: "LT2", name: "Personal Loan", maxAmount: "3_month_salary", maxTenure: 12, interest: 0, minService: 6 },
-      { id: "LT3", name: "Emergency Medical", maxAmount: 1e5, maxTenure: 12, interest: 0, minService: 0 },
-      { id: "LT4", name: "Vehicle Loan", maxAmount: 2e5, maxTenure: 24, interest: 0, minService: 12 },
-      { id: "LT5", name: "Home Loan Advance", maxAmount: 5e5, maxTenure: 36, interest: 0, minService: 24 }
-    ],
-    maxOutstanding: "3_month_salary",
-    // total outstanding loan limit
-    emiDeductionDay: "payroll",
-    // deduct EMI from salary
-    recovery_on_separation: true
-    // recover full outstanding on exit
-  }
-};
-const C = {
-  P: "#1a237e",
-  PL: "#3949ab",
-  PX: "#e8eaf6",
-  AC: "#00897b",
-  AX: "#e0f2f1",
-  DG: "#c62828",
-  DX: "#ffebee",
-  WN: "#e65100",
-  WX: "#fff3e0",
-  OK: "#2e7d32",
-  OX: "#e8f5e9",
-  MT: "#546e7a",
-  BD: "#e0e0e0",
-  BG: "#f5f6fa",
-  SB: "#0d1b4b"
-};
 function PolicyTab({ pol: pol2, setPol, onSave }) {
   var _a, _b, _c, _d;
   const [ptab, setPtab] = useState("leave");
@@ -3466,7 +3296,7 @@ function HRAdmin({ user, onLogout }) {
         ];
       })
     }
-  )), showEmpForm && /* @__PURE__ */ React.createElement(EmpForm, { emp: editEmp, pol: pol2, onClose: () => setShowEmpForm(false), onSave: apiSaveEmp }), slip && /* @__PURE__ */ React.createElement(SalarySlip, { emp: slip.emp, co, month: slip.month, year: slip.year, pol: pol2, onClose: () => setSlip(null) })), tab === "attendance" && /* @__PURE__ */ React.createElement(Sec, { title: "Attendance Management" }, /* @__PURE__ */ React.createElement(AttendanceModule, { emps: active, attendance, setAttendance, onMark: apiMarkAtt, onBulkMark: apiMarkBulkAtt })), tab === "payroll" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Sec, { title: "Payroll Processing" }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "flex-end", gap: 16, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: MT, marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement("select", { value: payMonth, onChange: (e) => setPayMonth(+e.target.value), style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }, MONTHS.map((m, i) => /* @__PURE__ */ React.createElement("option", { key: m, value: i + 1 }, m)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: MT, marginBottom: 5, textTransform: "uppercase" } }, "Year"), /* @__PURE__ */ React.createElement("select", { value: payYear, onChange: (e) => setPayYear(+e.target.value), style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }, [2024, 2025, 2026].map((y) => /* @__PURE__ */ React.createElement("option", { key: y }, y)))), /* @__PURE__ */ React.createElement(Btn, { sz: "lg", v: "ok", onClick: runPayroll }, "\u25B6 Run Payroll"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => {
+  )), showEmpForm && /* @__PURE__ */ React.createElement(EmpForm, { emp: editEmp, pol: pol2, onClose: () => setShowEmpForm(false), onSave: apiSaveEmp }), slip && /* @__PURE__ */ React.createElement(SalarySlip, { emp: slip.emp, co, month: slip.month, year: slip.year, pol: pol2, onClose: () => setSlip(null) })), tab === "attendance" && /* @__PURE__ */ React.createElement(Sec, { title: "Attendance Management" }, /* @__PURE__ */ React.createElement(AttendanceModule, { emps: active, attendance, setAttendance, holidays: (pol2 == null ? void 0 : pol2.holidays) || [], onMark: apiMarkAtt, onBulkMark: apiMarkBulkAtt })), tab === "payroll" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Sec, { title: "Payroll Processing" }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "flex-end", gap: 16, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: MT, marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement("select", { value: payMonth, onChange: (e) => setPayMonth(+e.target.value), style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }, MONTHS.map((m, i) => /* @__PURE__ */ React.createElement("option", { key: m, value: i + 1 }, m)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: MT, marginBottom: 5, textTransform: "uppercase" } }, "Year"), /* @__PURE__ */ React.createElement("select", { value: payYear, onChange: (e) => setPayYear(+e.target.value), style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }, [2024, 2025, 2026].map((y) => /* @__PURE__ */ React.createElement("option", { key: y }, y)))), /* @__PURE__ */ React.createElement(Btn, { sz: "lg", v: "ok", onClick: runPayroll }, "\u25B6 Run Payroll"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => {
     const month = payMonth, year = payYear;
     const mwViolations = active.filter((e) => {
       const p = calcP(e);
@@ -3893,7 +3723,7 @@ function HRAdmin({ user, onLogout }) {
         alert("No payroll run");
         return;
       }
-      activeRun.results.forEach((e, i) => setTimeout(() => setSlip({ emp: e, month: activeRun.month, year: activeRun.year }), i * 600));
+      activeRun.results.forEach((e, i) => setTimeout(() => setSlip({ emp: e, month: activeRun.month, year: activeRun.year, attendance }), i * 600));
       showToast("Opening slips...");
     }, color: AC },
     { label: "Min Wages Report", desc: "Flag employees below statutory limit", action: () => {
