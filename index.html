@@ -1,21 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v10.2 — BLANK_EMP + DEFAULT_POLICIES FIXED -->
+<!-- PAYROLLA v11.0 — CLEAN UI -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v10.2...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v11.0...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script>const{useState,useEffect,useCallback,useRef}=React;const{createClient}=supabase;</script>
 <script>
-class ErrorBoundary extends React.Component{constructor(p){super(p);this.state={error:null};}static getDerivedStateFromError(e){return{error:e};}componentDidCatch(e,i){console.error("Payrolla:",e,i);}render(){if(this.state.error){const e=this.state.error;return React.createElement("div",{style:{padding:40,fontFamily:"monospace",background:"#fff",minHeight:"100vh"}},React.createElement("h2",{style:{color:"#c62828",marginBottom:12}},"Payrolla Error — Screenshot & Share"),React.createElement("div",{style:{background:"#ffebee",padding:16,borderRadius:8,marginBottom:12,fontWeight:"bold",fontSize:14}},e.message),React.createElement("pre",{style:{background:"#f5f5f5",padding:16,fontSize:11,overflow:"auto",borderRadius:8}},e.stack));}return this.props.children;}}
+class ErrorBoundary extends React.Component{constructor(p){super(p);this.state={error:null};}static getDerivedStateFromError(e){return{error:e};}componentDidCatch(e,i){console.error("Payrolla:",e,i);}render(){if(this.state.error){const e=this.state.error;return React.createElement("div",{style:{padding:40,fontFamily:"monospace",background:"#fff",minHeight:"100vh"}},React.createElement("h2",{style:{color:"#c62828",marginBottom:12}},"Error — Screenshot & Share"),React.createElement("div",{style:{background:"#ffebee",padding:16,borderRadius:8,marginBottom:12,fontWeight:"bold"}},e.message),React.createElement("pre",{style:{background:"#f5f5f5",padding:16,fontSize:11,overflow:"auto"}},e.stack));}return this.props.children;}}
 const SUPABASE_URL = "https://ughybjrpggoutpoutkpz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnaHlianJwZ2dvdXRwb3V0a3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NTI2NTAsImV4cCI6MjA5ODAyODY1MH0.EjNOd3euAs_fEyDL_aE93L-r9aosMLqyamnyDk1AY7c";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -618,8 +618,73 @@ function HolidayEditor({ h, onSave, onClose }) {
     onSave({ ...f, id: f.id || "H" + Math.random().toString(36).slice(2, 6).toUpperCase() });
   } }, f.id ? "Save" : "Add Holiday")));
 }
+function SubNav({ tabs, active, setActive }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 2, marginBottom: 22, background: "#f0f4ff", borderRadius: 10, padding: 4 } }, tabs.map(([id, label]) => /* @__PURE__ */ React.createElement("button", { key: id, onClick: () => setActive(id), style: {
+    flex: 1,
+    padding: "7px 14px",
+    border: "none",
+    borderRadius: 8,
+    fontSize: 12,
+    cursor: "pointer",
+    background: active === id ? "#fff" : "transparent",
+    color: active === id ? "#1a237e" : "#888",
+    fontWeight: active === id ? 700 : 400,
+    boxShadow: active === id ? "0 1px 4px rgba(0,0,0,.08)" : "none",
+    transition: "all .12s"
+  } }, label)));
+}
 function Shell({ user, nav, tab, setTab, onLogout, children }) {
-  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", minHeight: "100vh", fontFamily: "'Segoe UI',system-ui,sans-serif", background: BG } }, /* @__PURE__ */ React.createElement("div", { style: { width: 230, background: SB, display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "20px 20px 12px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 900, fontSize: 17, color: "#fff" } }, "Payrolla", /* @__PURE__ */ React.createElement("span", { style: { color: "#64b5f6" } }, ".in")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,.4)", marginTop: 3 } }, user.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "rgba(255,255,255,.25)", textTransform: "uppercase", letterSpacing: 1 } }, user.role)), /* @__PURE__ */ React.createElement("div", { style: { height: 1, background: "rgba(255,255,255,.08)", margin: "0 16px" } }), /* @__PURE__ */ React.createElement("nav", { style: { flex: 1, padding: "8px 10px", overflowY: "auto" } }, nav.map(([id, icon, label]) => /* @__PURE__ */ React.createElement("button", { key: id, onClick: () => setTab(id), style: { display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "9px 14px", border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer", marginBottom: 2, background: tab === id ? "rgba(100,181,246,.2)" : "transparent", color: tab === id ? "#90caf9" : "rgba(255,255,255,.6)", fontWeight: tab === id ? 700 : 400 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 15 } }, icon), label))), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 10px 14px" } }, /* @__PURE__ */ React.createElement("button", { onClick: onLogout, style: { display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 14px", border: "1px solid rgba(255,255,255,.15)", borderRadius: 8, background: "transparent", color: "rgba(255,255,255,.5)", cursor: "pointer", fontSize: 13 } }, "\u{1F6AA} Log Out"))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: 28, maxWidth: 1150 } }, children)));
+  var _a;
+  const GROUPS = [
+    { label: "MAIN", items: ["dashboard"] },
+    { label: "PEOPLE", items: ["employees", "onboarding"] },
+    { label: "TIME", items: ["attendance"] },
+    { label: "PAYROLL", items: ["payroll", "arrears", "fnf"] },
+    { label: "HR", items: ["leaves", "loans", "reimbursements"] },
+    { label: "LEGAL", items: ["compliance", "duedates"] },
+    { label: "DOCS", items: ["documents", "letters"] },
+    { label: "INSIGHTS", items: ["reports", "audit"] },
+    { label: "CONFIG", items: [
+      "company",
+      "policy",
+      "ai",
+      "settings",
+      "dashboard",
+      "companies",
+      "users",
+      "billing",
+      "statutory",
+      "bank"
+    ] }
+  ];
+  const navMap = Object.fromEntries(nav.map(([id, icon, label]) => [id, { icon, label }]));
+  const getGroup = (id) => GROUPS.find((g) => g.items.includes(id));
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", minHeight: "100vh", fontFamily: "'Segoe UI',system-ui,sans-serif", background: BG } }, /* @__PURE__ */ React.createElement("div", { style: { width: 220, background: SB, display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh", overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "22px 20px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 900, fontSize: 18, color: "#fff", letterSpacing: -0.5 } }, "Payrolla", /* @__PURE__ */ React.createElement("span", { style: { color: "#64b5f6" } }, ".in")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,.5)", marginTop: 4 } }, user.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "rgba(255,255,255,.3)", textTransform: "uppercase", letterSpacing: 1 } }, user.role)), /* @__PURE__ */ React.createElement("div", { style: { height: 1, background: "rgba(255,255,255,.08)", margin: "0 14px 8px" } }), /* @__PURE__ */ React.createElement("nav", { style: { flex: 1, padding: "4px 10px" } }, GROUPS.map((grp) => {
+    const grpItems = grp.items.filter((id) => navMap[id]);
+    if (grpItems.length === 0) return null;
+    const grpActive = grpItems.includes(tab);
+    return /* @__PURE__ */ React.createElement("div", { key: grp.label, style: { marginBottom: 4 } }, grp.label !== "MAIN" && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,.25)", letterSpacing: 1.5, padding: "8px 10px 4px", textTransform: "uppercase" } }, grp.label), grpItems.map((id) => {
+      const { icon, label } = navMap[id];
+      const active = tab === id;
+      return /* @__PURE__ */ React.createElement("button", { key: id, onClick: () => setTab(id), style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 9,
+        width: "100%",
+        textAlign: "left",
+        padding: "8px 12px",
+        border: "none",
+        borderRadius: 8,
+        fontSize: 13,
+        cursor: "pointer",
+        marginBottom: 1,
+        transition: "all .12s",
+        background: active ? "rgba(100,181,246,.18)" : "transparent",
+        color: active ? "#90caf9" : "rgba(255,255,255,.55)",
+        fontWeight: active ? 700 : 400
+      } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14, opacity: active ? 1 : 0.7 } }, icon), /* @__PURE__ */ React.createElement("span", null, label), active && /* @__PURE__ */ React.createElement("div", { style: { marginLeft: "auto", width: 3, height: 16, background: "#64b5f6", borderRadius: 2 } }));
+    }));
+  })), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 10px 16px", borderTop: "1px solid rgba(255,255,255,.08)" } }, /* @__PURE__ */ React.createElement("button", { onClick: onLogout, style: { display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 12px", border: "none", borderRadius: 8, background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.4)", cursor: "pointer", fontSize: 12, transition: "all .12s" } }, "\u{1F6AA} ", /* @__PURE__ */ React.createElement("span", null, "Sign Out")))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, overflowY: "auto", background: BG } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderBottom: "1px solid #e0e0e0", padding: "0 28px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 16, color: "#1a237e" } }, ((_a = navMap[tab]) == null ? void 0 : _a.label) || ""), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, alignItems: "center", fontSize: 12, color: "#888" } }, /* @__PURE__ */ React.createElement("span", null, "\u{1F464} ", user.name), /* @__PURE__ */ React.createElement("span", { style: { background: "#e8eaf6", color: "#1a237e", padding: "2px 10px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, user.role))), /* @__PURE__ */ React.createElement("div", { style: { padding: "24px 28px", maxWidth: 1180 } }, children)));
 }
 function Login({ onLogin, onRegister }) {
   const [role, setRole] = useState("hr");
@@ -3134,6 +3199,13 @@ function HRAdmin({ user, onLogout }) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, __;
   const [tab, setTab] = useState("dashboard");
   const calcP = (e, lop = 0) => calcPay(e, lop, pol2, payMonth, payYear);
+  const [paySubTab, setPaySubTab] = useState("run");
+  const [hrSubTab, setHrSubTab] = useState("leaves");
+  const [docSubTab, setDocSubTab] = useState("documents");
+  const [repSubTab, setRepSubTab] = useState("reports");
+  const [compSubTab, setCompSubTab] = useState("compliance");
+  const [settSubTab, setSettSubTab] = useState("company");
+  const [empSubTab, setEmpSubTab] = useState("employees");
   const [letterEmpId, setLetterEmpId] = useState("");
   const [letterPreview, setLetterPreview] = useState(null);
   const [bulkDateModal, setBulkDateModal] = useState(false);
