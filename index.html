@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v10.0 — FINAL VERIFIED BUILD 20260627 -->
+<!-- PAYROLLA v10.0 FINAL BUILD 20260627 -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
-<meta name="description" content="AI-powered Indian payroll. PF, ESIC, TDS, PT, LWF. All 28 states. Standard deduction ₹75K FY25-26."/>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
@@ -16,6 +15,25 @@
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script>const{useState,useEffect,useCallback,useRef}=React;const{createClient}=supabase;</script>
 <script>
+
+class ErrorBoundary extends React.Component{
+  constructor(p){super(p);this.state={error:null};}
+  static getDerivedStateFromError(e){return{error:e};}
+  componentDidCatch(e,info){console.error("Payrolla render error:",e,info);}
+  render(){
+    if(this.state.error){
+      const e=this.state.error;
+      return React.createElement('div',{style:{padding:40,fontFamily:'monospace',background:'#fff',minHeight:'100vh'}},
+        React.createElement('h2',{style:{color:'#c62828',marginBottom:12}},'Payrolla Error — Please Screenshot'),
+        React.createElement('div',{style:{background:'#ffebee',padding:16,borderRadius:8,marginBottom:12,fontWeight:'bold'}},e.message),
+        React.createElement('pre',{style:{background:'#f5f5f5',padding:16,borderRadius:8,overflow:'auto',fontSize:11}},e.stack),
+        React.createElement('div',{style:{marginTop:16,fontSize:12,color:'#888'}},'v10.0 | Share this error with support')
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const SUPABASE_URL = "https://ughybjrpggoutpoutkpz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnaHlianJwZ2dvdXRwb3V0a3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NTI2NTAsImV4cCI6MjA5ODAyODY1MH0.EjNOd3euAs_fEyDL_aE93L-r9aosMLqyamnyDk1AY7c";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -4851,7 +4869,13 @@ function App() {
   return null;
 }
 
-try{ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));}catch(e){document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace;background:#fff"><h2 style="color:red">Error: '+e.message+'</h2><pre style="margin-top:12px;font-size:11px;background:#eee;padding:12px">'+e.stack+'</pre></div>';}
+try{
+  ReactDOM.createRoot(document.getElementById("root")).render(
+    React.createElement(ErrorBoundary,null,React.createElement(App))
+  );
+}catch(e){
+  document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace;background:#fff"><h2 style="color:red">Load Error: '+e.message+'</h2><pre style="margin-top:12px;font-size:11px;background:#eee;padding:12px">'+e.stack+'</pre></div>';
+}
 </script>
 </body>
 </html>
