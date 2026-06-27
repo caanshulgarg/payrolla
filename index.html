@@ -1,39 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v10.0 FINAL BUILD 20260627 -->
+<!-- PAYROLLA v10.1 FIX DEFAULT_POLICIES -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v10.0...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v10.1...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script>const{useState,useEffect,useCallback,useRef}=React;const{createClient}=supabase;</script>
 <script>
-
-class ErrorBoundary extends React.Component{
-  constructor(p){super(p);this.state={error:null};}
-  static getDerivedStateFromError(e){return{error:e};}
-  componentDidCatch(e,info){console.error("Payrolla render error:",e,info);}
-  render(){
-    if(this.state.error){
-      const e=this.state.error;
-      return React.createElement('div',{style:{padding:40,fontFamily:'monospace',background:'#fff',minHeight:'100vh'}},
-        React.createElement('h2',{style:{color:'#c62828',marginBottom:12}},'Payrolla Error — Please Screenshot'),
-        React.createElement('div',{style:{background:'#ffebee',padding:16,borderRadius:8,marginBottom:12,fontWeight:'bold'}},e.message),
-        React.createElement('pre',{style:{background:'#f5f5f5',padding:16,borderRadius:8,overflow:'auto',fontSize:11}},e.stack),
-        React.createElement('div',{style:{marginTop:16,fontSize:12,color:'#888'}},'v10.0 | Share this error with support')
-      );
-    }
-    return this.props.children;
-  }
-}
-
+class ErrorBoundary extends React.Component{constructor(p){super(p);this.state={error:null};}static getDerivedStateFromError(e){return{error:e};}componentDidCatch(e,i){console.error("Payrolla:",e,i);}render(){if(this.state.error){const e=this.state.error;return React.createElement("div",{style:{padding:40,fontFamily:"monospace",background:"#fff"}},React.createElement("h2",{style:{color:"#c62828",marginBottom:12}},"Error — Screenshot this"),React.createElement("div",{style:{background:"#ffebee",padding:16,borderRadius:8,marginBottom:12,fontWeight:"bold"}},e.message),React.createElement("pre",{style:{background:"#f5f5f5",padding:16,fontSize:11,overflow:"auto"}},e.stack));}return this.props.children;}}
 const SUPABASE_URL = "https://ughybjrpggoutpoutkpz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnaHlianJwZ2dvdXRwb3V0a3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NTI2NTAsImV4cCI6MjA5ODAyODY1MH0.EjNOd3euAs_fEyDL_aE93L-r9aosMLqyamnyDk1AY7c";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -285,6 +267,61 @@ function checkMinWages(gross, category = "unskilled") {
   }
   return { violation: false, shortfall: 0, minWage: mw.monthly };
 }
+const DEFAULT_POLICIES = {
+  attendance: { lopMethod: "30", cutoffDay: 26, lateThresholdHD: 60, lateThresholdFD: 120, unmarkedDayStatus: "A", weeklyOff: "sunday" },
+  pf: { enabled: true, employeeRate: 12, employerRate: 12, maxPfWage: 15e3, wageLimit: 15e3, eps: true, voluntaryPF: false, voluntaryRate: 0, edli: true, pfAdmin: 0.5, dueDate: 15 },
+  esic: { enabled: true, employeeRate: 0.75, employerRate: 3.25, wageLimit: 21e3, dueDate: 15 },
+  pt: { enabled: true, state: "Maharashtra", regNo: "", slabs: [], annualLimit: 2500 },
+  tds: {
+    regime: "new",
+    standardDeduction: 75e3,
+    financialYear: "2025-26",
+    cess: 4,
+    declarationDeadline: "April",
+    form12BB: true,
+    newRegimeSlabs: [
+      { from: 0, to: 3e5, rate: 0 },
+      { from: 3e5, to: 7e5, rate: 5 },
+      { from: 7e5, to: 1e6, rate: 10 },
+      { from: 1e6, to: 12e5, rate: 15 },
+      { from: 12e5, to: 15e5, rate: 20 },
+      { from: 15e5, to: Infinity, rate: 30 }
+    ],
+    oldRegimeSlabs: [
+      { from: 0, to: 25e4, rate: 0 },
+      { from: 25e4, to: 5e5, rate: 5 },
+      { from: 5e5, to: 1e6, rate: 20 },
+      { from: 1e6, to: Infinity, rate: 30 }
+    ]
+  },
+  lwf: { enabled: true },
+  payroll: { paymentDay: 5, paymentMode: "bank_transfer", workingDays: 26, lopMethod: "30", overtimeEnabled: false, otRate: 1.5, salaryRevision: "month_end", hraExemption: "actual" },
+  gratuity: { enabled: true, minServiceYears: 5, maxLimit: 2e6, taxExemptLimit: 2e6, payOn: "separation", formula: "15/26", rounding: "nearest_rupee", monthlyProvision: false, fundCreation: false },
+  bonus: { enabled: false, formula: "percentage", currentRate: 8.33, minRate: 8.33, maxRate: 20, eligibilityWage: 21e3, calculationWage: 7e3, minServiceMonths: 30, payBy: "November", accountingYear: "April-March" },
+  leave: {
+    leaveYear: "April-March",
+    accrualMethod: "monthly",
+    accrualDay: 1,
+    approvalLevels: 1,
+    autoApprove: false,
+    backdatedDays: 7,
+    sandwichRule: false,
+    holidayList: [],
+    types: [
+      { id: "cl", name: "Casual Leave", code: "CL", days: 12, paid: true, carryForward: false, maxCarry: 0 },
+      { id: "sl", name: "Sick Leave", code: "SL", days: 12, paid: true, carryForward: false, maxCarry: 0 },
+      { id: "el", name: "Earned Leave", code: "EL", days: 18, paid: true, carryForward: true, maxCarry: 30 },
+      { id: "ml", name: "Maternity Leave", code: "ML", days: 182, paid: true, carryForward: false, maxCarry: 0 },
+      { id: "lop", name: "Loss of Pay", code: "LOP", days: 0, paid: false, carryForward: false, maxCarry: 0 }
+    ]
+  },
+  holidays: [],
+  shifts: { shifts: [{ id: "gen", name: "General", in: "09:00", out: "18:00", hrs: 9 }], lateMarkAfter: 15, halfDayHours: 4.5, otStartAfter: 0, absentIfBelow: 4, alternateOff: false },
+  loans: { enabled: true, types: ["Personal Loan", "Salary Advance", "Emergency Loan"], recovery_on_separation: "full_deduction" },
+  reimbursement: { types: ["Medical", "Conveyance", "Food", "Mobile", "Internet", "Other"], approvalRequired: true, doubleApproval: false, submissionDeadline: 5 },
+  fnf: { settlementDays: 45, noticePeriod: 30, noticePeriodWaiverAllowed: true, relievingLetter: true, experienceLetter: true, form16Timing: "before_settlement", components: ["gratuity", "leave_encashment", "bonus", "notice_recovery", "reimbursement"] },
+  encashment: { enabled: true, formula: "basic/26*days", minServiceMonths: 12, onSeparation: true, maxEncashPerYear: 15, taxable: true, taxExemptLimit: 3e5, timingRestriction: false }
+};
 function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, extras = {}) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x;
   const P_pol = POL || (typeof DEFAULT_POLICIES !== "undefined" ? DEFAULT_POLICIES : null);
@@ -4869,13 +4906,7 @@ function App() {
   return null;
 }
 
-try{
-  ReactDOM.createRoot(document.getElementById("root")).render(
-    React.createElement(ErrorBoundary,null,React.createElement(App))
-  );
-}catch(e){
-  document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace;background:#fff"><h2 style="color:red">Load Error: '+e.message+'</h2><pre style="margin-top:12px;font-size:11px;background:#eee;padding:12px">'+e.stack+'</pre></div>';
-}
+try{ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(ErrorBoundary,null,React.createElement(App)));}catch(e){document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace;background:#fff"><h2 style="color:red">Error: '+e.message+'</h2><pre>'+e.stack+'</pre></div>';}
 </script>
 </body>
 </html>
