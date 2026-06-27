@@ -1,45 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v4.0 BUILD 20260627 -->
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<meta name="build" content="20260627-v4"/>
+<!-- PAYROLLA v4.2 BUILD 20260627 -->
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Segoe UI",system-ui,sans-serif}
-#boot{min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff}
-#boot h1{font-size:32px;font-weight:900;margin-bottom:8px}
-#boot p{font-size:13px;opacity:.6}
-</style>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root">
-  <div id="boot">
-    <h1>Payrolla<span style="color:#64b5f6">.in</span></h1>
-    <p>Loading...</p>
-  </div>
-</div>
-
-<!-- Unregister any old service workers first, then load app -->
-<script>
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.getRegistrations().then(function(regs){
-    regs.forEach(function(r){r.unregister();});
-  });
-  if(navigator.serviceWorker.controller){
-    navigator.serviceWorker.controller.postMessage({type:'SKIP_WAITING'});
-  }
-}
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading...</div></div></div>
+<script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script>const{useState,useEffect,useCallback,useRef}=React;const{createClient}=supabase;</script>
-
 <script>
 const SUPABASE_URL = "https://ughybjrpggoutpoutkpz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnaHlianJwZ2dvdXRwb3V0a3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NTI2NTAsImV4cCI6MjA5ODAyODY1MH0.EjNOd3euAs_fEyDL_aE93L-r9aosMLqyamnyDk1AY7c";
@@ -773,7 +747,7 @@ function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
     onSave({ ...f, id: (emp == null ? void 0 : emp.id) || "E" + uid() });
   } }, emp ? "Save Changes" : "Add Employee")));
 }
-function AttendanceModule({ emps: emps2, attendance, setAttendance, onMark, onBulkMark }) {
+function AttendanceModule({ emps, attendance, setAttendance, onMark, onBulkMark }) {
   var _a, _b;
   const [viewDate, setViewDate] = useState(TODAY);
   const [viewEmp, setViewEmp] = useState("all");
@@ -781,8 +755,12 @@ function AttendanceModule({ emps: emps2, attendance, setAttendance, onMark, onBu
   const [editModal, setEditModal] = useState(null);
   const [editForm, setEditForm] = useState({ status: "P", in: "09:00", out: "18:00" });
   const [viewMode, setViewMode] = useState("daily");
-  const [monthEmp, setMonthEmp] = useState(((_a = emps2[0]) == null ? void 0 : _a.id) || "");
+  const [monthEmp, setMonthEmp] = useState(((_a = emps[0]) == null ? void 0 : _a.id) || "");
   const [monthDate, setMonthDate] = useState(TODAY.slice(0, 7));
+  const [bulkDoneMsg, setBulkDoneMsg] = useState("");
+  const [showFullMonthModal, setShowFullMonthModal] = useState(false);
+  const [fullMonthTarget, setFullMonthTarget] = useState("all");
+  const [fullMonthMonth, setFullMonthMonth] = useState(TODAY.slice(0, 7));
   const dates = (() => {
     const d = new Date(viewDate);
     const arr = [];
@@ -800,18 +778,18 @@ function AttendanceModule({ emps: emps2, attendance, setAttendance, onMark, onBu
     const today = viewDate;
     setAttendance((p) => {
       const np = { ...p };
-      emps2.forEach((e) => {
+      emps.forEach((e) => {
         np[e.id] = { ...np[e.id], [today]: { status, in: status === "P" ? "09:00" : "", out: status === "P" ? "18:00" : "", hrs: status === "P" ? 9 : 0, ot: 0 } };
       });
       return np;
     });
     setBulkModal(false);
   }
-  function markFullMonth2(empIds = "all", monthStr = null) {
+  function markFullMonth(empIds = "all", monthStr = null) {
     const ms = monthStr || viewDate.slice(0, 7);
     const [yr, mo] = ms.split("-").map(Number);
     const daysInMonth = new Date(yr, mo, 0).getDate();
-    const targetEmps = empIds === "all" ? emps2 : emps2.filter((e) => empIds.includes(e.id));
+    const targetEmps = empIds === "all" ? emps : emps.filter((e) => empIds.includes(e.id));
     setAttendance((p) => {
       const np = { ...p };
       targetEmps.forEach((e) => {
@@ -835,11 +813,11 @@ function AttendanceModule({ emps: emps2, attendance, setAttendance, onMark, onBu
     });
     showBulkDoneToast(targetEmps.length, ms);
   }
-  function markMonthAllPresent2(empIds = "all", monthStr = null) {
+  function markMonthAllPresent(empIds = "all", monthStr = null) {
     const ms = monthStr || viewDate.slice(0, 7);
     const [yr, mo] = ms.split("-").map(Number);
     const daysInMonth = new Date(yr, mo, 0).getDate();
-    const targetEmps = empIds === "all" ? emps2 : emps2.filter((e) => empIds.includes(e.id));
+    const targetEmps = empIds === "all" ? emps : emps.filter((e) => empIds.includes(e.id));
     setAttendance((p) => {
       const np = { ...p };
       targetEmps.forEach((e) => {
@@ -860,21 +838,17 @@ function AttendanceModule({ emps: emps2, attendance, setAttendance, onMark, onBu
       return np;
     });
   }
-  const [bulkDoneMsg2, setBulkDoneMsg] = useState("");
   function showBulkDoneToast(n, ms) {
     setBulkDoneMsg("\u2713 Full month attendance marked for " + n + " employees in " + ms);
     setTimeout(() => setBulkDoneMsg(""), 4e3);
   }
-  const [showFullMonthModal2, setShowFullMonthModal2] = useState(false);
-  const [fullMonthTarget2, setFullMonthTarget2] = useState("all");
-  const [fullMonthMonth2, setFullMonthMonth2] = useState(viewDate.slice(0, 7));
   function getStats(eid) {
     const recs = attendance[eid] || {};
     const vals = Object.values(recs);
     return { P: vals.filter((r) => r.status === "P").length, A: vals.filter((r) => r.status === "A").length, HD: vals.filter((r) => r.status === "HD").length, L: vals.filter((r) => r.status === "L").length, WO: vals.filter((r) => r.status === "WO").length, totalHrs: vals.reduce((s, r) => s + (r.hrs || 0), 0).toFixed(1), totalOT: vals.reduce((s, r) => s + (r.ot || 0), 0).toFixed(1) };
   }
   function MonthlyView() {
-    const emp = emps2.find((e) => e.id === monthEmp);
+    const emp = emps.find((e) => e.id === monthEmp);
     if (!emp) return /* @__PURE__ */ React.createElement("div", { style: { color: MT, padding: 20 } }, "Select an employee.");
     const [yr, mo] = monthDate.split("-").map(Number);
     const firstDay = new Date(yr, mo - 1, 1).getDay();
@@ -906,11 +880,11 @@ function AttendanceModule({ emps: emps2, attendance, setAttendance, onMark, onBu
       );
     })), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, fontSize: 12, color: MT } }, "Total Hours: ", /* @__PURE__ */ React.createElement("b", null, stats.totalHrs), " | Overtime: ", /* @__PURE__ */ React.createElement("b", null, stats.totalOT, " hrs"), " | Week Off: ", /* @__PURE__ */ React.createElement("b", null, stats.WO), " days"));
   }
-  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 20, alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", background: BG, borderRadius: 10, padding: 3, gap: 3 } }, [["daily", "Daily View"], ["monthly", "Monthly Calendar"]].map(([v, l]) => /* @__PURE__ */ React.createElement("button", { key: v, onClick: () => setViewMode(v), style: { padding: "7px 16px", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer", background: viewMode === v ? P : "transparent", color: viewMode === v ? "#fff" : MT } }, l))), viewMode === "daily" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("input", { type: "date", value: viewDate, onChange: (e) => setViewDate(e.target.value), style: { padding: "8px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }), /* @__PURE__ */ React.createElement(Btn, { v: "ok", onClick: () => setBulkModal(true) }, "\u2713 Bulk Mark Attendance")), viewMode === "monthly" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("input", { type: "month", value: monthDate, onChange: (e) => setMonthDate(e.target.value), style: { padding: "8px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }), /* @__PURE__ */ React.createElement("select", { value: monthEmp, onChange: (e) => setMonthEmp(e.target.value), style: { padding: "8px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }, emps2.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name))))), viewMode === "monthly" && /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement(MonthlyView, null)), viewMode === "daily" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14 } }, "Attendance for ", new Date(viewDate).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 20, alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", background: BG, borderRadius: 10, padding: 3, gap: 3 } }, [["daily", "Daily View"], ["monthly", "Monthly Calendar"]].map(([v, l]) => /* @__PURE__ */ React.createElement("button", { key: v, onClick: () => setViewMode(v), style: { padding: "7px 16px", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer", background: viewMode === v ? P : "transparent", color: viewMode === v ? "#fff" : MT } }, l))), viewMode === "daily" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("input", { type: "date", value: viewDate, onChange: (e) => setViewDate(e.target.value), style: { padding: "8px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }), /* @__PURE__ */ React.createElement(Btn, { v: "ok", onClick: () => setBulkModal(true) }, "\u2713 Bulk Mark Attendance")), viewMode === "monthly" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("input", { type: "month", value: monthDate, onChange: (e) => setMonthDate(e.target.value), style: { padding: "8px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }), /* @__PURE__ */ React.createElement("select", { value: monthEmp, onChange: (e) => setMonthEmp(e.target.value), style: { padding: "8px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }, emps.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name))))), viewMode === "monthly" && /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement(MonthlyView, null)), viewMode === "daily" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14 } }, "Attendance for ", new Date(viewDate).toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })), /* @__PURE__ */ React.createElement(
     Tbl,
     {
       cols: ["Employee", "Shift", "Status", "In Time", "Out Time", "Hrs", "OT Hrs", "Action"],
-      rows: emps2.map((e) => {
+      rows: emps.map((e) => {
         const rec = (attendance[e.id] || {})[viewDate] || { status: "", in: "", out: "", hrs: 0, ot: 0 };
         const c = STATUS_COLOR[rec.status] || MT;
         return [
@@ -936,21 +910,44 @@ function AttendanceModule({ emps: emps2, attendance, setAttendance, onMark, onBu
         ];
       })
     }
-  )), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14 } }, "7-Day Summary"), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: PX } }, /* @__PURE__ */ React.createElement("th", { style: { textAlign: "left", padding: "8px 12px", color: P, fontWeight: 700 } }, "Employee"), dates.map((d) => /* @__PURE__ */ React.createElement("th", { key: d, style: { textAlign: "center", padding: "8px 10px", color: P, fontWeight: 700, minWidth: 70 } }, /* @__PURE__ */ React.createElement("div", null, new Date(d).toLocaleDateString("en-IN", { weekday: "short" })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 400 } }, d.slice(5)))), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center", padding: "8px 12px", color: P, fontWeight: 700 } }, "Summary"))), /* @__PURE__ */ React.createElement("tbody", null, emps2.map((e, i) => {
+  )), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14 } }, "7-Day Summary"), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: PX } }, /* @__PURE__ */ React.createElement("th", { style: { textAlign: "left", padding: "8px 12px", color: P, fontWeight: 700 } }, "Employee"), dates.map((d) => /* @__PURE__ */ React.createElement("th", { key: d, style: { textAlign: "center", padding: "8px 10px", color: P, fontWeight: 700, minWidth: 70 } }, /* @__PURE__ */ React.createElement("div", null, new Date(d).toLocaleDateString("en-IN", { weekday: "short" })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 400 } }, d.slice(5)))), /* @__PURE__ */ React.createElement("th", { style: { textAlign: "center", padding: "8px 12px", color: P, fontWeight: 700 } }, "Summary"))), /* @__PURE__ */ React.createElement("tbody", null, emps.map((e, i) => {
     const stats = getStats(e.id);
     return /* @__PURE__ */ React.createElement("tr", { key: e.id, style: { borderBottom: `1px solid ${BD}`, background: i % 2 ? "#fafafa" : "#fff" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "10px 12px", fontWeight: 600 } }, e.name), dates.map((d) => {
       const rec = (attendance[e.id] || {})[d] || {};
       const c = STATUS_COLOR[rec.status] || "#e0e0e0";
       return /* @__PURE__ */ React.createElement("td", { key: d, style: { padding: "6px 8px", textAlign: "center" } }, rec.status ? /* @__PURE__ */ React.createElement("div", { style: { background: c + "22", color: c, border: `1px solid ${c}66`, borderRadius: 5, padding: "3px 6px", fontSize: 11, fontWeight: 700 } }, rec.status) : /* @__PURE__ */ React.createElement("div", { style: { color: "#ccc", fontSize: 10 } }, "\u2014"));
     }), /* @__PURE__ */ React.createElement("td", { style: { padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11 } }, /* @__PURE__ */ React.createElement("span", { style: { color: OK, fontWeight: 700 } }, stats.P, "P"), " ", /* @__PURE__ */ React.createElement("span", { style: { color: DG, fontWeight: 700 } }, stats.A, "A"), " ", /* @__PURE__ */ React.createElement("span", { style: { color: WN, fontWeight: 700 } }, stats.HD, "HD")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: MT } }, stats.totalOT, "h OT")));
-  })))))), bulkModal && /* @__PURE__ */ React.createElement(Modal, { title: `Bulk Mark \u2014 ${viewDate}`, onClose: () => setBulkModal(false), w: 400 }, /* @__PURE__ */ React.createElement("p", { style: { color: MT, fontSize: 13, marginBottom: 20 } }, "Mark attendance for ALL ", emps2.length, " employees for ", new Date(viewDate).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" }), ":"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12 } }, [["P", "\u2713 Present", OK], ["A", "\u2717 Absent", DG], ["HD", "\xBD Half Day", WN], ["H", "\u{1F389} Holiday", P], ["WO", "\u{1F3D6} Week Off", MT]].map(([s, l, c]) => /* @__PURE__ */ React.createElement("button", { key: s, onClick: () => markBulkToday(s), style: { padding: "14px", border: `2px solid ${c}`, borderRadius: 10, background: c + "11", color: c, fontWeight: 700, fontSize: 14, cursor: "pointer" } }, l)))), editModal && /* @__PURE__ */ React.createElement(Modal, { title: "Edit Attendance Record", onClose: () => setEditModal(null), w: 420 }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: MT } }, (_b = emps2.find((e) => e.id === editModal.eid)) == null ? void 0 : _b.name, " \xB7 ", editModal.date), /* @__PURE__ */ React.createElement(Inp, { label: "Status", val: editForm.status, set: (v) => setEditForm((p) => ({ ...p, status: v })), opts: Object.entries(STATUS_LABEL).map(([v, l]) => ({ v, l })) }), /* @__PURE__ */ React.createElement(G, null, /* @__PURE__ */ React.createElement(Inp, { label: "In Time", val: editForm.in, set: (v) => setEditForm((p) => ({ ...p, in: v })), type: "time" }), /* @__PURE__ */ React.createElement(Inp, { label: "Out Time", val: editForm.out, set: (v) => setEditForm((p) => ({ ...p, out: v })), type: "time" })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setEditModal(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
+  })))))), bulkModal && /* @__PURE__ */ React.createElement(Modal, { title: `Bulk Mark \u2014 ${viewDate}`, onClose: () => setBulkModal(false), w: 400 }, /* @__PURE__ */ React.createElement("p", { style: { color: MT, fontSize: 13, marginBottom: 20 } }, "Mark attendance for ALL ", emps.length, " employees for ", new Date(viewDate).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" }), ":"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12 } }, [["P", "\u2713 Present", OK], ["A", "\u2717 Absent", DG], ["HD", "\xBD Half Day", WN], ["H", "\u{1F389} Holiday", P], ["WO", "\u{1F3D6} Week Off", MT]].map(([s, l, c]) => /* @__PURE__ */ React.createElement("button", { key: s, onClick: () => markBulkToday(s), style: { padding: "14px", border: `2px solid ${c}`, borderRadius: 10, background: c + "11", color: c, fontWeight: 700, fontSize: 14, cursor: "pointer" } }, l)))), editModal && /* @__PURE__ */ React.createElement(Modal, { title: "Edit Attendance Record", onClose: () => setEditModal(null), w: 420 }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12, fontSize: 13, color: MT } }, (_b = emps.find((e) => e.id === editModal.eid)) == null ? void 0 : _b.name, " \xB7 ", editModal.date), /* @__PURE__ */ React.createElement(Inp, { label: "Status", val: editForm.status, set: (v) => setEditForm((p) => ({ ...p, status: v })), opts: Object.entries(STATUS_LABEL).map(([v, l]) => ({ v, l })) }), /* @__PURE__ */ React.createElement(G, null, /* @__PURE__ */ React.createElement(Inp, { label: "In Time", val: editForm.in, set: (v) => setEditForm((p) => ({ ...p, in: v })), type: "time" }), /* @__PURE__ */ React.createElement(Inp, { label: "Out Time", val: editForm.out, set: (v) => setEditForm((p) => ({ ...p, out: v })), type: "time" })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setEditModal(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
     const inT = editForm.in ? editForm.in.split(":").map(Number) : null;
     const outT = editForm.out ? editForm.out.split(":").map(Number) : null;
     const hrs = inT && outT ? parseFloat((outT[0] + outT[1] / 60 - (inT[0] + inT[1] / 60)).toFixed(1)) : 0;
     const ot = Math.max(0, hrs - 9);
     markSingle(editModal.eid, editModal.date, { status: editForm.status, in: editForm.in, out: editForm.out, hrs, ot: parseFloat(ot.toFixed(1)) });
     setEditModal(null);
-  } }, "Save Record"))));
+  } }, "Save Record"))), showFullMonthModal && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setShowFullMonthModal(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 14, padding: 28, width: 480, boxShadow: "0 20px 60px rgba(0,0,0,.3)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 16, marginBottom: 6 } }, "\u{1F4C5} Mark Full Month Attendance"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 20 } }, "Marks all weekdays as Present and all Sundays/Saturdays as Week Off for the selected month. Existing entries are preserved unless you choose to overwrite."), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "month",
+      value: fullMonthMonth,
+      onChange: (e) => setFullMonthMonth(e.target.value),
+      style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 14, outline: "none" }
+    }
+  )), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 5, textTransform: "uppercase" } }, "Apply to"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      value: fullMonthTarget,
+      onChange: (e) => setFullMonthTarget(e.target.value),
+      style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "all" }, "All active employees (", emps.length, ")"),
+    emps.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name, " \u2014 ", e.code))
+  )), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff3e0", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#e65100", marginBottom: 16 } }, "\u26A0 This will fill empty days only. Days already marked will NOT be changed. To overwrite all, use the Overwrite option below."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setShowFullMonthModal(false), style: { padding: "9px 16px", border: "1px solid #ddd", borderRadius: 8, background: "#fff", cursor: "pointer", fontSize: 13 } }, "Cancel"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    markFullMonth(fullMonthTarget, fullMonthMonth);
+    setShowFullMonthModal(false);
+  }, style: { padding: "9px 16px", border: "none", borderRadius: 8, background: "#1a237e", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700 } }, "\u{1F4C5} Mark Empty Days"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    markMonthAllPresent(fullMonthTarget, fullMonthMonth);
+    setShowFullMonthModal(false);
+  }, style: { padding: "9px 16px", border: "none", borderRadius: 8, background: "#2e7d32", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700 } }, "\u2713 Overwrite All Days")))), bulkDoneMsg && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 20, right: 20, background: "#2e7d32", color: "#fff", padding: "12px 20px", borderRadius: 10, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 12px rgba(0,0,0,.2)", zIndex: 2e3 } }, bulkDoneMsg));
 }
 const DEFAULT_POLICIES = {
   // ── Leave Policy ──────────────────────────────────────────────────────────
@@ -1437,11 +1434,11 @@ function PolicyTab({ pol: pol2, setPol, onSave }) {
     }
   ), /* @__PURE__ */ React.createElement(Btn, { v: "sec", sz: "sm", s: { marginTop: 12 }, onClick: () => setPol((p) => ({ ...p, shifts: { ...p.shifts, shifts: [...p.shifts.shifts, { id: "S" + uid(), name: "New Shift", start: "09:00", end: "18:00", grace: 15, breakMins: 60 }] } })) }, "+ Add Shift"))), ptab === "fnf" && /* @__PURE__ */ React.createElement(Section, { title: "Full & Final Settlement Policy", sub: "Configure notice period, settlement timeline and components" }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14 } }, "Notice Period"), /* @__PURE__ */ React.createElement(G, { cols: 3, gap: 16 }, /* @__PURE__ */ React.createElement(NumInp, { label: "During Probation", val: pol2.fnf.noticePeriod.probation, set: (v) => update("fnf", "noticePeriod", { ...pol2.fnf.noticePeriod, probation: v }), suffix: "days" }), /* @__PURE__ */ React.createElement(NumInp, { label: "Confirmed Employees", val: pol2.fnf.noticePeriod.confirmed, set: (v) => update("fnf", "noticePeriod", { ...pol2.fnf.noticePeriod, confirmed: v }), suffix: "days" }), /* @__PURE__ */ React.createElement(NumInp, { label: "Senior / Management", val: pol2.fnf.noticePeriod.senior, set: (v) => update("fnf", "noticePeriod", { ...pol2.fnf.noticePeriod, senior: v }), suffix: "days" })), /* @__PURE__ */ React.createElement(Toggle, { label: "Notice Period Buyout Allowed", val: pol2.fnf.noticePeriodWaiverAllowed, set: (v) => update("fnf", "noticePeriodWaiverAllowed", v), note: "Employee can pay in lieu of serving notice" }), /* @__PURE__ */ React.createElement(NumInp, { label: "Settlement Within", val: pol2.fnf.settlementDays, set: (v) => update("fnf", "settlementDays", v), suffix: "days of exit", note: "Legally required to settle within 45 days" })), /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14 } }, "F&F Components"), Object.entries(pol2.fnf.components).map(([k, v]) => /* @__PURE__ */ React.createElement(Toggle, { key: k, label: { lastSalary: "Last Month Salary", gratuity: "Gratuity (if eligible)", elEncashment: "Earned Leave Encashment", bonus: "Pending Bonus", noticePay: "Notice Pay", loanRecovery: "Loan Recovery", reimbursementPending: "Pending Reimbursements" }[k] || k, val: v, set: (nv) => update("fnf", "components", { ...pol2.fnf.components, [k]: nv }) }))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14 } }, "Exit Documents"), /* @__PURE__ */ React.createElement(Toggle, { label: "Issue Experience Letter", val: pol2.fnf.experienceLetter, set: (v) => update("fnf", "experienceLetter", v) }), /* @__PURE__ */ React.createElement(Toggle, { label: "Issue Relieving Letter", val: pol2.fnf.relievingLetter, set: (v) => update("fnf", "relievingLetter", v) }), /* @__PURE__ */ React.createElement(Inp, { label: "Issue Form 16 by", val: pol2.fnf.form16Timing, set: (v) => update("fnf", "form16Timing", v), opts: ["june", "july", "august"], note: "June 15 is statutory deadline" })))));
 }
-function AIAssistant({ anthropicKey = null, emps: emps2, runs, activeRun, leaves, loans, reimb, attendance, pol: pol2, co, payMonth, payYear }) {
+function AIAssistant({ anthropicKey = null, emps, runs, activeRun, leaves, loans, reimb, attendance, pol: pol2, co, payMonth, payYear }) {
   const [messages, setMessages] = useState([
     { role: "assistant", content: `\u{1F44B} Hi! I'm Payrolla AI, your intelligent HR & payroll assistant powered by Claude.
 
-I have full context about **${(co == null ? void 0 : co.name) || "your company"}** \u2014 all ${(emps2 == null ? void 0 : emps2.length) || 0} employees, payroll runs, attendance, leaves, loans, and your policy settings.
+I have full context about **${(co == null ? void 0 : co.name) || "your company"}** \u2014 all ${(emps == null ? void 0 : emps.length) || 0} employees, payroll runs, attendance, leaves, loans, and your policy settings.
 
 Ask me anything:
 \u2022 "Why is Rajesh's TDS so high?"
@@ -1459,7 +1456,7 @@ Ask me anything:
   const chatRef = { current: null };
   function buildContext() {
     var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u;
-    const empSummary = emps2.map((e) => {
+    const empSummary = emps.map((e) => {
       var _a2;
       const p = calcPay(e, 0, pol2, payMonth, payYear);
       return `${e.name} (${e.code}): ${e.dept}/${e.desig}, DOJ:${e.doj}, Basic:\u20B9${e.basic}, Gross:\u20B9${p.g}, Net:\u20B9${p.net}, PF:${e.pf ? "Yes" : "No"}, ESIC:${e.esic ? "Yes" : "No"}, IT Regime:${e.itRegime || ((_a2 = pol2.tds) == null ? void 0 : _a2.regime) || "new"}, Status:${e.status}${p.joiningNote ? ", " + p.joiningNote : ""}`;
@@ -1486,7 +1483,7 @@ POLICY SETTINGS:
 - Leave Types: ${(((_u = pol2.leave) == null ? void 0 : _u.types) || []).map((l) => `${l.name}(${l.annual}days)`).join(", ")}
 - Payroll Month: ${MONTHS[payMonth - 1]} ${payYear}
 
-EMPLOYEES (${emps2.length} total):
+EMPLOYEES (${emps.length} total):
 ${empSummary}
 
 RECENT PAYROLL RUNS:
@@ -1558,7 +1555,7 @@ INSTRUCTIONS:
     "List all pending leave & loan approvals",
     "What is TDS for Rajesh Kumar this month?"
   ];
-  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 80px)", maxWidth: 900 } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 36, height: 36, background: "linear-gradient(135deg,#1a237e,#00897b)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 } }, "\u{1F916}"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 19 } }, "Payrolla AI Assistant"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, "Powered by Claude \xB7 Full payroll & HR context loaded \xB7 ", emps2.length, " employees")))), messages.length <= 1 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: MT, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 7 } }, "Quick Questions"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 7, flexWrap: "wrap" } }, QUICK.map((q) => /* @__PURE__ */ React.createElement("button", { key: q, onClick: () => {
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 80px)", maxWidth: 900 } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 36, height: 36, background: "linear-gradient(135deg,#1a237e,#00897b)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 } }, "\u{1F916}"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 19 } }, "Payrolla AI Assistant"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, "Powered by Claude \xB7 Full payroll & HR context loaded \xB7 ", emps.length, " employees")))), messages.length <= 1 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: MT, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 7 } }, "Quick Questions"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 7, flexWrap: "wrap" } }, QUICK.map((q) => /* @__PURE__ */ React.createElement("button", { key: q, onClick: () => {
     setInput(q);
   }, style: { padding: "6px 12px", border: `1px solid ${P}44`, borderRadius: 20, fontSize: 11, cursor: "pointer", background: PX, color: P, fontWeight: 500 } }, q)))), /* @__PURE__ */ React.createElement("div", { ref: handleRef, style: { flex: 1, overflowY: "auto", border: `1px solid ${BD}`, borderRadius: 12, padding: 16, background: "#fff", display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 } }, messages.map((m, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", gap: 10, alignItems: "flex-start", flexDirection: m.role === "user" ? "row-reverse" : "row" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 30, height: 30, borderRadius: 8, background: m.role === "user" ? P : "linear-gradient(135deg,#1a237e,#00897b)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0, color: "#fff", fontWeight: 700 } }, m.role === "user" ? "U" : "\u{1F916}"), /* @__PURE__ */ React.createElement("div", { style: { maxWidth: "82%", background: m.role === "user" ? P : "#f8fafc", color: m.role === "user" ? "#fff" : "#1a1a2e", borderRadius: m.role === "user" ? "12px 3px 12px 12px" : "3px 12px 12px 12px", padding: "10px 14px", fontSize: 13, lineHeight: 1.7, boxShadow: "0 1px 3px rgba(0,0,0,.07)", whiteSpace: "pre-wrap" } }, m.content))), loading && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 30, height: 30, borderRadius: 8, background: "linear-gradient(135deg,#1a237e,#00897b)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 } }, "\u{1F916}"), /* @__PURE__ */ React.createElement("div", { style: { background: "#f8fafc", borderRadius: "3px 12px 12px 12px", padding: "10px 14px", fontSize: 13, color: MT, display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4 } }, [0, 1, 2].map((i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { width: 6, height: 6, borderRadius: 3, background: P, animation: `pulse ${0.6 + i * 0.2}s ease-in-out infinite alternate` } }))), thinking))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "flex-end" } }, /* @__PURE__ */ React.createElement(
     "textarea",
@@ -1782,7 +1779,7 @@ function generateForm16(emp, allRuns, co, pol2, fy = "2025-26") {
 </div>`;
   printOrDownload(`Form16_${emp.name.replace(/ /g, "_")}_FY${fy}`, partA + partB);
 }
-function generateForm24Q(emps2, runs, co, quarter, year) {
+function generateForm24Q(emps, runs, co, quarter, year) {
   const QM = { 1: [4, 5, 6], 2: [7, 8, 9], 3: [10, 11, 12], 4: [1, 2, 3] };
   const qYear = quarter === 4 ? year + 1 : year;
   const months = QM[quarter];
@@ -1796,7 +1793,7 @@ Generated: ${(/* @__PURE__ */ new Date()).toLocaleDateString("en-IN")}
 ANNEXURE II \u2014 EMPLOYEE WISE DETAILS
 Sr,Employee Name,PAN,Gross Salary (Annual),Std Ded,Taxable Income,Tax,TDS Deducted,Regime
 `;
-  emps2.filter((e) => e.status === "Active").forEach((e, i) => {
+  emps.filter((e) => e.status === "Active").forEach((e, i) => {
     const p = calcPay(e, 0, null);
     const annGross = p.g * 12;
     const stdDed = 5e4;
@@ -1821,7 +1818,7 @@ Update Challan details before filing.
 `;
   downloadText(`Form24Q_Q${quarter}_${year}.txt`, annexII + annexI);
 }
-function generateTallyXML(run, emps2, co) {
+function generateTallyXML(run, emps, co) {
   var _a;
   if (!((_a = run == null ? void 0 : run.results) == null ? void 0 : _a.length)) {
     alert("No payroll results. Run payroll first.");
@@ -2266,7 +2263,7 @@ ${rows}
 </div>`;
   printOrDownload(`ESIC_Challan_${monthName}_${year}`, html);
 }
-function generateBankTransferFile(run, emps2, co, bankFormat = "generic") {
+function generateBankTransferFile(run, emps, co, bankFormat = "generic") {
   var _a;
   if (!((_a = run == null ? void 0 : run.results) == null ? void 0 : _a.length)) {
     alert("No payroll results. Run payroll first.");
@@ -2302,7 +2299,7 @@ function generateBankTransferFile(run, emps2, co, bankFormat = "generic") {
   };
   const fmt = formats[bankFormat] || formats.generic;
   const empMap = {};
-  emps2.forEach((e) => {
+  emps.forEach((e) => {
     empMap[e.id] = e;
   });
   let csv = fmt.header + "\n";
@@ -3070,7 +3067,7 @@ function HRAdmin({ user, onLogout }) {
   const [bulkPreview, setBulkPreview] = useState([]);
   const [twoFAEnabled2, setTwoFAEnabled2] = useState(() => localStorage.getItem("payrolla_2fa") === "1");
   const [pol2, setPol] = useState(DEFAULT_POLICIES);
-  const [emps2, setEmps] = useState(EMPS0);
+  const [emps, setEmps] = useState(EMPS0);
   const [leaves, setLeaves] = useState(LEAVES0);
   const [loans, setLoans] = useState(LOANS0);
   const [co, setCo] = useState(CO0);
@@ -3315,8 +3312,8 @@ function HRAdmin({ user, onLogout }) {
       showToast("Saved locally", "warn");
     }
   }
-  const active = emps2.filter((e) => e.status === "Active");
-  const filtered = emps2.filter((e) => !search || e.name.toLowerCase().includes(search.toLowerCase()) || e.code.toLowerCase().includes(search.toLowerCase()) || e.dept.toLowerCase().includes(search.toLowerCase()));
+  const active = emps.filter((e) => e.status === "Active");
+  const filtered = emps.filter((e) => !search || e.name.toLowerCase().includes(search.toLowerCase()) || e.code.toLowerCase().includes(search.toLowerCase()) || e.dept.toLowerCase().includes(search.toLowerCase()));
   function getLOP(eid) {
     const recs = attendance[eid] || {};
     const mo = String(payMonth).padStart(2, "0");
@@ -3345,29 +3342,29 @@ function HRAdmin({ user, onLogout }) {
   return /* @__PURE__ */ React.createElement(Shell, { user, nav: NAV, tab, setTab, onLogout }, toast && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", top: 16, right: 16, zIndex: 9999, background: toast.type === "warn" ? WN : OK, color: "#fff", padding: "10px 18px", borderRadius: 10, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 20px rgba(0,0,0,.25)", display: "flex", alignItems: "center", gap: 8 } }, toast.type === "warn" ? "\u26A0" : "\u2713", " ", toast.msg), /* @__PURE__ */ React.createElement("div", { style: { background: dbReady ? "#e8f5e9" : "#fff8e1", borderBottom: `1px solid ${dbReady ? "#a5d6a7" : "#ffe082"}`, padding: "5px 20px", fontSize: 11, color: dbReady ? "#2e7d32" : "#f57f17", display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: 4, background: dbReady ? "#2e7d32" : "#f57f17" } }), loading ? "\u23F3 Loading data from database..." : dbReady ? "\u{1F7E2} Connected to Payrolla Database \u2014 all data is live and persistent" : "\u{1F7E1} Demo mode \u2014 running with sample data. Connect API to persist data."), tab === "dashboard" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800 } }, "Good ", NOW.getHours() < 12 ? "Morning" : "Afternoon", ", ", ((_a = user == null ? void 0 : user.name) == null ? void 0 : _a.split(" ")[0]) || "HR", " \u{1F44B}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: MT } }, co.name, " \xB7 ", NOW.toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { v: "sec", sz: "sm", onClick: () => setTab("payroll") }, "\u25B6 Run Payroll"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", onClick: () => {
     setEditEmp(null);
     setShowEmpForm(true);
-  } }, "+ Add Employee"))), /* @__PURE__ */ React.createElement(G, { cols: 4, gap: 14 }, /* @__PURE__ */ React.createElement(Stat, { label: "Total Employees", value: emps2.length, sub: `${active.length} active \xB7 ${emps2.filter((e) => e.status !== "Active").length} inactive`, icon: "\u{1F465}" }), /* @__PURE__ */ React.createElement(Stat, { label: "Net Monthly Payroll", value: INR(active.reduce((s, e) => s + calcP(e).net, 0)), sub: `Gross: ${INR(active.reduce((s, e) => s + calcP(e).g, 0))}`, icon: "\u{1F4B0}", color: AC }), /* @__PURE__ */ React.createElement(Stat, { label: "Present Today", value: emps2.filter((e) => {
+  } }, "+ Add Employee"))), /* @__PURE__ */ React.createElement(G, { cols: 4, gap: 14 }, /* @__PURE__ */ React.createElement(Stat, { label: "Total Employees", value: emps.length, sub: `${active.length} active \xB7 ${emps.filter((e) => e.status !== "Active").length} inactive`, icon: "\u{1F465}" }), /* @__PURE__ */ React.createElement(Stat, { label: "Net Monthly Payroll", value: INR(active.reduce((s, e) => s + calcP(e).net, 0)), sub: `Gross: ${INR(active.reduce((s, e) => s + calcP(e).g, 0))}`, icon: "\u{1F4B0}", color: AC }), /* @__PURE__ */ React.createElement(Stat, { label: "Present Today", value: emps.filter((e) => {
     var _a2;
     return ((_a2 = (attendance[e.id] || {})[TODAY]) == null ? void 0 : _a2.status) === "P";
-  }).length, sub: `${emps2.filter((e) => {
+  }).length, sub: `${emps.filter((e) => {
     var _a2;
     return ((_a2 = (attendance[e.id] || {})[TODAY]) == null ? void 0 : _a2.status) === "A";
-  }).length} absent \xB7 ${emps2.filter((e) => {
+  }).length} absent \xB7 ${emps.filter((e) => {
     var _a2;
     return !((_a2 = (attendance[e.id] || {})[TODAY]) == null ? void 0 : _a2.status);
   }).length} unmarked`, icon: "\u2705", color: OK }), /* @__PURE__ */ React.createElement(Stat, { label: "Pending Actions", value: leaves.filter((l) => l.status === "Pending").length + loans.filter((l) => l.status === "Pending").length + reimb.filter((r) => r.status === "Pending").length, sub: "Leaves + Loans + Reimb", icon: "\u{1F514}", color: WN })), /* @__PURE__ */ React.createElement("div", { style: { height: 14 } }), /* @__PURE__ */ React.createElement(G, { cols: 3, gap: 14 }, /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 12, fontSize: 14 } }, "\u{1F4C5} Today's Attendance"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 } }, [
-    ["Present", emps2.filter((e) => {
+    ["Present", emps.filter((e) => {
       var _a2;
       return ((_a2 = (attendance[e.id] || {})[TODAY]) == null ? void 0 : _a2.status) === "P";
     }).length, OK],
-    ["Absent", emps2.filter((e) => {
+    ["Absent", emps.filter((e) => {
       var _a2;
       return ((_a2 = (attendance[e.id] || {})[TODAY]) == null ? void 0 : _a2.status) === "A";
     }).length, DG],
-    ["Late", emps2.filter((e) => {
+    ["Late", emps.filter((e) => {
       var _a2;
       return ((_a2 = (attendance[e.id] || {})[TODAY]) == null ? void 0 : _a2.status) === "L";
     }).length, "#7b1fa2"],
-    ["Half Day", emps2.filter((e) => {
+    ["Half Day", emps.filter((e) => {
       var _a2;
       return ((_a2 = (attendance[e.id] || {})[TODAY]) == null ? void 0 : _a2.status) === "HD";
     }).length, WN]
@@ -3377,15 +3374,15 @@ function HRAdmin({ user, onLogout }) {
     { label: "TDS Deposit", due: "7th", done: true, color: OK },
     { label: "PT Challan", due: "21st", done: false, color: WN },
     { label: "Salary", due: `${((_d = pol2.payroll) == null ? void 0 : _d.paymentDay) || 5}th`, done: true, color: OK }
-  ].map((c, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: `1px solid ${BG}`, fontSize: 13 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", null, c.done ? "\u2705" : "\u23F0"), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500 } }, c.label)), /* @__PURE__ */ React.createElement(Badge, { t: `Due ${c.due}`, c: c.done ? OK : c.color }))))), /* @__PURE__ */ React.createElement("div", { style: { height: 14 } }), /* @__PURE__ */ React.createElement(G, { cols: 3, gap: 14 }, /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 12, fontSize: 14 } }, "\u{1F4B0} Payroll Summary"), runs.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "16px 0", color: MT, fontSize: 13 } }, "No payroll runs yet.", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", s: { marginTop: 8 }, onClick: () => setTab("payroll") }, "Run Payroll \u2192")) : runs.slice(0, 3).map((r) => /* @__PURE__ */ React.createElement("div", { key: r.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${BG}` } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600 } }, MONTHS[r.month - 1], " ", r.year), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, r.count, " employees")), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: OK } }, INR(r.total)))), runs.length > 0 && /* @__PURE__ */ React.createElement(Btn, { v: "sec", sz: "sm", s: { width: "100%", marginTop: 8 }, onClick: () => setTab("payroll") }, "View All Runs \u2192")), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 12, fontSize: 14 } }, "\u{1F3E2} By Department"), Object.entries(emps2.reduce((a, e) => {
+  ].map((c, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: `1px solid ${BG}`, fontSize: 13 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", null, c.done ? "\u2705" : "\u23F0"), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500 } }, c.label)), /* @__PURE__ */ React.createElement(Badge, { t: `Due ${c.due}`, c: c.done ? OK : c.color }))))), /* @__PURE__ */ React.createElement("div", { style: { height: 14 } }), /* @__PURE__ */ React.createElement(G, { cols: 3, gap: 14 }, /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 12, fontSize: 14 } }, "\u{1F4B0} Payroll Summary"), runs.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "16px 0", color: MT, fontSize: 13 } }, "No payroll runs yet.", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", s: { marginTop: 8 }, onClick: () => setTab("payroll") }, "Run Payroll \u2192")) : runs.slice(0, 3).map((r) => /* @__PURE__ */ React.createElement("div", { key: r.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${BG}` } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600 } }, MONTHS[r.month - 1], " ", r.year), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, r.count, " employees")), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: OK } }, INR(r.total)))), runs.length > 0 && /* @__PURE__ */ React.createElement(Btn, { v: "sec", sz: "sm", s: { width: "100%", marginTop: 8 }, onClick: () => setTab("payroll") }, "View All Runs \u2192")), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 12, fontSize: 14 } }, "\u{1F3E2} By Department"), Object.entries(emps.reduce((a, e) => {
     a[e.dept || "Other"] = (a[e.dept || "Other"] || 0) + 1;
     return a;
-  }, {})).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([dept, count]) => /* @__PURE__ */ React.createElement("div", { key: dept, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, width: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, dept), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, background: BG, borderRadius: 3, height: 7 } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${count / emps2.length * 100}%`, background: P, borderRadius: 3, height: 7, transition: "width .5s" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, width: 20, textAlign: "right" } }, count)))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 12, fontSize: 14 } }, "\u{1F4CA} Salary Bands"), [
-    ["Below \u20B925K", emps2.filter((e) => +e.basic < 25e3).length],
-    ["\u20B925K\u2013\u20B950K", emps2.filter((e) => +e.basic >= 25e3 && +e.basic < 5e4).length],
-    ["\u20B950K\u2013\u20B91L", emps2.filter((e) => +e.basic >= 5e4 && +e.basic < 1e5).length],
-    ["Above \u20B91L", emps2.filter((e) => +e.basic >= 1e5).length]
-  ].map(([band, count]) => /* @__PURE__ */ React.createElement("div", { key: band, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 9 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, width: 100 } }, band), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, background: BG, borderRadius: 3, height: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${emps2.length ? count / emps2.length * 100 : 0}%`, background: AC, borderRadius: 3, height: 8 } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, width: 24, textAlign: "right" } }, count))), /* @__PURE__ */ React.createElement("div", { style: { borderTop: `1px solid ${BD}`, paddingTop: 10, marginTop: 4, fontSize: 12, color: MT } }, "Avg Basic: ", /* @__PURE__ */ React.createElement("b", { style: { color: P } }, INR(Math.round(emps2.reduce((s, e) => s + (+e.basic || 0), 0) / Math.max(emps2.length, 1))), "/mo"))))), tab === "employees" && /* @__PURE__ */ React.createElement(Sec, { title: "Employees", action: /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
+  }, {})).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([dept, count]) => /* @__PURE__ */ React.createElement("div", { key: dept, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, width: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, dept), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, background: BG, borderRadius: 3, height: 7 } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${count / emps.length * 100}%`, background: P, borderRadius: 3, height: 7, transition: "width .5s" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, width: 20, textAlign: "right" } }, count)))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 12, fontSize: 14 } }, "\u{1F4CA} Salary Bands"), [
+    ["Below \u20B925K", emps.filter((e) => +e.basic < 25e3).length],
+    ["\u20B925K\u2013\u20B950K", emps.filter((e) => +e.basic >= 25e3 && +e.basic < 5e4).length],
+    ["\u20B950K\u2013\u20B91L", emps.filter((e) => +e.basic >= 5e4 && +e.basic < 1e5).length],
+    ["Above \u20B91L", emps.filter((e) => +e.basic >= 1e5).length]
+  ].map(([band, count]) => /* @__PURE__ */ React.createElement("div", { key: band, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 9 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, width: 100 } }, band), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, background: BG, borderRadius: 3, height: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${emps.length ? count / emps.length * 100 : 0}%`, background: AC, borderRadius: 3, height: 8 } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, width: 24, textAlign: "right" } }, count))), /* @__PURE__ */ React.createElement("div", { style: { borderTop: `1px solid ${BD}`, paddingTop: 10, marginTop: 4, fontSize: 12, color: MT } }, "Avg Basic: ", /* @__PURE__ */ React.createElement("b", { style: { color: P } }, INR(Math.round(emps.reduce((s, e) => s + (+e.basic || 0), 0) / Math.max(emps.length, 1))), "/mo"))))), tab === "employees" && /* @__PURE__ */ React.createElement(Sec, { title: "Employees", action: /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
     setEditEmp(null);
     setShowEmpForm(true);
   } }, "+ Add Employee") }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("input", { value: search, onChange: (e) => setSearch(e.target.value), placeholder: "Search by name, code or department...", style: { width: "100%", padding: "9px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box" } })), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement(
@@ -3460,8 +3457,8 @@ function HRAdmin({ user, onLogout }) {
         l.status === "Pending" ? /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "ok", onClick: () => apiActionLeave(l.id, "Approved") }, "\u2713 Approve"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "danger", onClick: () => apiActionLeave(l.id, "Rejected") }, "\u2717 Reject")) : "\u2014"
       ])
     }
-  )), lvForm && /* @__PURE__ */ React.createElement(Modal, { title: "Apply Leave", onClose: () => setLvForm(null), w: 480 }, /* @__PURE__ */ React.createElement(Inp, { label: "Employee", val: lvForm.eid, set: (v) => setLvForm((p) => ({ ...p, eid: v })), opts: emps2.map((e) => ({ v: e.id, l: e.name })) }), /* @__PURE__ */ React.createElement(Inp, { label: "Leave Type", val: lvForm.type, set: (v) => setLvForm((p) => ({ ...p, type: v })), opts: pol2.leave.types.map((lt) => lt.name) }), /* @__PURE__ */ React.createElement(G, null, /* @__PURE__ */ React.createElement(Inp, { label: "From", val: lvForm.from, set: (v) => setLvForm((p) => ({ ...p, from: v })), type: "date" }), /* @__PURE__ */ React.createElement(Inp, { label: "To", val: lvForm.to, set: (v) => setLvForm((p) => ({ ...p, to: v })), type: "date" })), /* @__PURE__ */ React.createElement(Inp, { label: "Reason", val: lvForm.reason, set: (v) => setLvForm((p) => ({ ...p, reason: v })), ph: "Brief reason..." }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setLvForm(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
-    const emp = emps2.find((e) => e.id === lvForm.eid);
+  )), lvForm && /* @__PURE__ */ React.createElement(Modal, { title: "Apply Leave", onClose: () => setLvForm(null), w: 480 }, /* @__PURE__ */ React.createElement(Inp, { label: "Employee", val: lvForm.eid, set: (v) => setLvForm((p) => ({ ...p, eid: v })), opts: emps.map((e) => ({ v: e.id, l: e.name })) }), /* @__PURE__ */ React.createElement(Inp, { label: "Leave Type", val: lvForm.type, set: (v) => setLvForm((p) => ({ ...p, type: v })), opts: pol2.leave.types.map((lt) => lt.name) }), /* @__PURE__ */ React.createElement(G, null, /* @__PURE__ */ React.createElement(Inp, { label: "From", val: lvForm.from, set: (v) => setLvForm((p) => ({ ...p, from: v })), type: "date" }), /* @__PURE__ */ React.createElement(Inp, { label: "To", val: lvForm.to, set: (v) => setLvForm((p) => ({ ...p, to: v })), type: "date" })), /* @__PURE__ */ React.createElement(Inp, { label: "Reason", val: lvForm.reason, set: (v) => setLvForm((p) => ({ ...p, reason: v })), ph: "Brief reason..." }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setLvForm(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
+    const emp = emps.find((e) => e.id === lvForm.eid);
     if (!emp || !lvForm.from || !lvForm.to) {
       alert("Fill all fields.");
       return;
@@ -3483,8 +3480,8 @@ function HRAdmin({ user, onLogout }) {
         l.status === "Pending" ? /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "ok", onClick: () => apiActionLoan(l.id, "Approved") }, "Approve"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "danger", onClick: () => apiActionLoan(l.id, "Rejected") }, "Reject")) : "\u2014"
       ])
     }
-  )), lnForm && /* @__PURE__ */ React.createElement(Modal, { title: "Apply Loan / Advance", onClose: () => setLnForm(null), w: 480 }, /* @__PURE__ */ React.createElement(Inp, { label: "Employee", val: lnForm.eid, set: (v) => setLnForm((p) => ({ ...p, eid: v })), opts: emps2.map((e) => ({ v: e.id, l: e.name })) }), /* @__PURE__ */ React.createElement(Inp, { label: "Type", val: lnForm.type, set: (v) => setLnForm((p) => ({ ...p, type: v })), opts: pol2.loans.types.map((lt) => lt.name) }), /* @__PURE__ */ React.createElement(G, null, /* @__PURE__ */ React.createElement(Inp, { label: "Amount (\u20B9)", val: lnForm.amount, set: (v) => setLnForm((p) => ({ ...p, amount: v })), type: "number" }), /* @__PURE__ */ React.createElement(Inp, { label: "Tenure (months)", val: lnForm.tenure, set: (v) => setLnForm((p) => ({ ...p, tenure: v })), type: "number" })), /* @__PURE__ */ React.createElement(Inp, { label: "Reason", val: lnForm.reason, set: (v) => setLnForm((p) => ({ ...p, reason: v })), ph: "Purpose..." }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setLnForm(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
-    const emp = emps2.find((e) => e.id === lnForm.eid);
+  )), lnForm && /* @__PURE__ */ React.createElement(Modal, { title: "Apply Loan / Advance", onClose: () => setLnForm(null), w: 480 }, /* @__PURE__ */ React.createElement(Inp, { label: "Employee", val: lnForm.eid, set: (v) => setLnForm((p) => ({ ...p, eid: v })), opts: emps.map((e) => ({ v: e.id, l: e.name })) }), /* @__PURE__ */ React.createElement(Inp, { label: "Type", val: lnForm.type, set: (v) => setLnForm((p) => ({ ...p, type: v })), opts: pol2.loans.types.map((lt) => lt.name) }), /* @__PURE__ */ React.createElement(G, null, /* @__PURE__ */ React.createElement(Inp, { label: "Amount (\u20B9)", val: lnForm.amount, set: (v) => setLnForm((p) => ({ ...p, amount: v })), type: "number" }), /* @__PURE__ */ React.createElement(Inp, { label: "Tenure (months)", val: lnForm.tenure, set: (v) => setLnForm((p) => ({ ...p, tenure: v })), type: "number" })), /* @__PURE__ */ React.createElement(Inp, { label: "Reason", val: lnForm.reason, set: (v) => setLnForm((p) => ({ ...p, reason: v })), ph: "Purpose..." }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setLnForm(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
+    const emp = emps.find((e) => e.id === lnForm.eid);
     if (!emp || !lnForm.amount || !lnForm.tenure) {
       alert("Fill all fields.");
       return;
@@ -3506,8 +3503,8 @@ function HRAdmin({ user, onLogout }) {
       ]),
       empty: "No reimbursement claims."
     }
-  )), reimbForm && /* @__PURE__ */ React.createElement(Modal, { title: "Add Reimbursement Claim", onClose: () => setReimbForm(null), w: 480 }, /* @__PURE__ */ React.createElement(Inp, { label: "Employee", val: reimbForm.eid, set: (v) => setReimbForm((p) => ({ ...p, eid: v })), opts: emps2.map((e) => ({ v: e.id, l: e.name })) }), /* @__PURE__ */ React.createElement(Inp, { label: "Type", val: reimbForm.type, set: (v) => setReimbForm((p) => ({ ...p, type: v })), opts: pol2.reimbursement.types.map((r) => r.name) }), /* @__PURE__ */ React.createElement(G, null, /* @__PURE__ */ React.createElement(Inp, { label: "Amount (\u20B9)", val: reimbForm.amount, set: (v) => setReimbForm((p) => ({ ...p, amount: v })), type: "number" }), /* @__PURE__ */ React.createElement(Inp, { label: "Date", val: reimbForm.date, set: (v) => setReimbForm((p) => ({ ...p, date: v })), type: "date" })), /* @__PURE__ */ React.createElement(Inp, { label: "Description", val: reimbForm.desc, set: (v) => setReimbForm((p) => ({ ...p, desc: v })), ph: "Details of the expense..." }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setReimbForm(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
-    const emp = emps2.find((e) => e.id === reimbForm.eid);
+  )), reimbForm && /* @__PURE__ */ React.createElement(Modal, { title: "Add Reimbursement Claim", onClose: () => setReimbForm(null), w: 480 }, /* @__PURE__ */ React.createElement(Inp, { label: "Employee", val: reimbForm.eid, set: (v) => setReimbForm((p) => ({ ...p, eid: v })), opts: emps.map((e) => ({ v: e.id, l: e.name })) }), /* @__PURE__ */ React.createElement(Inp, { label: "Type", val: reimbForm.type, set: (v) => setReimbForm((p) => ({ ...p, type: v })), opts: pol2.reimbursement.types.map((r) => r.name) }), /* @__PURE__ */ React.createElement(G, null, /* @__PURE__ */ React.createElement(Inp, { label: "Amount (\u20B9)", val: reimbForm.amount, set: (v) => setReimbForm((p) => ({ ...p, amount: v })), type: "number" }), /* @__PURE__ */ React.createElement(Inp, { label: "Date", val: reimbForm.date, set: (v) => setReimbForm((p) => ({ ...p, date: v })), type: "date" })), /* @__PURE__ */ React.createElement(Inp, { label: "Description", val: reimbForm.desc, set: (v) => setReimbForm((p) => ({ ...p, desc: v })), ph: "Details of the expense..." }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setReimbForm(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
+    const emp = emps.find((e) => e.id === reimbForm.eid);
     if (!emp || !reimbForm.amount) {
       alert("Fill all fields.");
       return;
@@ -3539,17 +3536,17 @@ function HRAdmin({ user, onLogout }) {
     setOnbForm(null);
     showToast(onbForm.name + " onboarding saved \u2713");
   } }, "\u2713 Save Onboarding")))))), tab === "arrears" && /* @__PURE__ */ React.createElement(Sec, { title: "Arrears Calculator" }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14, fontSize: 15 } }, "Calculate Salary Arrears"), /* @__PURE__ */ React.createElement("div", { style: { background: "#e8eaf6", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#1a237e", marginBottom: 14, lineHeight: 1.7 } }, "Arrears = difference between new and old net salary \xD7 number of months since the revision date. Enter the employee, their old and new basic salary, and the effective date of the hike."), /* @__PURE__ */ React.createElement(G, { cols: 2, gap: 14 }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 700, color: MT, marginBottom: 6, textTransform: "uppercase" } }, "Employee"), /* @__PURE__ */ React.createElement("select", { value: ((_f = arrearEmps[0]) == null ? void 0 : _f.empId) || "", onChange: (e) => {
-    const emp = emps2.find((x) => x.id === e.target.value);
+    const emp = emps.find((x) => x.id === e.target.value);
     if (emp) setArrearEmps([{ empId: emp.id, oldBasic: +emp.basic || 0, newBasic: Math.round((+emp.basic || 0) * 1.15), effectiveDate: "", months: 0 }]);
   }, style: { width: "100%", padding: "9px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Select employee..."), active.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name, " \u2014 ", e.code)))), arrearEmps[0] && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 700, color: MT, marginBottom: 6, textTransform: "uppercase" } }, "Effective Date of Revision"), /* @__PURE__ */ React.createElement("input", { type: "date", value: arrearEmps[0].effectiveDate || "", onChange: (e) => setArrearEmps((p) => [{ ...p[0], effectiveDate: e.target.value }]), style: { width: "100%", padding: "9px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }))), arrearEmps[0] && /* @__PURE__ */ React.createElement(G, { cols: 2, gap: 14, s: { marginTop: 14 } }, /* @__PURE__ */ React.createElement(NumInp, { label: "Old Basic Salary (\u20B9)", val: arrearEmps[0].oldBasic, set: (v) => setArrearEmps((p) => [{ ...p[0], oldBasic: v }]) }), /* @__PURE__ */ React.createElement(NumInp, { label: "New Basic Salary (\u20B9)", val: arrearEmps[0].newBasic, set: (v) => setArrearEmps((p) => [{ ...p[0], newBasic: v }]), note: `${Math.round((arrearEmps[0].newBasic / (arrearEmps[0].oldBasic || 1) - 1) * 100)}% hike` })), ((_g = arrearEmps[0]) == null ? void 0 : _g.effectiveDate) && (() => {
-    const emp = emps2.find((e) => e.id === arrearEmps[0].empId);
+    const emp = emps.find((e) => e.id === arrearEmps[0].empId);
     const res = calcArrears(emp, arrearEmps[0].oldBasic, arrearEmps[0].newBasic, arrearEmps[0].effectiveDate, payMonth, payYear, pol2);
     return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { background: res.total > 0 ? AX : WX, border: `1px solid ${res.total > 0 ? AC : WN}`, borderRadius: 10, padding: 14 } }, /* @__PURE__ */ React.createElement(G, { cols: 4, gap: 10 }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "Old Net/Month"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700 } }, INR(res.oldNet))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "New Net/Month"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: OK } }, INR(res.newNet))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "Arrears Months"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: WN } }, res.monthsCount)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "Total Arrears"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, fontWeight: 800, color: res.total > 0 ? OK : DG } }, INR(res.total)))), res.months.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, fontSize: 12, color: MT } }, "Arrears for: ", res.months.map((m) => MONTHS[m.m - 1] + " " + m.y).join(", "))), res.total > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Btn, { v: "ok", onClick: () => {
-      const emp2 = emps2.find((e) => e.id === arrearEmps[0].empId);
+      const emp2 = emps.find((e) => e.id === arrearEmps[0].empId);
       setEmps((p) => p.map((e) => e.id === emp2.id ? { ...e, basic: arrearEmps[0].newBasic } : e));
       showToast(`Arrears \u20B9${res.total.toLocaleString("en-IN")} queued for ${emp2.name} in next payroll \u2713`);
     } }, "Apply Arrears + Update Salary"), /* @__PURE__ */ React.createElement(Btn, { v: "sec", onClick: () => {
-      const emp2 = emps2.find((e) => e.id === arrearEmps[0].empId);
+      const emp2 = emps.find((e) => e.id === arrearEmps[0].empId);
       printOrDownload(`Arrears_${emp2.name.replace(/ /g, "_")}`, `
                   <div class="header"><div class="logo">Arrears Calculation Statement</div><div class="sub">${emp2.name} (${emp2.code})</div></div>
                   <table><tr><th>Month</th><th>Old Net</th><th>New Net</th><th>Arrears</th></tr>
@@ -3600,7 +3597,7 @@ function HRAdmin({ user, onLogout }) {
     } else if (b === "Generate ECR" && activeRun) {
       downloadExcel("PF_ECR", [{ name: "ECR", headers: ["UAN", "Name", "Gross", "EPF Wages", "EPS Wages", "EE Contrib", "EPS", "ER Contrib", "NCP Days"], rows: activeRun.results.filter((e) => e.pf).map((e, i) => [`UAN${1001 + i}`, e.name, e.g, e.pfBase || +e.basic, e.pfBase || +e.basic, e.pfE, Math.round((e.pfBase || +e.basic) * 0.0833), e.pfR, e.lopDays || 0]) }]);
     } else if (b === "Gratuity Report") {
-      downloadExcel("Gratuity", [{ name: "Gratuity", headers: ["Code", "Name", "DOJ", "Years", "Basic", "Gratuity", "Status"], rows: emps2.map((e) => {
+      downloadExcel("Gratuity", [{ name: "Gratuity", headers: ["Code", "Name", "DOJ", "Years", "Basic", "Gratuity", "Status"], rows: emps.map((e) => {
         const p = calcPay(e, 0, pol2);
         const y = p.yrs || 0;
         return [e.code, e.name, e.doj, y.toFixed(1), +e.basic, p.gratuity, y >= 5 ? "Eligible" : "Not Yet"];
@@ -3615,7 +3612,7 @@ function HRAdmin({ user, onLogout }) {
     ["21st", "PT Challan (MH)", "Govt of Maharashtra", "Monthly", /* @__PURE__ */ React.createElement(Badge, { t: "Due", c: DG })],
     ["31st", "Form 24Q", "Income Tax Dept", "Quarterly", /* @__PURE__ */ React.createElement(Badge, { t: "Upcoming", c: MT })],
     ["Sep 30", "ESIC Half-Yearly Return", "ESIC", "Half-yearly", /* @__PURE__ */ React.createElement(Badge, { t: "Upcoming", c: MT })]
-  ] }))), tab === "fnf" && /* @__PURE__ */ React.createElement(Sec, { title: "Full & Final Settlement" }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14 } }, "Select Employee for F&F"), /* @__PURE__ */ React.createElement(G, null, /* @__PURE__ */ React.createElement(Inp, { label: "Employee", val: (ffEmp == null ? void 0 : ffEmp.id) || "", set: (v) => setFfEmp(emps2.find((e) => e.id === v) || null), opts: emps2.map((e) => ({ v: e.id, l: `${e.name} (${e.code})` })) }), /* @__PURE__ */ React.createElement(Inp, { label: "Last Working Day", val: (ffEmp == null ? void 0 : ffEmp.lwd) || TODAY, set: (v) => setFfEmp((p) => p ? { ...p, lwd: v } : p), type: "date" }))), ffEmp && /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 16, marginBottom: 16 } }, "F&F Calculation \u2014 ", ffEmp.name), (() => {
+  ] }))), tab === "fnf" && /* @__PURE__ */ React.createElement(Sec, { title: "Full & Final Settlement" }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14 } }, "Select Employee for F&F"), /* @__PURE__ */ React.createElement(G, null, /* @__PURE__ */ React.createElement(Inp, { label: "Employee", val: (ffEmp == null ? void 0 : ffEmp.id) || "", set: (v) => setFfEmp(emps.find((e) => e.id === v) || null), opts: emps.map((e) => ({ v: e.id, l: `${e.name} (${e.code})` })) }), /* @__PURE__ */ React.createElement(Inp, { label: "Last Working Day", val: (ffEmp == null ? void 0 : ffEmp.lwd) || TODAY, set: (v) => setFfEmp((p) => p ? { ...p, lwd: v } : p), type: "date" }))), ffEmp && /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 16, marginBottom: 16 } }, "F&F Calculation \u2014 ", ffEmp.name), (() => {
     var _a2;
     const p = calcP(ffEmp);
     const yrs = Math.max(0, (new Date(ffEmp.lwd || TODAY) - new Date(ffEmp.doj || TODAY)) / (365.25 * 24 * 3600 * 1e3));
@@ -3667,25 +3664,25 @@ function HRAdmin({ user, onLogout }) {
     }
     downloadExcel(`ESIC_${MONTHS[activeRun.month - 1]}_${activeRun.year}`, [{ name: "ESIC", headers: ["IP Number", "IP Name", "Days Worked", "Gross Wages", "ESIC Employee", "ESIC Employer", "Total ESIC"], rows: activeRun.results.filter((e) => e.esic).map((e, i) => [`IP${2001 + i}`, e.name, 26 - (e.lopDays || 0), e.g, e.esE, e.esR, e.esE + e.esR]) }]);
   } }, "\u2B07 CSV"))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, marginBottom: 6 } }, "\u{1F465}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 3 } }, "Employee Master"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "All employee records & salary"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 7 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => {
-    downloadExcel("Employee_Master", [{ name: "Employees", headers: ["Code", "Name", "Dept", "Designation", "DOJ", "Email", "Phone", "PAN", "Basic", "HRA", "Conv", "Med", "Spl", "LTA", "Gross", "Net Pay", "CTC", "PF", "ESIC", "Status", "Bank", "Account", "IFSC"], rows: emps2.map((e) => {
+    downloadExcel("Employee_Master", [{ name: "Employees", headers: ["Code", "Name", "Dept", "Designation", "DOJ", "Email", "Phone", "PAN", "Basic", "HRA", "Conv", "Med", "Spl", "LTA", "Gross", "Net Pay", "CTC", "PF", "ESIC", "Status", "Bank", "Account", "IFSC"], rows: emps.map((e) => {
       const p = calcPay(e, 0, pol2);
       return [e.code, e.name, e.dept, e.desig, e.doj, e.email, e.phone, e.pan, +e.basic, +e.hra, +e.conv || 0, +e.med || 0, +e.spl || 0, +e.lta || 0, p.g, p.net, p.ctc, e.pf ? "Yes" : "No", e.esic ? "Yes" : "No", e.status, e.bank, e.acc, e.ifsc];
     }) }]);
   } }, "\u2B07 CSV"))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, marginBottom: 6 } }, "\u{1F550}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 3 } }, "Attendance Report"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "Full attendance register"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 7 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => {
     const rows = [];
-    emps2.forEach((e) => Object.entries(attendance[e.id] || {}).sort().forEach(([d, r]) => rows.push([e.code, e.name, e.dept, d, { P: "Present", A: "Absent", HD: "Half Day", L: "Late", WO: "Week Off", H: "Holiday", OD: "On Duty" }[r.status] || r.status, r.in || "", r.out || "", r.hrs || 0, r.ot || 0])));
+    emps.forEach((e) => Object.entries(attendance[e.id] || {}).sort().forEach(([d, r]) => rows.push([e.code, e.name, e.dept, d, { P: "Present", A: "Absent", HD: "Half Day", L: "Late", WO: "Week Off", H: "Holiday", OD: "On Duty" }[r.status] || r.status, r.in || "", r.out || "", r.hrs || 0, r.ot || 0])));
     downloadExcel("Attendance_Register", [{ name: "Attendance", headers: ["Code", "Name", "Dept", "Date", "Status", "In Time", "Out Time", "Hours", "OT Hours"], rows }]);
   } }, "\u2B07 CSV"))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, marginBottom: 6 } }, "\u{1F334}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 3 } }, "Leave Register"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "All leave applications & status"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 7 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => {
     downloadExcel("Leave_Register", [{ name: "Leaves", headers: ["Employee", "Leave Type", "From", "To", "Days", "Reason", "Status", "Applied On"], rows: leaves.map((l) => [l.ename, l.type, l.from, l.to, l.days, l.reason, l.status, l.on]) }]);
   } }, "\u2B07 CSV"))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, marginBottom: 6 } }, "\u{1F4B8}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 3 } }, "Loan Statement"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "Outstanding loan balances"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 7 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => {
     downloadExcel("Loan_Statement", [{ name: "Loans", headers: ["Employee", "Loan Type", "Amount", "EMI", "Tenure", "Remaining Months", "Outstanding", "Status"], rows: loans.map((l) => [l.ename, l.type, l.amount, l.emi, l.tenure, l.remaining, l.remaining * l.emi, l.status]) }]);
   } }, "\u2B07 CSV"))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, marginBottom: 6 } }, "\u{1F4BC}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 3 } }, "CTC Report"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "Full cost-to-company breakup"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 7 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => {
-    downloadExcel("CTC_Report", [{ name: "CTC", headers: ["Code", "Name", "Dept", "Designation", "Basic", "HRA", "Conv", "Med", "Spl", "LTA", "Gross", "PF Employer", "ESIC Employer", "Monthly CTC", "Annual CTC"], rows: emps2.map((e) => {
+    downloadExcel("CTC_Report", [{ name: "CTC", headers: ["Code", "Name", "Dept", "Designation", "Basic", "HRA", "Conv", "Med", "Spl", "LTA", "Gross", "PF Employer", "ESIC Employer", "Monthly CTC", "Annual CTC"], rows: emps.map((e) => {
       const p = calcPay(e, 0, pol2);
       return [e.code, e.name, e.dept, e.desig, +e.basic, +e.hra, +e.conv || 0, +e.med || 0, +e.spl || 0, +e.lta || 0, p.g, p.pfR, p.esR, p.ctc, p.ctc * 12];
     }) }]);
   } }, "\u2B07 CSV"))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, marginBottom: 6 } }, "\u2696\uFE0F"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 3 } }, "Gratuity Register"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "Eligibility & gratuity provision"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 7 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => {
-    downloadExcel("Gratuity_Register", [{ name: "Gratuity", headers: ["Code", "Name", "DOJ", "Years of Service", "Basic", "Gratuity Amount", "Eligibility"], rows: emps2.map((e) => {
+    downloadExcel("Gratuity_Register", [{ name: "Gratuity", headers: ["Code", "Name", "DOJ", "Years of Service", "Basic", "Gratuity Amount", "Eligibility"], rows: emps.map((e) => {
       var _a2;
       const p = calcPay(e, 0, pol2);
       const yrs = p.yrs || 0;
@@ -3695,7 +3692,7 @@ function HRAdmin({ user, onLogout }) {
     downloadExcel("Reimbursements", [{ name: "Reimb", headers: ["Employee", "Type", "Amount", "Date", "Description", "Status"], rows: reimb.map((r) => [r.ename, r.type, r.amount, r.date, r.desc || "", r.status]) }]);
   } }, "\u2B07 CSV"))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, marginBottom: 6 } }, "\u{1F3E2}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 3 } }, "Dept-wise Report"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "Headcount & salary by department"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 7 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => {
     const depts = {};
-    emps2.forEach((e) => {
+    emps.forEach((e) => {
       if (!depts[e.dept]) depts[e.dept] = { dept: e.dept, count: 0, gross: 0, net: 0, ctc: 0 };
       const p = calcPay(e, 0, pol2);
       depts[e.dept].count++;
@@ -3713,7 +3710,7 @@ function HRAdmin({ user, onLogout }) {
     { title: "Work Policy", fields: [["Working Hours", co.wHours + " hrs/day"], ["Working Days", co.wDays], ["Half Day Hours", co.halfDay + " hrs"], ["OT Rate", INR(co.otRate) + "/hr"]] }
   ].map(({ title, fields }) => /* @__PURE__ */ React.createElement(Card, { key: title }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: P, marginBottom: 12 } }, title), fields.map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { display: "flex", padding: "7px 0", borderBottom: `1px solid ${BG}`, fontSize: 13 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 180, color: MT, fontWeight: 500 } }, l), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600 } }, v || "\u2014"))))), /* @__PURE__ */ React.createElement(Card, { s: { gridColumn: "1/-1" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: P, marginBottom: 12 } }, "Statutory Registrations"), /* @__PURE__ */ React.createElement(G, { cols: 3, gap: 16 }, [["PF Registration", co.pf], ["ESIC Registration", co.esic], ["PT Registration", co.pt]].map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { background: PX, borderRadius: 8, padding: "12px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 4 } }, l), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: P } }, v || "\u2014")))))), editCo && /* @__PURE__ */ React.createElement(Modal, { title: "Edit Company", onClose: () => setEditCo(false), w: 680 }, /* @__PURE__ */ React.createElement(G, null, [["name", "Company Name"], ["pan", "PAN"], ["tan", "TAN"], ["gstin", "GSTIN"], ["addr", "Address"], ["city", "City"], ["state", "State"], ["pin", "PIN"], ["phone", "Phone"], ["email", "Email"], ["pf", "PF Reg No"], ["esic", "ESIC Reg No"], ["pt", "PT Reg No"]].map(([k, l]) => /* @__PURE__ */ React.createElement(Inp, { key: k, label: l, val: coForm[k] || "", set: (v) => setCoForm((p) => ({ ...p, [k]: v })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setEditCo(false) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
     apiSaveCo(coForm);
-  } }, "Save")))), tab === "policy" && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 0 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 21, fontWeight: 800 } }, "Policy Settings"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, "Changes apply to all future payroll runs automatically")), /* @__PURE__ */ React.createElement(PolicyTab, { pol: pol2, setPol, onSave: apiSavePolicies })), tab === "ai" && /* @__PURE__ */ React.createElement("div", null, !integ.anthropicKey && !co.aiEnabled && /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 14, border: "2px solid #7b1fa2", background: "#f3e5f5" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32 } }, "\u{1F916}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#4a148c", marginBottom: 6 } }, "AI Features not enabled"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#6a1b9a", lineHeight: 1.7, marginBottom: 12 } }, "AI payroll assistant, anomaly detection, IT optimizer, document drafter and 6 more features are available on the ", /* @__PURE__ */ React.createElement("b", null, "Pro plan"), " or as an ", /* @__PURE__ */ React.createElement("b", null, "AI Add-on"), " (\u20B9499/mo)."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => setTab("settings"), s: { background: "#7b1fa2" } }, "\u2699 Add own API key in Settings"), /* @__PURE__ */ React.createElement(Btn, { v: "sec", onClick: () => showToast("Contact your Payrolla admin to enable AI for your account") }, "Contact Admin for AI Access"))))), (integ.anthropicKey || co.aiEnabled) && /* @__PURE__ */ React.createElement(AIAssistant, { emps: emps2, runs, activeRun, leaves, loans, reimb, attendance, pol: pol2, co, payMonth, payYear, anthropicKey: integ.anthropicKey || co.saAiKey || "", aiModel: integ.aiModel || "claude-sonnet-4-6", aiFeatures: integ })), tab === "documents" && /* @__PURE__ */ React.createElement(Sec, { title: "Documents & Statutory Compliance" }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 12, fontWeight: 600, color: MT, marginRight: 8, textTransform: "uppercase" } }, "FY"), /* @__PURE__ */ React.createElement("select", { value: fy, onChange: (e) => setFy(e.target.value), style: { padding: "7px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }, ["2023-24", "2024-25", "2025-26", "2026-27"].map((y) => /* @__PURE__ */ React.createElement("option", { key: y, value: y }, y)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 12, fontWeight: 600, color: MT, marginRight: 8, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement("select", { value: ptMonth, onChange: (e) => setPtMonth(+e.target.value), style: { padding: "7px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }, MONTHS.map((m, i) => /* @__PURE__ */ React.createElement("option", { key: i, value: i + 1 }, m)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 12, fontWeight: 600, color: MT, marginRight: 8, textTransform: "uppercase" } }, "Year"), /* @__PURE__ */ React.createElement("select", { value: ptYear, onChange: (e) => setPtYear(+e.target.value), style: { padding: "7px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }, [2024, 2025, 2026, 2027].map((y) => /* @__PURE__ */ React.createElement("option", { key: y, value: y }, y)))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, fontSize: 12, color: MT } }, "State: ", /* @__PURE__ */ React.createElement("b", null, ((_h = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _h.state) || co.state || "Maharashtra"), " \xB7 ", active.length, " active employees"))), /* @__PURE__ */ React.createElement(G, { cols: 2, gap: 14 }, /* @__PURE__ */ React.createElement(Card, { s: { borderLeft: `4px solid ${P}` } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 14, marginBottom: 4 } }, "\u{1F4C4} TDS Documents"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "Income tax certificates and returns"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${BG}` } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600 } }, "Form 16 \u2014 Part A + B"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "TDS certificate per employee")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", onClick: () => {
+  } }, "Save")))), tab === "policy" && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 0 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 21, fontWeight: 800 } }, "Policy Settings"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, "Changes apply to all future payroll runs automatically")), /* @__PURE__ */ React.createElement(PolicyTab, { pol: pol2, setPol, onSave: apiSavePolicies })), tab === "ai" && /* @__PURE__ */ React.createElement("div", null, !integ.anthropicKey && !co.aiEnabled && /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 14, border: "2px solid #7b1fa2", background: "#f3e5f5" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32 } }, "\u{1F916}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#4a148c", marginBottom: 6 } }, "AI Features not enabled"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#6a1b9a", lineHeight: 1.7, marginBottom: 12 } }, "AI payroll assistant, anomaly detection, IT optimizer, document drafter and 6 more features are available on the ", /* @__PURE__ */ React.createElement("b", null, "Pro plan"), " or as an ", /* @__PURE__ */ React.createElement("b", null, "AI Add-on"), " (\u20B9499/mo)."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => setTab("settings"), s: { background: "#7b1fa2" } }, "\u2699 Add own API key in Settings"), /* @__PURE__ */ React.createElement(Btn, { v: "sec", onClick: () => showToast("Contact your Payrolla admin to enable AI for your account") }, "Contact Admin for AI Access"))))), (integ.anthropicKey || co.aiEnabled) && /* @__PURE__ */ React.createElement(AIAssistant, { emps, runs, activeRun, leaves, loans, reimb, attendance, pol: pol2, co, payMonth, payYear, anthropicKey: integ.anthropicKey || co.saAiKey || "", aiModel: integ.aiModel || "claude-sonnet-4-6", aiFeatures: integ })), tab === "documents" && /* @__PURE__ */ React.createElement(Sec, { title: "Documents & Statutory Compliance" }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 12, fontWeight: 600, color: MT, marginRight: 8, textTransform: "uppercase" } }, "FY"), /* @__PURE__ */ React.createElement("select", { value: fy, onChange: (e) => setFy(e.target.value), style: { padding: "7px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }, ["2023-24", "2024-25", "2025-26", "2026-27"].map((y) => /* @__PURE__ */ React.createElement("option", { key: y, value: y }, y)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 12, fontWeight: 600, color: MT, marginRight: 8, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement("select", { value: ptMonth, onChange: (e) => setPtMonth(+e.target.value), style: { padding: "7px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }, MONTHS.map((m, i) => /* @__PURE__ */ React.createElement("option", { key: i, value: i + 1 }, m)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 12, fontWeight: 600, color: MT, marginRight: 8, textTransform: "uppercase" } }, "Year"), /* @__PURE__ */ React.createElement("select", { value: ptYear, onChange: (e) => setPtYear(+e.target.value), style: { padding: "7px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }, [2024, 2025, 2026, 2027].map((y) => /* @__PURE__ */ React.createElement("option", { key: y, value: y }, y)))), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, fontSize: 12, color: MT } }, "State: ", /* @__PURE__ */ React.createElement("b", null, ((_h = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _h.state) || co.state || "Maharashtra"), " \xB7 ", active.length, " active employees"))), /* @__PURE__ */ React.createElement(G, { cols: 2, gap: 14 }, /* @__PURE__ */ React.createElement(Card, { s: { borderLeft: `4px solid ${P}` } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 14, marginBottom: 4 } }, "\u{1F4C4} TDS Documents"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "Income tax certificates and returns"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${BG}` } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600 } }, "Form 16 \u2014 Part A + B"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "TDS certificate per employee")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", onClick: () => {
     if (!active.length) {
       alert("No employees.");
       return;
@@ -3792,10 +3789,10 @@ function HRAdmin({ user, onLogout }) {
       addAudit("Form 15CA", name);
     } }, "\u{1F4CB} Form 15CA (Filing Form)")));
   })()), /* @__PURE__ */ React.createElement(Card, { s: { borderLeft: `4px solid #e65100` } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 14, marginBottom: 4 } }, "\u{1F4D2} Tally Integration"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "Journal and payment vouchers for import"), !activeRun ? /* @__PURE__ */ React.createElement("div", { style: { background: WX, border: `1px solid ${WN}44`, borderRadius: 7, padding: "8px 12px", fontSize: 12, color: WN } }, "\u26A0 Run payroll first") : /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${BG}` } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600 } }, "Salary Vouchers XML"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, MONTHS[((activeRun == null ? void 0 : activeRun.month) || 1) - 1], " ", activeRun == null ? void 0 : activeRun.year, " \u2014 Net ", INR((activeRun == null ? void 0 : activeRun.total) || 0))), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", onClick: () => {
-    generateTallyXML(activeRun, emps2, co);
+    generateTallyXML(activeRun, emps, co);
     addAudit("Tally XML", MONTHS[((activeRun == null ? void 0 : activeRun.month) || 1) - 1]);
   }, s: { background: "#e65100" } }, "Export")))), /* @__PURE__ */ React.createElement(Card, { s: { borderLeft: `4px solid ${AC}` } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 14, marginBottom: 4 } }, "\u{1F3E6} Bank Transfer Files"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "NEFT upload formats for all major banks"), !activeRun ? /* @__PURE__ */ React.createElement("div", { style: { background: WX, border: `1px solid ${WN}44`, borderRadius: 7, padding: "8px 12px", fontSize: 12, color: WN, marginBottom: 8 } }, "\u26A0 Run payroll first") : null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } }, [["Generic NEFT", "generic"], ["SBI", "sbi"], ["HDFC", "hdfc"], ["ICICI", "icici"], ["Axis Bank", "axis"]].map(([name, fmt]) => /* @__PURE__ */ React.createElement(Btn, { key: fmt, sz: "sm", v: "sec", disabled: !activeRun, onClick: () => {
-    generateBankTransferFile(activeRun, emps2, co, fmt);
+    generateBankTransferFile(activeRun, emps, co, fmt);
     addAudit("Bank Transfer File", name);
   } }, name)))), /* @__PURE__ */ React.createElement(Card, { s: { borderLeft: `4px solid ${MT}`, gridColumn: "1/-1" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 14, marginBottom: 4 } }, "\u{1F4CB} HR Documents & Letters"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 12 } }, "Offer letters, appointment letters, salary slips, compliance reports"), /* @__PURE__ */ React.createElement(G, { cols: 3, gap: 10 }, [
     { label: "Offer Letter", desc: "Professional offer with CTC & ESOP", action: () => {
@@ -3893,7 +3890,7 @@ Powered by Payrolla.in`);
       showToast("Razorpay error: " + e.message, "warn");
     }
   } }, "\u{1F4B3} Open Payment (", "\u20B9" + (49 * active.length).toLocaleString("en-IN"), " test)")), !integ.razorpayEnabled && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginTop: 8 } }, "Accept subscription payments from clients through Payrolla. Start charging \u20B949\u2013\u20B9149 per employee per month.")), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 40, height: 40, background: "#f3e5f5", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 } }, "\u{1F590}"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 14 } }, "Biometric Integration"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "ZKTeco, Essl, Suprema \u2014 auto attendance"))), /* @__PURE__ */ React.createElement("div", { style: { background: BG, borderRadius: 8, padding: "10px 12px", marginBottom: 12, fontSize: 12, lineHeight: 1.7 } }, /* @__PURE__ */ React.createElement("b", null, "How it works:"), /* @__PURE__ */ React.createElement("br", null), "1. Download the Bridge App (payrolla_biometric_bridge.js)", /* @__PURE__ */ React.createElement("br", null), "2. Install: ", /* @__PURE__ */ React.createElement("code", null, "npm install node-zklib @supabase/supabase-js dotenv"), /* @__PURE__ */ React.createElement("br", null), "3. Fill device IP in .env file", /* @__PURE__ */ React.createElement("br", null), "4. Run: ", /* @__PURE__ */ React.createElement("code", null, "node payrolla_biometric_bridge.js"), /* @__PURE__ */ React.createElement("br", null), "5. Attendance syncs every 5 minutes automatically"), /* @__PURE__ */ React.createElement(Inp, { label: "Device IP (for testing)", val: integ.biometricIp || "", set: (v) => setInteg((p) => ({ ...p, biometricIp: v })), ph: "192.168.1.201", note: "ZKTeco default port: 4370" }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", onClick: () => showToast("Download payrolla_biometric_bridge.js from the files you downloaded earlier") }, "\u{1F4E5} Bridge Setup"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => showToast("Compatible: ZKTeco K10/K20/K40, ZK400+, Essl iFace302, eSSL e9, SpeedFace") }, "\u{1F4CB} Compatible Devices"))), /* @__PURE__ */ React.createElement(Card, { s: { gridColumn: "1/-1" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 40, height: 40, background: "#fff3e0", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 } }, "\u{1F4D2}"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 14 } }, "Tally Integration"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "Two-way sync with Tally ERP 9 & Tally Prime"))), /* @__PURE__ */ React.createElement(Toggle, { label: "", val: integ.tallyEnabled, set: (v) => setInteg((p) => ({ ...p, tallyEnabled: v })) })), /* @__PURE__ */ React.createElement(G, { cols: 3, gap: 14 }, /* @__PURE__ */ React.createElement("div", { style: { background: BG, borderRadius: 8, padding: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, marginBottom: 6 } }, "\u{1F4E4} Export \u2192 Tally"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 8 } }, "Salary journal entries in XML"), activeRun ? /* @__PURE__ */ React.createElement(Btn, { sz: "sm", onClick: () => {
-    generateTallyXML(activeRun, emps2, co);
+    generateTallyXML(activeRun, emps, co);
     addAudit("Tally XML Exported", MONTHS[((activeRun == null ? void 0 : activeRun.month) || 1) - 1] + " " + (activeRun == null ? void 0 : activeRun.year));
   } }, "\u2B07 Download XML") : /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: WN } }, "Run payroll first")), /* @__PURE__ */ React.createElement("div", { style: { background: BG, borderRadius: 8, padding: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, marginBottom: 6 } }, "\u{1F4E5} Import from Tally"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 8 } }, "Employee masters & salary structure"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => showToast("Export Employees from Tally as XML. Coming soon: direct upload here.") }, "Import Employees")), /* @__PURE__ */ React.createElement("div", { style: { background: BG, borderRadius: 8, padding: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, marginBottom: 6 } }, "\u{1F504} Tally Ledgers"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginBottom: 8 } }, "Required in Tally:"), ["Salary & Wages (Indirect Expenses)", "EPF Payable (Current Liabilities)", "ESIC Payable (Current Liabilities)", "TDS Payable-Salary (Current Liabilities)", "PT Payable (Current Liabilities)", "Salary Payable (Current Liabilities)"].map((l) => /* @__PURE__ */ React.createElement("div", { key: l, style: { fontSize: 10, color: MT, padding: "2px 0" } }, "\u2022 ", l)))))), /* @__PURE__ */ React.createElement(Card, { s: { marginTop: 16, background: PX, border: `1px solid ${P}44` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700 } }, "Save Integration Settings"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, "Settings saved locally in browser. API keys never leave your device.")), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
     try {
@@ -3922,7 +3919,7 @@ Powered by Payrolla.in`);
       onLogout,
       integ,
       setInteg,
-      emps: emps2,
+      emps,
       active,
       apiSaveCo,
       apiSavePolicies,
@@ -4145,7 +4142,7 @@ function Register({ onBack, onSuccess }) {
     loading ? "Creating your account..." : "\u{1F680} Start Free Trial"
   ))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: 16, fontSize: 13, color: "#888" } }, "Already have an account? ", /* @__PURE__ */ React.createElement("span", { onClick: onBack, style: { color: "#1a237e", cursor: "pointer", fontWeight: 600 } }, "Sign In")))));
 }
-function Settings({ co, setCo, pol: pol2, setPol, user, onLogout, integ, setInteg, emps: emps2, active, apiSaveCo, apiSavePolicies, showToast, addAudit }) {
+function Settings({ co, setCo, pol: pol2, setPol, user, onLogout, integ, setInteg, emps, active, apiSaveCo, apiSavePolicies, showToast, addAudit }) {
   var _a;
   const [stab, setStab] = useState("company");
   const [coForm, setCoForm] = useState({ ...co });
@@ -4340,8 +4337,8 @@ function SuperAdmin({ user, onLogout }) {
       setTrialModal({ co: c });
     }, s: { background: "#e8f5e9", color: "#2e7d32", border: "1px solid #a5d6a7" } }, c.is_trial ? "\u23F1 Extend Trial" : "\u{1F381} Give Trial"), /* @__PURE__ */ React.createElement("select", { value: c.plan.toLowerCase(), onChange: (e) => {
       const p = e.target.value;
-      const emps2 = c.emps;
-      const mrr = emps2 * (p === "starter" ? 49 : p === "growth" ? 99 : 149);
+      const emps = c.emps;
+      const mrr = emps * (p === "starter" ? 49 : p === "growth" ? 99 : 149);
       setCos((prev) => prev.map((x) => x.id === c.id ? { ...x, plan: p, mrr } : x));
       showToast(`${c.name} \u2192 ${p} plan \u2713`);
     }, style: { padding: "5px 8px", border: `1px solid ${BD}`, borderRadius: 6, fontSize: 12, cursor: "pointer", outline: "none" } }, Object.entries(PLANS).map(([k, v]) => /* @__PURE__ */ React.createElement("option", { key: k, value: k }, v.name, " (\u20B9", v.price, "/emp)"))))));
@@ -4377,9 +4374,9 @@ function SuperAdmin({ user, onLogout }) {
       setCos((p) => p.map((c) => c.id === editCo.id ? { ...c, ...coForm } : c));
       showToast("Company updated \u2713");
     } else {
-      const emps2 = 0;
-      const mrr = emps2 * (coForm.plan === "starter" ? 49 : coForm.plan === "growth" ? 99 : 149);
-      setCos((p) => [...p, { id: "C" + Date.now(), ...coForm, emps: emps2, mrr, active: true, joined: TODAY }]);
+      const emps = 0;
+      const mrr = emps * (coForm.plan === "starter" ? 49 : coForm.plan === "growth" ? 99 : 149);
+      setCos((p) => [...p, { id: "C" + Date.now(), ...coForm, emps, mrr, active: true, joined: TODAY }]);
       showToast("Company added \u2713");
     }
     setShowAddCo(false);
@@ -4553,53 +4550,8 @@ function App() {
   if (session.role === "emp") return /* @__PURE__ */ React.createElement(EmployeePortal, { user: { name: session.name, role: "Employee", eid: session.eid || session.employee_id }, onLogout: handleLogout });
   return null;
 }
-{
-}
-{
-  showFullMonthModal && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setShowFullMonthModal(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 14, padding: 28, width: 480, boxShadow: "0 20px 60px rgba(0,0,0,.3)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 16, marginBottom: 6 } }, "\u{1F4C5} Mark Full Month Attendance"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 20 } }, "Marks all weekdays as Present and all Sundays/Saturdays as Week Off for the selected month. Existing entries are preserved unless you choose to overwrite."), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      type: "month",
-      value: fullMonthMonth,
-      onChange: (e) => setFullMonthMonth(e.target.value),
-      style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 14, outline: "none" }
-    }
-  )), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 5, textTransform: "uppercase" } }, "Apply to"), /* @__PURE__ */ React.createElement(
-    "select",
-    {
-      value: fullMonthTarget,
-      onChange: (e) => setFullMonthTarget(e.target.value),
-      style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
-    },
-    /* @__PURE__ */ React.createElement("option", { value: "all" }, "All active employees (", emps.length, ")"),
-    emps.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name, " \u2014 ", e.code))
-  )), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff3e0", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#e65100", marginBottom: 16 } }, "\u26A0 This will fill empty days only. Days already marked will NOT be changed. To overwrite all, use the Overwrite option below."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setShowFullMonthModal(false), style: { padding: "9px 16px", border: "1px solid #ddd", borderRadius: 8, background: "#fff", cursor: "pointer", fontSize: 13 } }, "Cancel"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    markFullMonth(fullMonthTarget, fullMonthMonth);
-    setShowFullMonthModal(false);
-  }, style: { padding: "9px 16px", border: "none", borderRadius: 8, background: "#1a237e", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700 } }, "\u{1F4C5} Mark Empty Days"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    markMonthAllPresent(fullMonthTarget, fullMonthMonth);
-    setShowFullMonthModal(false);
-  }, style: { padding: "9px 16px", border: "none", borderRadius: 8, background: "#2e7d32", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700 } }, "\u2713 Overwrite All Days"))));
-}
-{
-  bulkDoneMsg && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 20, right: 20, background: "#2e7d32", color: "#fff", padding: "12px 20px", borderRadius: 10, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 12px rgba(0,0,0,.2)", zIndex: 2e3 } }, bulkDoneMsg);
-}
 
-
-try{
-  ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
-}catch(e){
-  document.getElementById("root").innerHTML=
-    '<div style="padding:40px;font-family:monospace;background:#fff;min-height:100vh">' +
-    '<h2 style="color:#c62828;margin-bottom:12px">Payrolla Error</h2>' +
-    '<div style="background:#ffebee;padding:16px;border-radius:8px;margin-bottom:12px">' +
-    '<b>' + e.message + '</b></div>' +
-    '<pre style="background:#f5f5f5;padding:16px;border-radius:8px;overflow:auto;font-size:11px">' + e.stack + '</pre>' +
-    '<div style="margin-top:16px;color:#888;font-size:12px">Build: v4.0 | Please share this error message</div>' +
-    '</div>';
-}
+try{ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));}catch(e){document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace;background:#fff"><h2 style="color:red">Error: '+e.message+'</h2><pre style="margin-top:12px;font-size:11px;background:#eee;padding:12px">'+e.stack+'</pre></div>';}
 </script>
-
-<!-- NO SERVICE WORKER — prevents caching issues -->
 </body>
 </html>
