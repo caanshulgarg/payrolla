@@ -1,20 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Payrolla v4.0 | Built: 2026-06-27 | Employee Form + Full Month Attendance -->
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Payrolla.in — AI-Powered Indian Payroll & HRMS</title>
-<meta name="theme-color" content="#1a237e"/>
-<link rel="manifest" href="manifest.json"/>
+<!-- PAYROLLA v4.0 BUILD 20260627 -->
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="build" content="20260627-v4"/>
+<title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",system-ui,sans-serif}
+#boot{min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff}
+#boot h1{font-size:32px;font-weight:900;margin-bottom:8px}
+#boot p{font-size:13px;opacity:.6}
+</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading...</div></div></div>
+<div id="root">
+  <div id="boot">
+    <h1>Payrolla<span style="color:#64b5f6">.in</span></h1>
+    <p>Loading...</p>
+  </div>
+</div>
+
+<!-- Unregister any old service workers first, then load app -->
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(function(regs){
+    regs.forEach(function(r){r.unregister();});
+  });
+  if(navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({type:'SKIP_WAITING'});
+  }
+}
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script>const{useState,useEffect,useCallback,useRef}=React;const{createClient}=supabase;</script>
+
 <script>
 const SUPABASE_URL = "https://ughybjrpggoutpoutkpz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnaHlianJwZ2dvdXRwb3V0a3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NTI2NTAsImV4cCI6MjA5ODAyODY1MH0.EjNOd3euAs_fEyDL_aE93L-r9aosMLqyamnyDk1AY7c";
@@ -4560,8 +4585,21 @@ function App() {
   bulkDoneMsg && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 20, right: 20, background: "#2e7d32", color: "#fff", padding: "12px 20px", borderRadius: 10, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 12px rgba(0,0,0,.2)", zIndex: 2e3 } }, bulkDoneMsg);
 }
 
-try{ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));}catch(e){document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace;color:red"><h2>Error: '+e.message+'</h2><pre>'+e.stack+'</pre></div>';}
+
+try{
+  ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+}catch(e){
+  document.getElementById("root").innerHTML=
+    '<div style="padding:40px;font-family:monospace;background:#fff;min-height:100vh">' +
+    '<h2 style="color:#c62828;margin-bottom:12px">Payrolla Error</h2>' +
+    '<div style="background:#ffebee;padding:16px;border-radius:8px;margin-bottom:12px">' +
+    '<b>' + e.message + '</b></div>' +
+    '<pre style="background:#f5f5f5;padding:16px;border-radius:8px;overflow:auto;font-size:11px">' + e.stack + '</pre>' +
+    '<div style="margin-top:16px;color:#888;font-size:12px">Build: v4.0 | Please share this error message</div>' +
+    '</div>';
+}
 </script>
-<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js?v=4").catch(()=>{});});}</script>
+
+<!-- NO SERVICE WORKER — prevents caching issues -->
 </body>
 </html>
