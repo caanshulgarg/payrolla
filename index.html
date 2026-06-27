@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v9.0 BUILD 20260627 -->
+<!-- PAYROLLA v10.0 — FINAL VERIFIED BUILD 20260627 -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
+<meta name="description" content="AI-powered Indian payroll. PF, ESIC, TDS, PT, LWF. All 28 states. Standard deduction ₹75K FY25-26."/>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v9.0...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v10.0...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -267,7 +268,7 @@ function checkMinWages(gross, category = "unskilled") {
   return { violation: false, shortfall: 0, minWage: mw.monthly };
 }
 function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, extras = {}) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x;
   const P_pol = POL || (typeof DEFAULT_POLICIES !== "undefined" ? DEFAULT_POLICIES : null);
   let joiningProration = 1;
   let joiningNote = "";
@@ -307,27 +308,29 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   const pfBase = Math.round(basic * f);
   const pfWage = Math.min(pfBase, ((_b = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _b.maxPfWage) || 15e3);
   const pfE = e.pf && ((_c = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _c.enabled) !== false ? Math.min(Math.round(pfWage * (((_d = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _d.employeeRate) || 12) / 100), 1800) : 0;
-  const pfR = pfE;
-  const esicCeil = ((_e = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _e.wageLimit) || 21e3;
-  const esE = e.esic && ((_f = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _f.enabled) !== false && g <= esicCeil ? Math.round(g * (((_g = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _g.employeeRate) || 0.75) / 100) : 0;
-  const esR = e.esic && ((_h = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _h.enabled) !== false && g <= esicCeil ? Math.round(g * (((_i = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _i.employerRate) || 3.25) / 100) : 0;
+  const pfEPS = e.pf && ((_e = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _e.enabled) !== false ? Math.min(Math.round(pfWage * 8.33 / 100), 1250) : 0;
+  const pfEPF_er = e.pf && ((_f = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _f.enabled) !== false ? Math.max(0, Math.min(Math.round(pfWage * 12 / 100), 1800) - pfEPS) : 0;
+  const pfR = pfEPS + pfEPF_er;
+  const esicCeil = ((_g = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _g.wageLimit) || 21e3;
+  const esE = e.esic && ((_h = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _h.enabled) !== false && g <= esicCeil ? Math.round(g * (((_i = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _i.employeeRate) || 0.75) / 100) : 0;
+  const esR = e.esic && ((_j = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _j.enabled) !== false && g <= esicCeil ? Math.round(g * (((_k = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _k.employerRate) || 3.25) / 100) : 0;
   let pt = 0;
-  if (e.pt && ((_j = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _j.enabled) !== false) {
-    const ptState = ((_k = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _k.state) || "Maharashtra";
+  if (e.pt && ((_l = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _l.enabled) !== false) {
+    const ptState = ((_m = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _m.state) || "Maharashtra";
     if (typeof PT_SLABS_ALL !== "undefined") {
       pt = calcPT28(g, ptState);
     } else {
-      const ptSlabs = ((_l = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _l.slabs) || [{ from: 0, to: 1e4, monthly: 0 }, { from: 10001, to: 15e3, monthly: 150 }, { from: 15001, to: 999999, monthly: 200 }];
+      const ptSlabs = ((_n = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _n.slabs) || [{ from: 0, to: 1e4, monthly: 0 }, { from: 10001, to: 15e3, monthly: 150 }, { from: 15001, to: 999999, monthly: 200 }];
       const slab = [...ptSlabs].sort((a, b) => b.from - a.from).find((s) => g >= s.from);
       pt = slab ? slab.monthly || 0 : 0;
     }
   }
-  const lwfState = ((_m = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _m.state) || "Maharashtra";
+  const lwfState = ((_o = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _o.state) || "Maharashtra";
   const lwfMonth = runMonth || (/* @__PURE__ */ new Date()).getMonth() + 1;
   const lwfInfo = typeof LWF_TABLE !== "undefined" ? LWF_TABLE[lwfState] || null : null;
-  const lwfCalc = typeof calcLWF !== "undefined" && ((_n = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _n.enabled) !== false ? calcLWF(g, lwfState, lwfMonth) : { emp: 0, emr: 0 };
-  const lwfE = e.lwf !== false && ((_o = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _o.enabled) !== false ? lwfCalc.emp : 0;
-  const lwfR = e.lwf !== false && ((_p = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _p.enabled) !== false ? lwfCalc.emr : 0;
+  const lwfCalc = typeof calcLWF !== "undefined" && ((_p = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _p.enabled) !== false ? calcLWF(g, lwfState, lwfMonth) : { emp: 0, emr: 0 };
+  const lwfE = e.lwf !== false && ((_q = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _q.enabled) !== false ? lwfCalc.emp : 0;
+  const lwfR = e.lwf !== false && ((_r = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _r.enabled) !== false ? lwfCalc.emr : 0;
   const lwfApplicableMonths = lwfInfo ? lwfInfo.freq === "monthly" ? "Every month" : Array.isArray(lwfInfo.months) ? lwfInfo.months.map((m) => ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m]).join(" & ") : "December" : "\u2014";
   const lwfThisMonthApplicable = lwfInfo ? lwfInfo.freq === "monthly" ? true : Array.isArray(lwfInfo.months) ? lwfInfo.months.includes(lwfMonth) : false : false;
   const otHours = extras.otHours || 0;
@@ -339,9 +342,9 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   const totalGross = g + otAmount + varPay + bonus + arrears;
   const mwCategory = e.mwCategory || "unskilled";
   const mwCheck = typeof checkMinWages !== "undefined" ? checkMinWages(g, mwCategory) : { violation: false, shortfall: 0, minWage: 0 };
-  const stdDed = ((_q = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _q.standardDeduction) || 5e4;
-  const cess = (((_r = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _r.cess) || 4) / 100;
-  const regime = e.itRegime || ((_s = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _s.regime) || "new";
+  const stdDed = ((_s = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _s.standardDeduction) || 75e3;
+  const cess = (((_t = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _t.cess) || 4) / 100;
+  const regime = e.itRegime || ((_u = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _u.regime) || "new";
   const decl80c = regime === "old" ? Math.min(+e.decl80c || 0, 15e4) : 0;
   const decl80d = regime === "old" ? Math.min(+e.decl80d || 0, 25e3) : 0;
   const declNps = regime === "old" ? Math.min(+e.declNps || 0, 5e4) : 0;
@@ -369,14 +372,16 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   const net2 = totalGross - ded;
   const ctc = g + pfR + esR;
   const yrs = e.doj ? Math.max(0, (NOW - new Date(e.doj)) / (365.25 * 24 * 3600 * 1e3)) : 0;
-  const gratMinYrs = ((_t = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _t.minServiceYears) || 5;
-  const gratMax = ((_u = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _u.maxLimit) || 2e6;
-  const gratuity = ((_v = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _v.enabled) !== false && yrs >= gratMinYrs ? Math.min(Math.round(pfBase / 26 * 15 * Math.floor(yrs)), gratMax) : 0;
+  const gratMinYrs = ((_v = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _v.minServiceYears) || 5;
+  const gratMax = ((_w = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _w.maxLimit) || 2e6;
+  const gratuity = ((_x = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _x.enabled) !== false && yrs >= gratMinYrs ? Math.min(Math.round(pfBase / 26 * 15 * Math.floor(yrs)), gratMax) : 0;
   return {
     g,
     pfBase,
     pfE,
     pfR,
+    pfEPS,
+    pfEPF_er,
     esE,
     esR,
     pt,
@@ -749,7 +754,7 @@ td.amount{text-align:right;font-weight:600}
   <div>
     <table>
       <tr><th colspan="2">Deductions</th></tr>
-      ${p.pfE > 0 ? `<tr class="deduction"><td>PF \u2014 Employee (12%)</td><td class="amount">\u20B9${p.pfE.toLocaleString("en-IN")}</td></tr>` : ""}
+      ${p.pfE > 0 ? `<tr class="deduction"><td>PF \u2014 Employee Contribution (12% of \u20B9${Math.min(+emp.basic || 0, 15e3).toLocaleString("en-IN")} basic)</td><td class="amount">\u20B9${p.pfE.toLocaleString("en-IN")}</td></tr>` : ""}
       ${p.esE > 0 ? `<tr class="deduction"><td>ESIC \u2014 Employee (0.75%)</td><td class="amount">\u20B9${p.esE.toLocaleString("en-IN")}</td></tr>` : ""}
       ${p.pt > 0 ? `<tr class="deduction"><td>Professional Tax</td><td class="amount">\u20B9${p.pt.toLocaleString("en-IN")}</td></tr>` : ""}
       ${p.tds > 0 ? `<tr class="deduction"><td>TDS (Income Tax)</td><td class="amount">\u20B9${p.tds.toLocaleString("en-IN")}</td></tr>` : ""}
@@ -785,7 +790,7 @@ td.amount{text-align:right;font-weight:600}
       <tr class="subtotal"><td>Total Deductions</td><td class="amount">\u20B9${p.ded.toLocaleString("en-IN")}</td></tr>
     </table>
     <div style="margin-top:10px;padding:10px 12px;background:#e8f5e9;border-radius:6px;font-size:11px">
-      <div>Employer PF: <b>\u20B9${p.pfR.toLocaleString("en-IN")}</b> \xB7 Employer ESIC: <b>\u20B9${p.esR.toLocaleString("en-IN")}</b></div>
+      <div>Employer PF: <b>\u20B9${p.pfR.toLocaleString("en-IN")}</b> (EPF \u20B9${(p.pfEPF_er || 0).toLocaleString("en-IN")} + EPS \u20B9${(p.pfEPS || 0).toLocaleString("en-IN")}) \xB7 Employer ESIC: <b>\u20B9${p.esR.toLocaleString("en-IN")}</b></div>
       <div style="margin-top:3px;color:#888">Not deducted from salary \u2014 shown for CTC reference only</div>
     </div>
   </div>
