@@ -1,21 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v10.1 FIX DEFAULT_POLICIES -->
+<!-- PAYROLLA v10.2 — BLANK_EMP + DEFAULT_POLICIES FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v10.1...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v10.2...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script>const{useState,useEffect,useCallback,useRef}=React;const{createClient}=supabase;</script>
 <script>
-class ErrorBoundary extends React.Component{constructor(p){super(p);this.state={error:null};}static getDerivedStateFromError(e){return{error:e};}componentDidCatch(e,i){console.error("Payrolla:",e,i);}render(){if(this.state.error){const e=this.state.error;return React.createElement("div",{style:{padding:40,fontFamily:"monospace",background:"#fff"}},React.createElement("h2",{style:{color:"#c62828",marginBottom:12}},"Error — Screenshot this"),React.createElement("div",{style:{background:"#ffebee",padding:16,borderRadius:8,marginBottom:12,fontWeight:"bold"}},e.message),React.createElement("pre",{style:{background:"#f5f5f5",padding:16,fontSize:11,overflow:"auto"}},e.stack));}return this.props.children;}}
+class ErrorBoundary extends React.Component{constructor(p){super(p);this.state={error:null};}static getDerivedStateFromError(e){return{error:e};}componentDidCatch(e,i){console.error("Payrolla:",e,i);}render(){if(this.state.error){const e=this.state.error;return React.createElement("div",{style:{padding:40,fontFamily:"monospace",background:"#fff",minHeight:"100vh"}},React.createElement("h2",{style:{color:"#c62828",marginBottom:12}},"Payrolla Error — Screenshot & Share"),React.createElement("div",{style:{background:"#ffebee",padding:16,borderRadius:8,marginBottom:12,fontWeight:"bold",fontSize:14}},e.message),React.createElement("pre",{style:{background:"#f5f5f5",padding:16,fontSize:11,overflow:"auto",borderRadius:8}},e.stack));}return this.props.children;}}
 const SUPABASE_URL = "https://ughybjrpggoutpoutkpz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnaHlianJwZ2dvdXRwb3V0a3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NTI2NTAsImV4cCI6MjA5ODAyODY1MH0.EjNOd3euAs_fEyDL_aE93L-r9aosMLqyamnyDk1AY7c";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -893,6 +893,51 @@ td.amount{text-align:right;font-weight:600}
   if (onClose) onClose();
   return null;
 }
+const BLANK_EMP = {
+  code: "",
+  name: "",
+  dob: "",
+  doj: "",
+  gen: "",
+  fatherName: "",
+  maritalStatus: "",
+  location: "",
+  email: "",
+  phone: "",
+  pan: "",
+  aadhaar: "",
+  dept: "",
+  desig: "",
+  cat: "Permanent",
+  shift: "General",
+  status: "Active",
+  basic: "",
+  hra: "",
+  conv: "1600",
+  med: "1250",
+  spl: "",
+  lta: "0",
+  pf: true,
+  pfNo: "",
+  esic: false,
+  esicNo: "",
+  pt: true,
+  uan: "",
+  itRegime: "",
+  tdsOverride: "",
+  decl80c: "",
+  decl80d: "",
+  declNps: "",
+  declHra: "",
+  declOther: "",
+  bank: "",
+  bankBranch: "",
+  acc: "",
+  ifsc: "",
+  mwCategory: "unskilled",
+  note: "",
+  lwf: true
+};
 function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
   const [f, setF] = useState(emp ? { ...BLANK_EMP, ...emp } : { ...BLANK_EMP });
@@ -4906,7 +4951,7 @@ function App() {
   return null;
 }
 
-try{ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(ErrorBoundary,null,React.createElement(App)));}catch(e){document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace;background:#fff"><h2 style="color:red">Error: '+e.message+'</h2><pre>'+e.stack+'</pre></div>';}
+try{ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(ErrorBoundary,null,React.createElement(App)));}catch(e){document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace;background:#fff"><h2 style="color:red">Load Error: '+e.message+'</h2><pre style="margin-top:12px;font-size:11px;background:#eee;padding:12px">'+e.stack+'</pre></div>';}
 </script>
 </body>
 </html>
