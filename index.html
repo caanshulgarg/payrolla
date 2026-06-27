@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v14.4 — SALARY SETUP FIXED -->
+<!-- PAYROLLA v14.5 — CTC SALARY STRUCTURE -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v14.4...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v14.5...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -1413,6 +1413,10 @@ const BLANK_EMP = {
   cat: "Permanent",
   shift: "General",
   status: "Active",
+  _salMode: "basic",
+  _ctc: "",
+  _hraPct: "40",
+  // salary input mode
   basic: "",
   hra: "",
   conv: "",
@@ -1550,7 +1554,63 @@ function EmpForm({ emp, onSave, onClose, pol = DEFAULT_POLICIES }) {
     const lwfI = typeof LWF_TABLE !== "undefined" ? LWF_TABLE[state] : null;
     const noTax = ["Delhi", "Rajasthan", "Uttar Pradesh", "Haryana", "Himachal Pradesh", "Uttarakhand", "Jammu & Kashmir"].includes(state);
     return /* @__PURE__ */ React.createElement("div", { style: { background: "#fff8f0", borderRadius: 8, padding: "10px 14px", height: "100%", display: "flex", flexDirection: "column", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: "#e65100" } }, "\u{1F4CA} Statutory for ", state, ":"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, fontSize: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#666" } }, "Professional Tax: "), noTax ? /* @__PURE__ */ React.createElement("b", { style: { color: "#1b5e20" } }, "\u20B90 (Not applicable)") : /* @__PURE__ */ React.createElement("b", { style: { color: "#6a1b9a" } }, "\u20B9", ptAmt, "/month", state === "Maharashtra" ? " (Feb \u20B9300)" : "")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { color: "#666" } }, "LWF: "), lwfI ? /* @__PURE__ */ React.createElement("b", { style: { color: "#e65100" } }, "\u20B9", lwfI.emp, " emp + \u20B9", lwfI.emr, " emr (", lwfI.freq === "monthly" ? "monthly" : lwfI.freq === "biannual" ? "Jun+Dec" : "Dec", ")") : /* @__PURE__ */ React.createElement("b", { style: { color: "#888" } }, "Not applicable"))), f.workState && f.workState !== ((_b2 = pol == null ? void 0 : pol.pt) == null ? void 0 : _b2.state) && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#1565c0", background: "#e3f2fd", borderRadius: 4, padding: "3px 8px" } }, "\u2139 This employee's PT/LWF uses ", f.workState, " rates (different from company state: ", (_c2 = pol == null ? void 0 : pol.pt) == null ? void 0 : _c2.state, ")"));
-  })()))), /* @__PURE__ */ React.createElement(Divider, { t: "Salary Structure (\u20B9 / month)" }), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: errs.basic ? "#c62828" : "#888", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.5 } }, "Basic Salary (\u20B9) ", /* @__PURE__ */ React.createElement("span", { style: { color: "#c62828" } }, "*")), /* @__PURE__ */ React.createElement(
+  })()))), /* @__PURE__ */ React.createElement(Divider, { t: "Salary Structure" }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0, background: "#f0f0f0", borderRadius: 8, padding: 2, marginBottom: 16, width: "fit-content" } }, [["ctc", "Enter Annual CTC (recommended)"], ["basic", "Enter component-wise"]].map(([m, l]) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: m,
+      onClick: () => setF((p2) => ({ ...p2, _salMode: m })),
+      style: {
+        padding: "6px 16px",
+        border: "none",
+        borderRadius: 7,
+        fontSize: 12,
+        cursor: "pointer",
+        fontWeight: 500,
+        background: f._salMode === m || !f._salMode && m === "basic" ? "#1a237e" : "transparent",
+        color: f._salMode === m || !f._salMode && m === "basic" ? "#fff" : "#666",
+        transition: "all .15s"
+      }
+    },
+    l
+  ))), f._salMode === "ctc" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Annual CTC (\u20B9) *"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      value: f._ctc || "",
+      min: "0",
+      step: "10000",
+      onChange: (e) => {
+        const ctc = +e.target.value || 0;
+        const hraPct = +(f._hraPct || 40) / 100;
+        const basic = Math.round(ctc / 12 * 0.5);
+        const hra = Math.round(basic * hraPct);
+        const conv = 1600, med = 1250;
+        const spl = Math.max(0, Math.round(ctc / 12 - basic - hra - conv - med));
+        setF((p2) => ({ ...p2, _ctc: String(ctc), basic: String(basic), hra: String(hra), conv: String(conv), med: String(med), spl: String(spl), lta: "0" }));
+      },
+      placeholder: "e.g. 6,00,000",
+      style: { width: "100%", padding: "10px 12px", border: "1.5px solid #1a237e", borderRadius: 8, fontSize: 14, fontWeight: 700, outline: "none" }
+    }
+  ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 3 } }, "System auto-distributes: Basic 50%, HRA ", f._hraPct || 40, "%, Conv \u20B91,600, Med \u20B91,250, rest as Special Allowance")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "HRA % of Basic"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      value: f._hraPct || "40",
+      onChange: (e) => {
+        const pct = +e.target.value;
+        const hra = Math.round(+f.basic * pct / 100);
+        setF((p2) => ({ ...p2, _hraPct: String(pct), hra: String(hra) }));
+      },
+      style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
+    },
+    /* @__PURE__ */ React.createElement("option", { value: "40" }, "40% \u2014 Non-metro cities"),
+    /* @__PURE__ */ React.createElement("option", { value: "50" }, "50% \u2014 Metro (Delhi, Mumbai, Bengaluru, Chennai, Kolkata, Hyderabad, Pune, Ahmedabad)")
+  ))), +f._ctc > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "#f8f9ff", border: "1px solid #e8eaf6", borderRadius: 10, padding: "12px 16px", marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: "#1a237e", marginBottom: 8 } }, "Auto-calculated breakdown"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 24px" } }, [
+    ["Basic (50% of CTC/12)", f.basic, false],
+    ["HRA (" + (f._hraPct || 40) + "% of basic)", f.hra, false],
+    ["Conveyance", f.conv || "1600", true],
+    ["Medical", f.med || "1250", true],
+    ["Special Allowance", f.spl, false]
+  ].map(([l, v, taxFree]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid #eee", fontSize: 12 } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#666" } }, l, taxFree && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: "#1b5e20", marginLeft: 4 } }, "tax-free")), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600 } }, INR(+v || 0)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 13, gridColumn: "span 2", borderTop: "1px solid #c5cae9", marginTop: 2 } }, /* @__PURE__ */ React.createElement("b", { style: { color: "#1a237e" } }, "Monthly Gross"), /* @__PURE__ */ React.createElement("b", { style: { color: "#1a237e" } }, INR(p.g)))))), (!f._salMode || f._salMode === "basic") && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { background: "#fffde7", border: "1px solid #ffe082", borderRadius: 8, padding: "8px 14px", marginBottom: 12, fontSize: 12, color: "#795548" } }, "\u{1F4A1} Enter basic salary first \u2014 HRA auto-fills at ", f._hraPct || 40, "% and allowances pre-fill at standard limits"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: errs.basic ? "#c62828" : "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Basic (\u20B9) * ", /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 400, fontSize: 10, color: "#888" } }, "\u2014 basis for PF, gratuity, PT")), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "number",
@@ -1560,7 +1620,7 @@ function EmpForm({ emp, onSave, onClose, pol = DEFAULT_POLICIES }) {
       placeholder: "e.g. 25,000",
       style: { width: "100%", padding: "10px 12px", border: `1.5px solid ${errs.basic ? "#ef5350" : "#1a237e"}`, borderRadius: 8, fontSize: 14, fontWeight: 700, outline: "none" }
     }
-  ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 3 } }, "PF calculated on this (capped at \u20B915,000) \xB7 Sets HRA automatically at 40%"), +f.basic > 0 && +f.basic < 5e3 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#e65100", marginTop: 2 } }, "\u26A0 Very low \u2014 verify"), errs.basic && /* @__PURE__ */ React.createElement("div", { style: { color: "#c62828", fontSize: 11, marginTop: 2 } }, "\u26A0 ", errs.basic)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.5 } }, "HRA (\u20B9)", !hraManual && +f.basic > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 400, color: "#1b5e20", marginLeft: 6, fontSize: 10 } }, "\u2713 Auto-filled (40% of basic)"), hraManual && /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 400, color: "#1565c0", marginLeft: 6, fontSize: 10 } }, "\u270F Manually set")), /* @__PURE__ */ React.createElement(
+  ), +f.basic > 0 && +f.basic < 5e3 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#e65100", marginTop: 2 } }, "\u26A0 Very low \u2014 check minimum wages"), errs.basic && /* @__PURE__ */ React.createElement("div", { style: { color: "#c62828", fontSize: 11, marginTop: 2 } }, "\u26A0 ", errs.basic)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "HRA (\u20B9)", !hraManual && +f.basic > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 400, color: "#1b5e20", marginLeft: 6, fontSize: 10 } }, "\u2713 Auto (", f._hraPct || 40, "% of basic)"), hraManual && /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 400, color: "#1565c0", marginLeft: 6, fontSize: 10 } }, "\u270F Override")), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "number",
@@ -1570,10 +1630,25 @@ function EmpForm({ emp, onSave, onClose, pol = DEFAULT_POLICIES }) {
         setHraManual(true);
         set("hra", e.target.value);
       },
-      placeholder: "Auto-fills at 40% of basic",
+      placeholder: "Auto",
       style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
     }
-  ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 3 } }, "Usually 40\u201350% of basic \xB7 Edit to override"))), /* @__PURE__ */ React.createElement(G, { cols: 3 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Conveyance (\u20B9)", fkey: "conv", type: "number", ph: "1,600", note: "Max \u20B91,600/mo tax-free" }), /* @__PURE__ */ React.createElement(SmInp, { label: "Medical (\u20B9)", fkey: "med", type: "number", ph: "1,250", note: "Max \u20B91,250/mo tax-free" }), /* @__PURE__ */ React.createElement(SmInp, { label: "Special Allowance (\u20B9)", fkey: "spl", type: "number", ph: "0" }), /* @__PURE__ */ React.createElement(SmInp, { label: "LTA (\u20B9)", fkey: "lta", type: "number", ph: "0", note: "Leave Travel Allowance" })), +f.basic > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "#e8eaf6", borderRadius: 10, padding: "12px 16px", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: "#1a237e", marginBottom: 8 } }, "\u{1F4CA} Live Salary Summary"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, fontSize: 13 } }, /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", background: "#fff", borderRadius: 7, padding: "8px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 15, color: "#1a237e" } }, INR(p.g)), /* @__PURE__ */ React.createElement("div", { style: { color: "#888", fontSize: 10, marginTop: 2 } }, "Gross")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", background: "#fff", borderRadius: 7, padding: "8px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 15, color: "#c62828" } }, "-", INR(p.ded)), /* @__PURE__ */ React.createElement("div", { style: { color: "#888", fontSize: 10, marginTop: 2 } }, "Deductions")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", background: "#fff", borderRadius: 7, padding: "8px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 15, color: "#1b5e20" } }, INR(p.net)), /* @__PURE__ */ React.createElement("div", { style: { color: "#888", fontSize: 10, marginTop: 2 } }, "Net Pay")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", background: "#fff", borderRadius: 7, padding: "8px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 15, color: "#e65100" } }, INR(p.ctc)), /* @__PURE__ */ React.createElement("div", { style: { color: "#888", fontSize: 10, marginTop: 2 } }, "CTC"))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11, color: "#666", display: "flex", gap: 12, flexWrap: "wrap" } }, p.pfE > 0 && /* @__PURE__ */ React.createElement("span", null, "PF: \u20B9", p.pfE, "/mo"), p.esE > 0 && /* @__PURE__ */ React.createElement("span", null, "ESIC: \u20B9", p.esE, "/mo"), p.pt > 0 && /* @__PURE__ */ React.createElement("span", null, "PT: \u20B9", p.pt, "/mo"), p.tds > 0 && /* @__PURE__ */ React.createElement("span", null, "TDS: \u20B9", p.tds, "/mo"), p.lwfE > 0 && /* @__PURE__ */ React.createElement("span", null, "LWF: \u20B9", p.lwfE, "/applicable month"))), /* @__PURE__ */ React.createElement(Divider, { t: "Statutory Deductions" }), /* @__PURE__ */ React.createElement(Divider, { t: "Statutory Deductions" }), (() => {
+  ))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 } }, [
+    { k: "conv", label: "Conveyance (\u20B9)", note: "Max \u20B91,600 tax-free", ph: "1,600" },
+    { k: "med", label: "Medical (\u20B9)", note: "Max \u20B91,250 tax-free", ph: "1,250" },
+    { k: "spl", label: "Special Allowance (\u20B9)", note: "Fully taxable", ph: "0" },
+    { k: "lta", label: "LTA (\u20B9)", note: "Leave Travel \u2014 tax exempt with proof", ph: "0" }
+  ].map((f2) => /* @__PURE__ */ React.createElement("div", { key: f2.k }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 10, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f2.label), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      value: f[f2.k] || "",
+      min: "0",
+      onChange: (e) => set(f2.k, e.target.value),
+      placeholder: f2.ph,
+      style: { width: "100%", padding: "8px 10px", border: "1.5px solid #ddd", borderRadius: 7, fontSize: 13, outline: "none" }
+    }
+  ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#aaa", marginTop: 2 } }, f2.note))))), +f.basic > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "#e8eaf6", borderRadius: 10, padding: "12px 16px", marginTop: 14, marginBottom: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: "#1a237e", marginBottom: 8 } }, "\u{1F4CA} Monthly Salary Summary"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 } }, [["Gross", INR(p.g), "#1a237e"], ["Deductions", "-" + INR(p.ded), "#c62828"], ["Net Pay", INR(p.net), "#1b5e20"], ["CTC", INR(p.ctc), "#e65100"]].map(([l, v, c]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { background: "#fff", borderRadius: 7, padding: "8px 6px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 14, color: c } }, v), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, l)))), (p.pfE > 0 || p.pt > 0 || p.tds > 0) && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11, color: "#546e7a", display: "flex", gap: 10, flexWrap: "wrap" } }, p.pfE > 0 && /* @__PURE__ */ React.createElement("span", null, "PF: ", INR(p.pfE), "/mo"), p.esE > 0 && /* @__PURE__ */ React.createElement("span", null, "ESIC: ", INR(p.esE), "/mo"), p.pt > 0 && /* @__PURE__ */ React.createElement("span", null, "PT: ", INR(p.pt), "/mo"), p.tds > 0 && /* @__PURE__ */ React.createElement("span", null, "TDS: ", INR(p.tds), "/mo"), p.lwfE > 0 && /* @__PURE__ */ React.createElement("span", null, "LWF: ", INR(p.lwfE), "/period"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#aaa", marginBottom: 12, marginTop: 4 } }, "Note: ", f._salMode === "ctc" ? "Annual CTC = Gross \xD7 12 + Employer PF \u20B921,600 + Gratuity provision" : "CTC shown includes employer contributions (PF, ESIC, LWF)"), /* @__PURE__ */ React.createElement(Divider, { t: "Statutory Deductions" }), (() => {
     var _a2, _b2, _c2;
     try {
       const gross = p.g || 0;
