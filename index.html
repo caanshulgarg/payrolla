@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v14.2 — RECOMMENDATORY STATUTORY -->
+<!-- PAYROLLA v14.3 — EMPLOYEE PORTAL FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v14.2...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v14.3...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -23,7 +23,12 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 async function sbLogin(email, password) {
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (error.message.toLowerCase().includes("email not confirmed") || error.message.toLowerCase().includes("confirm")) {
+      throw new Error("Please confirm your email first \u2014 check your inbox for a confirmation link from Supabase. Or ask HR to disable email confirmation in Supabase settings.");
+    }
+    throw new Error(error.message);
+  }
   const meta = data.user.user_metadata || {};
   return {
     id: data.user.id,
@@ -36,30 +41,38 @@ async function sbLogin(email, password) {
   };
 }
 async function createEmployeeAccount(emp, companyName = "Your Company") {
-  var _a;
-  const dob = emp.dob ? emp.dob.replace(/-/g, "").slice(4) + emp.dob.replace(/-/g, "").slice(2, 4) + emp.dob.replace(/-/g, "").slice(0, 4) : "Pass123";
-  const tempPw = (emp.code || "EMP") + "@" + dob.slice(0, 8);
-  const email = (_a = emp.email) == null ? void 0 : _a.trim();
-  if (!email) return { success: false, error: "Employee email required to send invitation" };
+  var _a, _b;
+  const dob = emp.dob ? emp.dob.slice(8, 10) + emp.dob.slice(5, 7) + emp.dob.slice(0, 4) : "Pass123";
+  const tempPw = (emp.code || "EMP") + "@" + dob;
+  const email = (_a = emp.email) == null ? void 0 : _a.trim().toLowerCase();
+  if (!email) return { success: false, noEmail: true, password: tempPw };
+  let authOk = false, authErr = null;
   try {
     const { data, error } = await sb.auth.signUp({
       email,
       password: tempPw,
-      options: {
-        data: {
-          role: "emp",
-          name: emp.name,
-          employee_id: emp.id
-        }
-      }
+      options: { data: { role: "emp", name: emp.name, employee_id: emp.id } }
     });
-    if (error && !error.message.includes("already registered")) {
-      return { success: false, error: error.message };
+    if (error) {
+      if (error.message.toLowerCase().includes("already registered")) authOk = true;
+      else authErr = error.message;
+    } else {
+      authOk = true;
     }
-    try {
+  } catch (e) {
+    authErr = e.message;
+  }
+  let emailSent = false;
+  try {
+    const settings = JSON.parse(localStorage.getItem("payrolla_settings") || "{}");
+    const sid = settings.emailJsServiceId || "service_payrolla";
+    const tid = settings.emailJsTemplateId || "template_emp_invite";
+    const pid = settings.emailJsPublicKey;
+    if (pid) {
       await loadEmailJS();
       if (window.emailjs) {
-        await window.emailjs.send("service_payrolla", "template_emp_invite", {
+        window.emailjs.init({ publicKey: pid });
+        await window.emailjs.send(sid, tid, {
           to_email: email,
           to_name: emp.name || "Employee",
           company_name: companyName,
@@ -69,17 +82,37 @@ async function createEmployeeAccount(emp, companyName = "Your Company") {
           login_url: window.location.href,
           login_email: email,
           login_password: tempPw,
-          doj: emp.doj || "\u2014",
-          message: `Welcome to ${companyName}! You can now log in to Payrolla to view your salary slips, attendance, and fill your personal details (PAN, bank account, Aadhaar).`
+          doj: emp.doj || "\u2014"
         });
+        emailSent = true;
       }
-    } catch (emailErr) {
-      console.warn("Email send failed:", emailErr.message);
     }
-    return { success: true, email, password: tempPw };
-  } catch (err) {
-    return { success: false, error: err.message };
+  } catch (e) {
+    console.warn("EmailJS:", e.message);
   }
+  return {
+    success: authOk,
+    email,
+    password: tempPw,
+    emailSent,
+    authErr,
+    needsConfirmation: authOk && !emailSent,
+    whatsappMsg: `Hi ${((_b = emp.name) == null ? void 0 : _b.split(" ")[0]) || ""},
+
+You have been added to ${companyName}'s payroll system (Payrolla).
+
+Please login at:
+${window.location.href}
+
+Login as: Employee
+Email: ${email}
+Password: ${tempPw}
+
+Please fill your PAN, Aadhaar and bank details after login.
+
+Regards,
+HR Team`
+  };
 }
 async function sbLogout() {
   await sb.auth.signOut();
@@ -215,7 +248,51 @@ function fromDbEmp(e) {
   return { id: e.id, code: e.code || "", name: e.name || "", dob: e.dob || "", doj: e.doj || "", gen: e.gender || "", dept: e.dept || "", desig: e.desig || "", email: e.email || "", phone: e.phone || "", pan: e.pan || "", aadhaar: e.aadhaar || "", bank: e.bank || "", acc: e.acc || "", ifsc: e.ifsc || "", basic: +e.basic || 0, hra: +e.hra || 0, conv: +e.conv || 0, med: +e.med || 0, spl: +e.spl || 0, lta: +e.lta || 0, pf: !!e.pf, esic: !!e.esic, pt: !!e.pt, itRegime: e.it_regime || "", status: e.status || "Active", cat: e.cat || "Permanent", shift: e.shift || "General", note: e.note || "" };
 }
 function toDbEmp(e) {
-  return { code: e.code, name: e.name, dob: e.dob || null, doj: e.doj, gender: e.gen, dept: e.dept, desig: e.desig, email: e.email, phone: e.phone, pan: e.pan, aadhaar: e.aadhaar, bank: e.bank, acc: e.acc, ifsc: e.ifsc, basic: +e.basic || 0, hra: +e.hra || 0, conv: +e.conv || 0, med: +e.med || 0, spl: +e.spl || 0, lta: +e.lta || 0, pf: !!e.pf, esic: !!e.esic, pt: !!e.pt, it_regime: e.itRegime || "new", status: e.status, cat: e.cat, shift: e.shift, note: e.note || null };
+  return {
+    code: e.code,
+    name: e.name,
+    dob: e.dob || null,
+    doj: e.doj,
+    gender: e.gen,
+    dept: e.dept,
+    desig: e.desig,
+    email: e.email,
+    phone: e.phone,
+    pan: e.pan,
+    aadhaar: e.aadhaar,
+    bank: e.bank,
+    acc: e.acc,
+    ifsc: e.ifsc,
+    bank_branch: e.bankBranch || null,
+    work_state: e.workState || null,
+    // ← was missing!
+    pf_no: e.pfNo || null,
+    uan: e.uan || null,
+    // ← was missing!
+    esic_no: e.esicNo || null,
+    // ← was missing!
+    father_name: e.fatherName || null,
+    // ← was missing!
+    marital_status: e.maritalStatus || null,
+    // ← was missing!
+    mw_category: e.mwCategory || null,
+    location: e.location || null,
+    basic: +e.basic || 0,
+    hra: +e.hra || 0,
+    conv: +e.conv || 0,
+    med: +e.med || 0,
+    spl: +e.spl || 0,
+    lta: +e.lta || 0,
+    pf: !!e.pf,
+    esic: !!e.esic,
+    pt: !!e.pt,
+    lwf: !!e.lwf,
+    it_regime: e.itRegime || "new",
+    status: e.status,
+    cat: e.cat,
+    shift: e.shift,
+    note: e.note || null
+  };
 }
 function fromDbLeave(l) {
   return { id: l.id, eid: l.employee_id, ename: l.ename, type: l.type, from: l.from_date, to: l.to_date, days: l.days, reason: l.reason, status: l.status, on: l.applied_on || TODAY };
@@ -4922,15 +4999,41 @@ Powered by Payrolla.in`);
     }
     setBulkDateModal(false);
     setBulkEmpIds([]);
-  } }, "\u2713 Mark ", bulkEmpIds.length, " Employees as ", bulkStatusVal)))), inviteResult && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 800, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setInviteResult(null) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, padding: 32, width: 460, boxShadow: "0 20px 60px rgba(0,0,0,.3)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 48, marginBottom: 8 } }, inviteResult.manualOnly ? "\u{1F511}" : "\u2709\uFE0F"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 18, color: "#1b5e20" } }, inviteResult.manualOnly ? "Share Login Manually" : "Invitation Sent!"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginTop: 4 } }, inviteResult.name)), /* @__PURE__ */ React.createElement("div", { style: { background: "#f4f5fa", borderRadius: 10, padding: 16, marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", marginBottom: 8 } }, "Employee Login Credentials"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, fontSize: 13 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#666" } }, "Portal URL"), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, color: "#1a237e", fontSize: 11 } }, window.location.href)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#666" } }, "Login as"), /* @__PURE__ */ React.createElement("span", { style: { background: "#e8eaf6", color: "#1a237e", padding: "2px 10px", borderRadius: 6, fontWeight: 700, fontSize: 11 } }, "Employee")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#666" } }, "Email"), /* @__PURE__ */ React.createElement("b", { style: { color: "#333" } }, inviteResult.email)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#666" } }, "Temp Password"), /* @__PURE__ */ React.createElement("b", { style: { color: "#c62828", fontFamily: "monospace", fontSize: 14 } }, inviteResult.password)))), inviteResult.manualOnly && /* @__PURE__ */ React.createElement("div", { style: { background: "#fff3e0", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#e65100" } }, "\u26A0 No email address on file. Share these credentials with the employee directly (WhatsApp, SMS, or in person). They should change the password after first login."), !inviteResult.manualOnly && /* @__PURE__ */ React.createElement("div", { style: { background: "#e8f5e9", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#1b5e20" } }, "\u2713 Welcome email sent to ", inviteResult.email, " with login instructions and a request to fill their personal details."), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 16, lineHeight: 1.7 } }, /* @__PURE__ */ React.createElement("b", null, "Employee should:"), /* @__PURE__ */ React.createElement("div", null, "1. Login with the above credentials"), /* @__PURE__ */ React.createElement("div", null, "2. Fill PAN, Aadhaar, bank account, emergency contact"), /* @__PURE__ */ React.createElement("div", null, "3. View salary slips and attendance")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+  } }, "\u2713 Mark ", bulkEmpIds.length, " Employees as ", bulkStatusVal)))), inviteResult && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setInviteResult(null) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 20px 60px rgba(0,0,0,.3)", overflow: "hidden" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1b5e20", padding: "18px 24px", color: "#fff" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17 } }, "\u2705 ", inviteResult.name, " Added"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, opacity: 0.8, marginTop: 4 } }, "Share login credentials with the employee")), /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#f4f5fa", borderRadius: 10, padding: 14, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", marginBottom: 10, letterSpacing: 0.5 } }, "Login Details"), [
+    ["\u{1F310} Portal URL", window.location.href.split("?")[0]],
+    ["\u{1F464} Login as", "Employee"],
+    ["\u{1F4E7} Email / Username", inviteResult.email || "(no email \u2014 use Employee Code)"],
+    ["\u{1F511} Temp Password", inviteResult.password]
+  ].map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #e8eaf6" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "#666" } }, l), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 13, color: l.includes("Password") ? "#c62828" : "#1a237e", fontFamily: l.includes("Password") || l.includes("URL") ? "monospace" : "inherit" } }, v)))), inviteResult.needsConfirmation && /* @__PURE__ */ React.createElement("div", { style: { background: "#fff3e0", border: "1px solid #ffcc80", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#e65100", lineHeight: 1.6 } }, /* @__PURE__ */ React.createElement("b", null, "\u26A0\uFE0F One-time Supabase setup needed:"), /* @__PURE__ */ React.createElement("br", null), "Supabase sends a confirmation email by default. Go to:", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, 'Supabase \u2192 Authentication \u2192 Providers \u2192 Email \u2192 disable "Confirm email"'), /* @__PURE__ */ React.createElement("br", null), "Until then, employee must click the Supabase confirmation email before they can login."), inviteResult.emailSent && /* @__PURE__ */ React.createElement("div", { style: { background: "#e8f5e9", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 12, color: "#1b5e20" } }, "\u2713 Welcome email sent to ", inviteResult.email), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#666", marginBottom: 14, lineHeight: 1.7, background: "#f8f9ff", borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("b", null, "Employee steps after first login:"), /* @__PURE__ */ React.createElement("div", null, "1. Login with the above credentials at this same URL"), /* @__PURE__ */ React.createElement("div", null, '2. Fill in PAN, Aadhaar and bank details in "My Details" tab'), /* @__PURE__ */ React.createElement("div", null, "3. View salary slips and attendance records")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
     var _a2;
-    (_a2 = navigator.clipboard) == null ? void 0 : _a2.writeText(`Payrolla Login
-URL: ${window.location.href}
+    const txt = `Hi ${((_a2 = inviteResult.name) == null ? void 0 : _a2.split(" ")[0]) || ""},
+
+Your login details for Payrolla (payroll portal):
+
+URL: ${window.location.href.split("?")[0]}
+Login as: Employee
 Email: ${inviteResult.email}
 Password: ${inviteResult.password}
-Login as: Employee`);
-    showToast("Credentials copied to clipboard \u2713");
-  }, style: { flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 9, background: "#fff", cursor: "pointer", fontSize: 13 } }, "\u{1F4CB} Copy Credentials"), /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { flex: 1, padding: "10px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: 520, boxShadow: "0 20px 60px rgba(0,0,0,.25)", overflow: "hidden" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
+
+Please login and fill your PAN, Aadhaar and bank details.
+
+Regards, HR`;
+    if (navigator.clipboard) navigator.clipboard.writeText(txt);
+    showToast("WhatsApp message copied \u2713 \u2014 paste in WhatsApp");
+  }, style: { flex: 1, padding: "10px 14px", border: "none", borderRadius: 9, background: "#25d366", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u{1F4F1} Copy for WhatsApp"), inviteResult.email && /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    const sub = "Your Payrolla Login Details";
+    const body = `Hi ${inviteResult.name},
+
+Login URL: ${window.location.href.split("?")[0]}
+Login as: Employee
+Email: ${inviteResult.email}
+Password: ${inviteResult.password}
+
+Please fill your PAN, Aadhaar and bank details after login.
+
+Regards, HR`;
+    window.open(`mailto:${inviteResult.email}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`);
+  }, style: { flex: 1, padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 9, background: "#fff", color: "#1a237e", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2709\uFE0F Send Email"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { padding: "9px 28px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: 520, boxShadow: "0 20px 60px rgba(0,0,0,.25)", overflow: "hidden" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
     const done = qaStep > +n;
     const active2 = qaStep === +n;
     return /* @__PURE__ */ React.createElement("div", { key: n, style: { display: "flex", alignItems: "center", flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: 12, background: done ? "#69f0ae" : active2 ? "#fff" : "rgba(255,255,255,.2)", color: done ? "#1b5e20" : active2 ? "#1a237e" : "rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0 } }, done ? "\u2713" : n), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: active2 ? "#fff" : done ? "#69f0ae" : "rgba(255,255,255,.4)", fontWeight: active2 ? 700 : 400 } }, l)), i < 2 && /* @__PURE__ */ React.createElement("div", { style: { flex: 1, height: 1, background: "rgba(255,255,255,.2)", margin: "0 8px" } }));
@@ -5122,19 +5225,16 @@ Login as: Employee`);
       } catch (e) {
         showToast(`${newEmp.name} saved locally`, "warn");
       }
-      if (newEmp.email) {
-        const invRes = await createEmployeeAccount(savedEmp, (co == null ? void 0 : co.name) || "Your Company");
-        if (invRes.success) {
-          setInviteResult({ name: newEmp.name, email: invRes.email, password: invRes.password });
-          showToast(`${newEmp.name} added + invitation sent \u2713`);
-        } else {
-          const tempPw = (newEmp.code || "EMP") + "@Pass123";
-          setInviteResult({ name: newEmp.name, email: newEmp.email || "(no email)", password: tempPw, manualOnly: true });
-          showToast(`${newEmp.name} added \u2713 (share login manually)`);
-        }
-      } else {
-        showToast(`${newEmp.name} added \u2713 \u2014 add email to send login invite`);
-      }
+      const invRes = await createEmployeeAccount(savedEmp, (co == null ? void 0 : co.name) || "Your Company");
+      setInviteResult({
+        name: savedEmp.name,
+        email: invRes.email || (savedEmp.email ? "" : null),
+        password: invRes.password,
+        emailSent: invRes.emailSent,
+        needsConfirmation: invRes.needsConfirmation || false,
+        noEmail: invRes.noEmail
+      });
+      showToast(invRes.emailSent ? `${savedEmp.name} added + email sent \u2713` : `${savedEmp.name} added \u2713 \u2014 share login manually`);
     }
   }, style: { padding: "9px 22px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, qaStep < 3 ? "Continue \u2192" : "\u2713 Add Employee")))), quickEdit && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 500, display: "flex", justifyContent: "flex-end" }, onClick: () => setQuickEdit(null) }, /* @__PURE__ */ React.createElement("div", { style: { width: 420, background: "#fff", height: "100%", boxShadow: "-8px 0 40px rgba(0,0,0,.15)", display: "flex", flexDirection: "column", animation: "slideIn .2s ease" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 20px", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1a237e", color: "#fff" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16 } }, "Quick Edit"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, opacity: 0.7, marginTop: 2 } }, quickEdit.name, " \xB7 ", quickEdit.code)), /* @__PURE__ */ React.createElement("button", { onClick: () => setQuickEdit(null), style: { background: "rgba(255,255,255,.15)", border: "none", borderRadius: 8, color: "#fff", width: 32, height: 32, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" } }, "\xD7")), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#f8fff8", border: "1px solid #c8e6c9", borderRadius: 10, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#1b5e20", marginBottom: 10 } }, "\u{1F4B0} Salary"), [
     { k: "basic", label: "Basic (\u20B9)", note: "PF & PT calculated on this" },
@@ -5242,21 +5342,19 @@ function EmployeePortal({ user, onLogout }) {
   const [pol, setPol] = useState(DEFAULT_POLICIES);
   useEffect(() => {
     async function load() {
-      var _a2;
+      var _a2, _b2;
       setLoading(true);
       try {
-        const eid = user.eid || user.employee_id;
         let empData = null;
-        if (eid) {
-          const { data } = await sb.from("employees").select("*").eq("id", eid).single();
-          if (data) empData = fromDbEmp(data);
+        const eid = user.eid || user.employee_id;
+        const userEmail = (_a2 = user.email) == null ? void 0 : _a2.trim().toLowerCase();
+        if (userEmail) {
+          const { data, error } = await sb.from("employees").select("*").eq("email", userEmail).maybeSingle();
+          if (data && !error) empData = fromDbEmp(data);
         }
-        if (!empData && user.email) {
-          const { data } = await sb.from("employees").select("*").eq("email", user.email).single();
-          if (data) empData = fromDbEmp(data);
-        }
-        if (!empData) {
-          empData = EMPS0.find((e) => e.id === user.eid || e.email === user.email) || EMPS0[0];
+        if (!empData && eid) {
+          const { data, error } = await sb.from("employees").select("*").eq("id", eid).maybeSingle();
+          if (data && !error) empData = fromDbEmp(data);
         }
         if (empData) {
           setEmp(empData);
@@ -5267,19 +5365,16 @@ function EmployeePortal({ user, onLogout }) {
           sb.from("company_policies").select("policies").single()
         ]);
         if (lvData.data) setMyLeaves(lvData.data.map(fromDbLeave));
-        if ((_a2 = polData.data) == null ? void 0 : _a2.policies) setPol((p2) => ({ ...p2, ...polData.data.policies }));
+        if ((_b2 = polData.data) == null ? void 0 : _b2.policies) setPol((p2) => ({ ...p2, ...polData.data.policies }));
       } catch (e) {
         console.warn("Portal load:", e.message);
-        const demoEmp = EMPS0[0];
-        setEmp(demoEmp);
-        setSelfData({ pan: demoEmp.pan || "", aadhaar: "", acc: "", ifsc: "", bank: "", uan: "", phone: demoEmp.phone || "", email: demoEmp.email || "" });
       }
       setLoading(false);
     }
     load();
   }, [user]);
   if (loading) return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f5fa" } }, /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32, marginBottom: 8 } }, "\u23F3"), /* @__PURE__ */ React.createElement("div", { style: { color: "#888" } }, "Loading your profile...")));
-  if (!emp) return /* @__PURE__ */ React.createElement("div", { style: { padding: 40, textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 24, marginBottom: 8 } }, "\u{1F615}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 4 } }, "Profile not found"), /* @__PURE__ */ React.createElement("div", { style: { color: "#888", fontSize: 13 } }, "Contact HR to set up your account"), /* @__PURE__ */ React.createElement("button", { onClick: onLogout, style: { marginTop: 16, padding: "8px 20px", border: "none", background: "#1a237e", color: "#fff", borderRadius: 8, cursor: "pointer" } }, "Back to Login"));
+  if (!emp) return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f5fa", padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, padding: 36, textAlign: "center", maxWidth: 440, boxShadow: "0 4px 24px rgba(0,0,0,.08)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 48, marginBottom: 12 } }, "\u{1F50D}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 18, color: "#1a237e", marginBottom: 8 } }, "Profile Not Linked"), /* @__PURE__ */ React.createElement("div", { style: { color: "#666", fontSize: 13, lineHeight: 1.7, marginBottom: 20 } }, "Your login was successful but no employee profile was found for ", /* @__PURE__ */ React.createElement("b", null, user.email), ".", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("br", null), "This usually means:", /* @__PURE__ */ React.createElement("div", { style: { textAlign: "left", background: "#f8f9ff", borderRadius: 8, padding: "10px 14px", marginTop: 10, fontSize: 12 } }, /* @__PURE__ */ React.createElement("div", null, "\u2022 HR hasn't added your email to the system yet"), /* @__PURE__ */ React.createElement("div", null, "\u2022 Your email in the system is different from your login email"), /* @__PURE__ */ React.createElement("div", null, "\u2022 The database is still being set up"))), /* @__PURE__ */ React.createElement("div", { style: { background: "#e3f2fd", borderRadius: 8, padding: "10px 14px", marginBottom: 20, fontSize: 12, color: "#1565c0", textAlign: "left" } }, /* @__PURE__ */ React.createElement("b", null, "Ask HR to:"), " Go to Employees \u2192 find your profile \u2192 Quick Edit \u2192 enter this email: ", /* @__PURE__ */ React.createElement("b", null, user.email)), /* @__PURE__ */ React.createElement("button", { onClick: onLogout, style: { padding: "10px 28px", border: "none", background: "#1a237e", color: "#fff", borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 14 } }, "\u2190 Back to Login")));
   const p = (() => {
     try {
       return calcPay(emp, 0, pol);
