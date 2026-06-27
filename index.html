@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v15.1 — TDS Finance Act 2025 FIXED -->
+<!-- PAYROLLA v15.2 — FULL STATUTORY CORRECT -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v15.1...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v15.2...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -762,7 +762,7 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   const cessRate = (((_t = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _t.cess) || 4) / 100;
   const annTax = Math.round((taxAfterRebate + surcharge) * (1 + cessRate));
   const pm = runMonth || (/* @__PURE__ */ new Date()).getMonth() + 1;
-  const remainingMonths = pm >= 4 ? 15 - pm : 3 - pm + 12;
+  const remainingMonths = pm >= 4 ? 16 - pm : 4 - pm;
   const safeMonths = Math.max(1, Math.min(remainingMonths, 12));
   const tdsSuggested = Math.round(annTax / safeMonths);
   const tds = e.tdsOverride && +e.tdsOverride > 0 ? +e.tdsOverride : tdsSuggested;
