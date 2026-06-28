@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v15.9 — SALARY EDIT FIXED -->
+<!-- PAYROLLA v15.9a — QUICK ADD FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v15.9...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v15.9a...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -22,7 +22,11 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
 });
 async function sbLogin(email, password) {
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  const { data, error } = await sb.auth.signInWithPassword({
+    email,
+    password,
+    options: { persistSession: true }
+  });
   if (error) {
     if (error.message.toLowerCase().includes("email not confirmed") || error.message.toLowerCase().includes("confirm")) {
       throw new Error("Please confirm your email first \u2014 check your inbox for a confirmation link from Supabase. Or ask HR to disable email confirmation in Supabase settings.");
@@ -5743,11 +5747,11 @@ Please fill your PAN, Aadhaar and bank details after login.
 
 Regards, HR`;
     window.open(`mailto:${inviteResult.email}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`);
-  }, style: { flex: 1, padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 9, background: "#fff", color: "#1a237e", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2709\uFE0F Send Email"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { padding: "9px 28px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: 520, boxShadow: "0 20px 60px rgba(0,0,0,.25)", overflow: "hidden" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
+  }, style: { flex: 1, padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 9, background: "#fff", color: "#1a237e", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2709\uFE0F Send Email"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { padding: "9px 28px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "92vh", boxShadow: "0 20px 60px rgba(0,0,0,.25)", display: "flex", flexDirection: "column", overflow: "hidden" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
     const done = qaStep > +n;
     const active2 = qaStep === +n;
     return /* @__PURE__ */ React.createElement("div", { key: n, style: { display: "flex", alignItems: "center", flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: 12, background: done ? "#69f0ae" : active2 ? "#fff" : "rgba(255,255,255,.2)", color: done ? "#1b5e20" : active2 ? "#1a237e" : "rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0 } }, done ? "\u2713" : n), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: active2 ? "#fff" : done ? "#69f0ae" : "rgba(255,255,255,.4)", fontWeight: active2 ? 700 : 400 } }, l)), i < 2 && /* @__PURE__ */ React.createElement("div", { style: { flex: 1, height: 1, background: "rgba(255,255,255,.2)", margin: "0 8px" } }));
-  }))), /* @__PURE__ */ React.createElement("div", { style: { padding: 24 } }, qaStep === 1 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 18 } }, "Just the essentials \u2014 everything else the employee can fill themselves later."), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 } }, [
+  }))), /* @__PURE__ */ React.createElement("div", { style: { padding: 24, overflowY: "auto", flex: 1 } }, qaStep === 1 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 18 } }, "Just the essentials \u2014 everything else the employee can fill themselves later."), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 } }, [
     { k: "name", label: "Full Name *", ph: "Rahul Kumar", span: 2 },
     { k: "email", label: "Work Email *", ph: "rahul@company.com", span: 2 },
     { k: "phone", label: "Mobile Number", ph: "9876543210", span: 1 },
@@ -5795,7 +5799,51 @@ Regards, HR`;
     const st = qaData.workState || ((_a2 = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _a2.state) || "Maharashtra";
     const noPT = ["Delhi", "Rajasthan", "Uttar Pradesh", "Haryana", "Himachal Pradesh", "Uttarakhand", "Jammu & Kashmir"].includes(st);
     return /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, marginTop: 4, color: noPT ? "#1b5e20" : "#6a1b9a" } }, noPT ? `\u2713 No PT in ${st}` : `PT applicable in ${st}`);
-  })()))), qaStep === 3 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 18 } }, "Monthly CTC breakdown. HRA auto-fills at 40% of basic."), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Basic Salary (\u20B9) *"), /* @__PURE__ */ React.createElement(
+  })()))), qaStep === 3 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", background: "#f0f0f0", borderRadius: 8, padding: 2, marginBottom: 14, width: "fit-content" } }, [["ctc", "Enter CTC"], ["basic", "Component-wise"]].map(([m, l]) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: m,
+      type: "button",
+      onClick: () => setQaData((p) => ({ ...p, _qaMode: m })),
+      style: {
+        padding: "6px 16px",
+        border: "none",
+        borderRadius: 7,
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: "pointer",
+        background: (qaData._qaMode || "basic") === m ? "#1a237e" : "transparent",
+        color: (qaData._qaMode || "basic") === m ? "#fff" : "#666"
+      }
+    },
+    l
+  ))), (qaData._qaMode || "basic") === "ctc" && (() => {
+    const struct = ((pol2 == null ? void 0 : pol2.salaryStructures) || DEFAULT_POLICIES.salaryStructures).find((s2) => s2.isDefault) || { basicPct: 50, hraPct: 40, conv: 1600, med: 1250 };
+    return /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Annual CTC (\u20B9) *"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "number",
+        value: qaData._ctcVal || "",
+        min: "0",
+        step: "10000",
+        onChange: (e) => {
+          const ctc = +e.target.value || 0;
+          const c = calcSalaryFromCTC(ctc, struct);
+          setQaData((p) => ({
+            ...p,
+            _ctcVal: String(ctc),
+            basic: String(c.basic),
+            hra: String(c.hra),
+            conv: String(c.conv),
+            med: String(c.med),
+            spl: String(c.spl)
+          }));
+        },
+        placeholder: "e.g. 6,00,000",
+        style: { width: "100%", padding: "12px 14px", border: "1.5px solid #1a237e", borderRadius: 8, fontSize: 16, fontWeight: 700, outline: "none" }
+      }
+    ), +qaData.basic > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, background: "#e8eaf6", borderRadius: 8, padding: "10px 12px", display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, fontSize: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { color: "#888" } }, "Basic"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700 } }, "\u20B9", (+qaData.basic).toLocaleString("en-IN"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { color: "#888" } }, "HRA"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700 } }, "\u20B9", (+qaData.hra || 0).toLocaleString("en-IN"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { color: "#888" } }, "Special Allow."), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700 } }, "\u20B9", (+qaData.spl || 0).toLocaleString("en-IN")))));
+  })(), (qaData._qaMode || "basic") === "basic" && /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "span 2" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Basic Salary (\u20B9) *"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "number",
@@ -5804,34 +5852,28 @@ Regards, HR`;
         const v = +e.target.value;
         setQaData((p) => ({ ...p, basic: String(v), hra: String(Math.round(v * 0.4)) }));
       },
-      placeholder: "e.g. 25000",
-      style: { width: "100%", padding: "10px 12px", border: "1.5px solid #1a237e", borderRadius: 8, fontSize: 14, outline: "none", fontWeight: 700 }
+      placeholder: "e.g. 25,000",
+      autoFocus: true,
+      style: { width: "100%", padding: "12px 14px", border: "1.5px solid #1a237e", borderRadius: 8, fontSize: 15, fontWeight: 700, outline: "none" }
     }
-  ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, "PF is calculated on this (capped at \u20B915,000)")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "HRA (\u20B9) \u2014 auto-filled"), /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, "PF on basic (capped at \u20B915K). HRA auto-fills at 40%.")), [
+    { k: "hra", label: "HRA (\u20B9)", def: "", note: "40% of basic \u2014 auto-filled" },
+    { k: "conv", label: "Conveyance (\u20B9)", def: "1600", note: "\u20B91,600 tax-free" },
+    { k: "med", label: "Medical (\u20B9)", def: "1250", note: "\u20B91,250 tax-free" },
+    { k: "spl", label: "Special Allow. (\u20B9)", def: "0", note: "Balancing figure" }
+  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 10, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "number",
-      value: qaData.hra || "",
-      onChange: (e) => setQaData((p) => ({ ...p, hra: e.target.value })),
-      style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
-    }
-  ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, "40% of basic. Edit if different.")), [
-    { k: "conv", label: "Conveyance (\u20B9)", ph: "1600", note: "Max \u20B91,600 tax-free" },
-    { k: "med", label: "Medical (\u20B9)", ph: "1250", note: "Max \u20B91,250 tax-free" },
-    { k: "spl", label: "Special Allowance (\u20B9)", ph: "0", note: "" }
-  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      type: "number",
-      value: qaData[f.k] !== void 0 ? qaData[f.k] : f.k === "conv" ? "1600" : f.k === "med" ? "1250" : "0",
+      value: qaData[f.k] !== void 0 ? qaData[f.k] : f.def,
       onChange: (e) => setQaData((p) => ({ ...p, [f.k]: e.target.value })),
-      style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
+      placeholder: f.def,
+      style: { width: "100%", padding: "8px 10px", border: "1.5px solid #e0e0e0", borderRadius: 7, fontSize: 13, outline: "none" }
     }
-  ), f.note && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, f.note)))), +qaData.basic > 0 && (() => {
-    var _a2;
+  ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#aaa", marginTop: 2 } }, f.note)))), +qaData.basic > 0 && (() => {
     try {
-      const preview = calcPay({ ...BLANK_EMP, ...qaData, pf: true, esic: +qaData.basic < 18e3, pt: true }, 0, pol2, payMonth, payYear);
-      return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, background: "#e8eaf6", borderRadius: 10, padding: "12px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#1a237e", marginBottom: 8 } }, "Live CTC Preview"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, fontSize: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#1a237e" } }, INR(preview.g)), /* @__PURE__ */ React.createElement("div", { style: { color: "#888", marginTop: 2 } }, "Gross")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#c62828" } }, "-", INR(preview.ded)), /* @__PURE__ */ React.createElement("div", { style: { color: "#888", marginTop: 2 } }, "Deductions")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#1b5e20" } }, INR(preview.net)), /* @__PURE__ */ React.createElement("div", { style: { color: "#888", marginTop: 2 } }, "Net Pay")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#e65100" } }, INR(preview.ctc)), /* @__PURE__ */ React.createElement("div", { style: { color: "#888", marginTop: 2 } }, "CTC"))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11, color: "#666", display: "flex", gap: 12, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", null, "PF: \u20B9", preview.pfE, "/mo"), /* @__PURE__ */ React.createElement("span", null, "PT: \u20B9", preview.pt, "/mo (", qaData.workState || ((_a2 = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _a2.state) || "MH", ")"), preview.esE > 0 && /* @__PURE__ */ React.createElement("span", null, "ESIC: \u20B9", preview.esE, "/mo"), /* @__PURE__ */ React.createElement("span", null, "TDS: \u20B9", preview.tds, "/mo")));
+      const preview = calcPay({ ...BLANK_EMP, ...qaData, pf: !!qaData.pf, esic: !!qaData.esic, pt: !!qaData.pt }, 0, pol2, payMonth, payYear);
+      return /* @__PURE__ */ React.createElement("div", { style: { background: "#e8f5e9", border: "1px solid #c8e6c9", borderRadius: 8, padding: "10px 14px", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12 } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#888" } }, "Gross "), /* @__PURE__ */ React.createElement("b", { style: { color: "#1a237e" } }, INR(preview.g))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12 } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#888" } }, "Deductions "), /* @__PURE__ */ React.createElement("b", { style: { color: "#c62828" } }, "-", INR(preview.ded))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13 } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#888" } }, "Net Pay "), /* @__PURE__ */ React.createElement("b", { style: { color: "#1b5e20", fontSize: 15 } }, INR(preview.net))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#666", width: "100%" } }, "PF \u20B9", preview.pfE, " \xB7 PT \u20B9", preview.pt, " (", (qaData.workState || "MH").slice(0, 4), ") ", preview.esE > 0 ? `\xB7 ESIC \u20B9${preview.esE}` : "", " ", preview.tds > 0 ? `\xB7 TDS \u20B9${preview.tds}` : ""));
     } catch (e) {
       return null;
     }
@@ -5883,7 +5925,7 @@ Regards, HR`;
         color: isRec ? "#1b5e20" : isVol ? "#1565c0" : isNA ? "#999" : "#e65100"
       } }, isRec ? "Mandatory" : isVol ? "Voluntary" : isNA ? "Not applicable" : "Check threshold"));
     })), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 14px", background: "#fffde7", borderTop: "1px solid #f5f5f5", fontSize: 11, color: "#888" } }, "\u{1F4A1} Recommended ones are pre-suggested based on salary & state \u2014 you control what's applied."));
-  })())), /* @__PURE__ */ React.createElement("div", { style: { padding: "14px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQuickAdd(false), style: { padding: "9px 18px", border: "1px solid #ddd", borderRadius: 9, background: "#fff", cursor: "pointer", fontSize: 13, color: "#666" } }, "Cancel"), qaStep > 1 && /* @__PURE__ */ React.createElement("button", { onClick: () => setQaStep((s2) => s2 - 1), style: { padding: "9px 18px", border: "1px solid #ddd", borderRadius: 9, background: "#fff", cursor: "pointer", fontSize: 13, color: "#1a237e" } }, "\u2190 Back")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#aaa" } }, "Step ", qaStep, " of 3"), /* @__PURE__ */ React.createElement("button", { onClick: async () => {
+  })())), /* @__PURE__ */ React.createElement("div", { style: { padding: "14px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQuickAdd(false), style: { padding: "9px 18px", border: "1px solid #ddd", borderRadius: 9, background: "#fff", cursor: "pointer", fontSize: 13, color: "#666" } }, "Cancel"), qaStep > 1 && /* @__PURE__ */ React.createElement("button", { onClick: () => setQaStep((s2) => s2 - 1), style: { padding: "9px 18px", border: "1px solid #ddd", borderRadius: 9, background: "#fff", cursor: "pointer", fontSize: 13, color: "#1a237e" } }, "\u2190 Back")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#aaa" } }, "Step ", qaStep, " of 3"), /* @__PURE__ */ React.createElement("button", { onClick: async () => {
     var _a2, _b2, _c2;
     if (qaStep === 1) {
       if (!((_a2 = qaData.name) == null ? void 0 : _a2.trim())) {
