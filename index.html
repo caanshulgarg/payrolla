@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v15.3 — LIFECYCLE AUDIT: LOP consistency + safe unmarked-day default -->
+<!-- PAYROLLA v15.4 — SS Code 2020: ESIC/PF 50% wage rule -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v15.3...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v15.4...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -631,7 +631,7 @@ const DEFAULT_POLICIES = {
   ]
 };
 function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, extras = {}) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
   const P_pol = POL || (typeof DEFAULT_POLICIES !== "undefined" ? DEFAULT_POLICIES : null);
   let joiningProration = 1;
   let joiningNote = "";
@@ -669,31 +669,36 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   const f = lopFactor * joiningProration;
   const g = Math.round(grossFull * f);
   const pfBase = Math.round(basic * f);
-  const pfWage = Math.min(pfBase, ((_b = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _b.maxPfWage) || 15e3);
+  const grossMonthlyFull = basic + hra + conv + med + spl + lta;
+  const halfCTC = Math.round(grossMonthlyFull * f * 0.5);
+  const pfBaseAdj = Math.max(pfBase, halfCTC);
+  const pfWage = Math.min(pfBaseAdj, ((_b = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _b.maxPfWage) || 15e3);
   const pfE = e.pf && ((_c = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _c.enabled) !== false ? Math.min(Math.round(pfWage * (((_d = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _d.employeeRate) || 12) / 100), 1800) : 0;
   const pfEPS = e.pf && ((_e = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _e.enabled) !== false ? Math.min(Math.round(pfWage * 8.33 / 100), 1250) : 0;
   const pfEPF_er = e.pf && ((_f = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _f.enabled) !== false ? Math.max(0, Math.min(Math.round(pfWage * 12 / 100), 1800) - pfEPS) : 0;
   const pfR = pfEPS + pfEPF_er;
   const esicCeil = ((_g = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _g.wageLimit) || 21e3;
-  const esE = e.esic && ((_h = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _h.enabled) !== false && g <= esicCeil ? Math.round(g * (((_i = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _i.employeeRate) || 0.75) / 100) : 0;
-  const esR = e.esic && ((_j = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _j.enabled) !== false && g <= esicCeil ? Math.round(g * (((_k = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _k.employerRate) || 3.25) / 100) : 0;
+  const esicWagesAdj = Math.max(pfBase, halfCTC);
+  const esicEligible = e.esic && ((_h = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _h.enabled) !== false && esicWagesAdj <= esicCeil;
+  const esE = esicEligible ? Math.round(esicWagesAdj * (((_i = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _i.employeeRate) || 0.75) / 100) : 0;
+  const esR = esicEligible ? Math.round(esicWagesAdj * (((_j = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _j.employerRate) || 3.25) / 100) : 0;
   const lwfMonth = runMonth || (/* @__PURE__ */ new Date()).getMonth() + 1;
-  const ptState = e.workState || ((_l = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _l.state) || "Maharashtra";
+  const ptState = e.workState || ((_k = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _k.state) || "Maharashtra";
   let pt = 0;
-  if (e.pt && ((_m = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _m.enabled) !== false) {
+  if (e.pt && ((_l = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _l.enabled) !== false) {
     if (typeof PT_SLABS_ALL !== "undefined") {
       pt = calcPT28(g, ptState, lwfMonth);
     } else {
-      const ptSlabs = ((_n = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _n.slabs) || [{ from: 0, to: 1e4, monthly: 0 }, { from: 10001, to: 15e3, monthly: 150 }, { from: 15001, to: 999999, monthly: 200 }];
+      const ptSlabs = ((_m = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _m.slabs) || [{ from: 0, to: 1e4, monthly: 0 }, { from: 10001, to: 15e3, monthly: 150 }, { from: 15001, to: 999999, monthly: 200 }];
       const slab = [...ptSlabs].sort((a, b) => b.from - a.from).find((s) => g >= s.from);
       pt = slab ? slab.monthly || 0 : 0;
     }
   }
-  const lwfState = e.workState || ((_o = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _o.state) || "Maharashtra";
+  const lwfState = e.workState || ((_n = P_pol == null ? void 0 : P_pol.pt) == null ? void 0 : _n.state) || "Maharashtra";
   const lwfInfo = typeof LWF_TABLE !== "undefined" ? LWF_TABLE[lwfState] || null : null;
-  const lwfCalc = typeof calcLWF !== "undefined" && ((_p = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _p.enabled) !== false ? calcLWF(g, lwfState, lwfMonth) : { emp: 0, emr: 0 };
-  const lwfE = e.lwf !== false && ((_q = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _q.enabled) !== false ? lwfCalc.emp : 0;
-  const lwfR = e.lwf !== false && ((_r = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _r.enabled) !== false ? lwfCalc.emr : 0;
+  const lwfCalc = typeof calcLWF !== "undefined" && ((_o = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _o.enabled) !== false ? calcLWF(g, lwfState, lwfMonth) : { emp: 0, emr: 0 };
+  const lwfE = e.lwf !== false && ((_p = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _p.enabled) !== false ? lwfCalc.emp : 0;
+  const lwfR = e.lwf !== false && ((_q = P_pol == null ? void 0 : P_pol.lwf) == null ? void 0 : _q.enabled) !== false ? lwfCalc.emr : 0;
   const lwfApplicableMonths = lwfInfo ? lwfInfo.freq === "monthly" ? "Every month" : Array.isArray(lwfInfo.months) ? lwfInfo.months.map((m) => ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m]).join(" & ") : "December" : "\u2014";
   const lwfThisMonthApplicable = lwfInfo ? lwfInfo.freq === "monthly" ? true : Array.isArray(lwfInfo.months) ? lwfInfo.months.includes(lwfMonth) : false : false;
   const otHours = extras.otHours || 0;
@@ -705,7 +710,7 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   const totalGross = g + otAmount + varPay + bonus + arrears;
   const mwCategory = e.mwCategory || "unskilled";
   const mwCheck = typeof checkMinWages !== "undefined" ? checkMinWages(g, mwCategory) : { violation: false, shortfall: 0, minWage: 0 };
-  const regime = e.itRegime || ((_s = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _s.regime) || "new";
+  const regime = e.itRegime || ((_r = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _r.regime) || "new";
   const annualGross = (basic + hra + conv + med + spl + lta) * 12;
   const stdDed = regime === "new" ? 75e3 : 5e4;
   let hraExemption = 0;
@@ -759,7 +764,7 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   else if (ti > 1e7) surcharge = taxAfterRebate * (regime === "new" ? 0.15 : 0.15);
   else if (ti > 5e6) surcharge = taxAfterRebate * 0.1;
   if (regime === "new") surcharge = Math.min(surcharge, taxAfterRebate * 0.25);
-  const cessRate = (((_t = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _t.cess) || 4) / 100;
+  const cessRate = (((_s = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _s.cess) || 4) / 100;
   const annTax = Math.round((taxAfterRebate + surcharge) * (1 + cessRate));
   const pm = runMonth || (/* @__PURE__ */ new Date()).getMonth() + 1;
   const remainingMonths = pm >= 4 ? 16 - pm : 4 - pm;
@@ -783,9 +788,9 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   const net2 = totalGross - ded;
   const ctc = g + pfR + esR;
   const yrs = e.doj ? Math.max(0, (NOW - new Date(e.doj)) / (365.25 * 24 * 3600 * 1e3)) : 0;
-  const gratMinYrs = ((_u = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _u.minServiceYears) || 5;
-  const gratMax = ((_v = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _v.maxLimit) || 2e6;
-  const gratuity = ((_w = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _w.enabled) !== false && yrs >= gratMinYrs ? Math.min(Math.round(pfBase / 26 * 15 * Math.floor(yrs)), gratMax) : 0;
+  const gratMinYrs = ((_t = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _t.minServiceYears) || 5;
+  const gratMax = ((_u = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _u.maxLimit) || 2e6;
+  const gratuity = ((_v = P_pol == null ? void 0 : P_pol.gratuity) == null ? void 0 : _v.enabled) !== false && yrs >= gratMinYrs ? Math.min(Math.round(pfBase / 26 * 15 * Math.floor(yrs)), gratMax) : 0;
   return {
     g,
     pfBase,
