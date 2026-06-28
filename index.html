@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v15.8 — LIFECYCLE VERIFIED -->
+<!-- PAYROLLA v15.9 — SALARY EDIT FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v15.8...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v15.9...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -4598,7 +4598,12 @@ function HRAdmin({ user, onLogout }) {
       }
       showToast("Employee saved \u2713");
     } catch (e) {
-      showToast("Saved locally (" + e.message + ")", "warn");
+      const msg = e.message || "";
+      if (msg.includes("column") && (msg.includes("work_state") || msg.includes("it_regime") || msg.includes("decl_"))) {
+        showToast("DB needs new columns \u2014 run Supabase setup SQL first", "warn");
+      } else {
+        showToast("DB save failed: " + msg.slice(0, 60), "warn");
+      }
     }
   }
   async function apiActionLeave(id, status) {
@@ -4878,7 +4883,7 @@ Run payroll anyway?`
           /* @__PURE__ */ React.createElement(Badge, { t: e.status, c: e.status === "Active" ? OK : DG }),
           /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 5 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", onClick: () => {
             setQuickEdit(e);
-            setQf({ basic: e.basic, hra: e.hra, conv: e.conv, spl: e.spl, desig: e.desig, dept: e.dept, status: e.status, cat: e.cat, workState: e.workState, pf: e.pf, esic: e.esic, pt: e.pt, phone: e.phone, email: e.email });
+            setQf({ basic: e.basic, hra: e.hra, conv: e.conv, med: e.med, spl: e.spl, lta: e.lta || 0, desig: e.desig, dept: e.dept, status: e.status, cat: e.cat, workState: e.workState, pf: e.pf, esic: e.esic, pt: e.pt, lwf: e.lwf || false, phone: e.phone, email: e.email });
           }, s: { background: "#1a237e", color: "#fff" } }, "\u270F Quick Edit"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "ghost", onClick: () => setSlip({ emp: e, month: payMonth, year: payYear }) }, "Slip"))
         ];
       })
@@ -5945,7 +5950,9 @@ Regards, HR`;
     { k: "basic", label: "Basic (\u20B9)", note: "PF & PT calculated on this" },
     { k: "hra", label: "HRA (\u20B9)", note: "Usually 40\u201350% of basic" },
     { k: "conv", label: "Conveyance (\u20B9)", note: "Max \u20B91,600 tax-free" },
-    { k: "spl", label: "Special Allowance (\u20B9)", note: "" }
+    { k: "med", label: "Medical (\u20B9)", note: "Tax-free up to \u20B91,250" },
+    { k: "spl", label: "Special Allowance (\u20B9)", note: "Fully taxable" },
+    { k: "lta", label: "LTA (\u20B9)", note: "Tax-exempt with proof" }
   ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k, style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
     "input",
     {
@@ -6029,7 +6036,12 @@ Regards, HR`;
       await db.updateEmp(updated);
       showToast("Employee updated \u2713");
     } catch (e) {
-      showToast("Saved locally (" + e.message + ")", "warn");
+      const msg = e.message || "";
+      if (msg.includes("column")) {
+        showToast("DB column missing \u2014 run Supabase setup SQL \u2192 ALTER TABLE", "warn");
+      } else {
+        showToast("DB save failed: " + msg.slice(0, 60), "warn");
+      }
     }
   }, style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2713 Save Changes")))), /* @__PURE__ */ React.createElement("style", null, `@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`));
 }
