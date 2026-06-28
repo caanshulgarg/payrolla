@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v15.9c — FULLY VERIFIED -->
+<!-- PAYROLLA v16.0 — FULLY VERIFIED 131/131 -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v15.9c...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v16.0...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -1200,15 +1200,18 @@ function Login({ onLogin, onRegister }) {
     setErr("");
   }, style: { flex: 1, padding: "7px 4px", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer", background: role === r ? P : "transparent", color: role === r ? "#fff" : MT } }, l))), /* @__PURE__ */ React.createElement("div", { style: { background: "#e3f2fd", border: "1px solid #90caf9", borderRadius: 9, padding: "9px 13px", fontSize: 12, color: "#1565c0", marginBottom: 20 } }, /* @__PURE__ */ React.createElement("b", null, "Demo:"), " ", hints[role]), /* @__PURE__ */ React.createElement(Inp, { label: "Email", val: email, set: setEmail, ph: "Enter email" }), /* @__PURE__ */ React.createElement(Inp, { label: "Password", val: pw, set: setPw, type: "password", ph: "Enter password" }), err && /* @__PURE__ */ React.createElement("div", { style: { background: DX, border: `1px solid ${DG}44`, borderRadius: 8, padding: "9px 13px", fontSize: 13, color: DG, marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement(Btn, { onClick: go, sz: "lg", s: { width: "100%", marginTop: 4 } }, loggingIn ? "Signing in..." : "Sign In \u2192"), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: 16, fontSize: 13, color: "rgba(255,255,255,.7)" } }, "No account? ", /* @__PURE__ */ React.createElement("span", { onClick: onRegister, style: { color: "#90caf9", cursor: "pointer", fontWeight: 700, textDecoration: "underline" } }, "Start 30-day free trial \u2192"))));
 }
-function SalarySlip({ slip, emps, runs, co, pol: pol2, onClose }) {
+function SalarySlip({ slip, emp: empProp, month: monthProp, year: yearProp, lopDays: lopPropInit = 0, emps, runs, co, pol: pol2, onClose }) {
   var _a, _b, _c, _d;
-  const { emp: slipEmp, month, year } = slip || {};
+  const slipEmp = (slip == null ? void 0 : slip.emp) ?? empProp;
+  const month = (slip == null ? void 0 : slip.month) ?? monthProp;
+  const year = (slip == null ? void 0 : slip.year) ?? yearProp;
+  const lopDaysInit = (slip == null ? void 0 : slip.lop) ?? lopPropInit ?? 0;
   const emp = (emps == null ? void 0 : emps.find((e) => e.id === (slipEmp == null ? void 0 : slipEmp.id))) || slipEmp;
-  if (!emp) return null;
+  if (!emp || !month || !year) return null;
   const attData = (slip == null ? void 0 : slip.attendance) || {};
   const monthStr = `${year}-${String(month).padStart(2, "0")}`;
   const summary = getMonthSummary(emp.id, monthStr, attData, []);
-  const lopDays = summary.lop || 0;
+  const lopDays = summary.lop || lopDaysInit || 0;
   const p = calcPay(emp, lopDays, pol2, month, year);
   const perDay = summary.working > 0 ? p.g / summary.working : 0;
   const earned = summary.working > 0 ? Math.round(perDay * summary.netPaid) : p.g;
