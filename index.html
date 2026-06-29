@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v17.9 — ALL 3 BUGS FIXED -->
+<!-- PAYROLLA v18.0 — SESSION PERSISTS + ALL 3 BUGS FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v17.9...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.0...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -7177,7 +7177,14 @@ function EmployeePortal({ user, onLogout }) {
   ))))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(EpLbl, { t: "80C Investments", v: emp.decl80c ? INR(+emp.decl80c) : "Not declared" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "80D Health Insurance", v: emp.decl80d ? INR(+emp.decl80d) : "Not declared" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "NPS 80CCD(1B)", v: emp.declNps ? INR(+emp.declNps) : "Not declared" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "Other Deductions", v: emp.declOther ? INR(+emp.declOther) : "Not declared" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "Monthly Rent Paid", v: emp.rentPaid ? INR(+emp.rentPaid) : "Not declared" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "Metro City", v: emp.isMetro ? "Yes" : "No" }))), profileEdit && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, padding: "10px 14px", background: "#e8f5e9", borderRadius: 8, fontSize: 12, color: "#1b5e20" } }, "\u2713 Declarations saved here are automatically used for TDS computation in payroll. HR will see updates immediately.")), /* @__PURE__ */ React.createElement(EpCard, { s: { marginTop: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: C, marginBottom: 12 } }, "\u{1FAAA} KYC Documents"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } }, profileEdit ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(EpInp, { label: "PAN Number", val: pf.pan, set: (v) => setPf((p) => ({ ...p, pan: v.toUpperCase() })), hint: "ABCDE1234F format" }), /* @__PURE__ */ React.createElement(EpInp, { label: "Aadhaar Number", val: pf.aadhaar, set: (v) => setPf((p) => ({ ...p, aadhaar: v })), hint: "12-digit Aadhaar" })) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(EpLbl, { t: "PAN Number", v: emp.pan || "\u2014", hint: "Required for TDS computation" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "Aadhaar Number", v: emp.aadhaar ? "XXXX-XXXX-" + emp.aadhaar.slice(-4) : "\u2014" }))))))));
 }
 function App() {
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState(() => {
+    try {
+      const s = localStorage.getItem("payrolla_session");
+      return s ? JSON.parse(s) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [showRegister, setShowRegister] = useState(() => {
     try {
       return new URLSearchParams(window.location.search).get("register") === "1";
@@ -7186,13 +7193,38 @@ function App() {
     }
   });
   function handleLogin(s) {
+    try {
+      const toStore = { ...s, _empRow: s._empRow ? { id: s._empRow.id, code: s._empRow.code, name: s._empRow.name, email: s._empRow.email, dob: s._empRow.dob } : null };
+      localStorage.setItem("payrolla_session", JSON.stringify(toStore));
+    } catch (e) {
+    }
     setSession(s);
     setShowRegister(false);
   }
   async function handleLogout() {
+    try {
+      localStorage.removeItem("payrolla_session");
+    } catch (e) {
+    }
     await sbLogout();
     setSession(null);
   }
+  useEffect(() => {
+    sb.auth.getSession().then(({ data: { session: authSess } }) => {
+      var _a;
+      if (authSess && !session) {
+        const meta = authSess.user.user_metadata || {};
+        const role = meta.role || "hr";
+        handleLogin({
+          id: authSess.user.id,
+          email: authSess.user.email,
+          name: meta.name || ((_a = authSess.user.email) == null ? void 0 : _a.split("@")[0]),
+          role,
+          eid: meta.employee_id || null
+        });
+      }
+    });
+  }, []);
   if (!session && showRegister) return /* @__PURE__ */ React.createElement(Register, { onBack: () => setShowRegister(false), onSuccess: handleLogin });
   if (!session) return /* @__PURE__ */ React.createElement(Login, { onLogin: handleLogin, onRegister: () => setShowRegister(true) });
   if (session.role === "sa") return /* @__PURE__ */ React.createElement(SuperAdmin, { user: { name: session.name || "Super Admin", role: "Super Admin" }, onLogout: handleLogout });
