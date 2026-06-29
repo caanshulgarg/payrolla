@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v18.1 — TAB PERSISTS ON REFRESH -->
+<!-- PAYROLLA v18.2 — ALL 7 ISSUES FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.1...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.2...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -633,10 +633,20 @@ const DEFAULT_POLICIES = {
     otStartAfter: 0.5,
     absentIfBelow: 4,
     alternateOff: false,
+    flexiTiming: false,
+    flexiWindowMins: 30,
+    coreStartTime: "10:00",
+    coreEndTime: "17:00",
     weekOff: ["Sun"],
     flexiTime: false
   },
-  loans: { enabled: true, types: ["Personal Loan", "Salary Advance", "Emergency Loan"], recovery_on_separation: "full_deduction" },
+  loans: { enabled: true, types: [
+    { name: "Personal Loan", maxAmount: 2e5, maxTenure: 24, interest: 0, minService: 6 },
+    { name: "Salary Advance", maxAmount: "2_months_salary", maxTenure: 6, interest: 0, minService: 0 },
+    { name: "Emergency Loan", maxAmount: 1e5, maxTenure: 12, interest: 0, minService: 3 },
+    { name: "Vehicle Loan", maxAmount: 5e5, maxTenure: 36, interest: 5, minService: 12 },
+    { name: "Education Loan", maxAmount: 3e5, maxTenure: 24, interest: 0, minService: 12 }
+  ], recovery_on_separation: "full_deduction" },
   reimbursement: { types: ["Medical", "Conveyance", "Food", "Mobile", "Internet", "Other"], approvalRequired: true, doubleApproval: false, submissionDeadline: 5 },
   fnf: { settlementDays: 45, noticePeriod: { probation: 0, confirmed: 30, senior: 60 }, noticePeriodWaiverAllowed: true, relievingLetter: true, experienceLetter: true, form16Timing: "before_settlement", components: ["gratuity", "leave_encashment", "bonus", "notice_recovery", "reimbursement"] },
   encashment: { enabled: true, formula: "basic/26*days", minServiceMonths: 12, onSeparation: true, maxEncashPerYear: 15, taxable: true, taxExemptLimit: 3e5, timingRestriction: false },
@@ -1748,6 +1758,27 @@ const BLANK_EMP = {
   note: "",
   lwf: true
 };
+const Err = ({ msg }) => msg ? /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#c62828", marginTop: 3, fontWeight: 600 } }, "\u26A0 ", msg) : null;
+const StatCard = ({ icon, label, value, sub, color = "#1a237e" }) => /* @__PURE__ */ React.createElement("div", { style: { background: "#f8f9ff", borderRadius: 10, padding: "12px 14px", border: "1px solid #e8eaf6", display: "flex", alignItems: "flex-start", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22 } }, icon), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 } }, label), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 800, color } }, value), sub && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#aaa", marginTop: 1 } }, sub)));
+const SmInp = ({ label, fkey, fmt, ph, type, opts, note, required, value, error, onChange, onFmtChange }) => /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: error ? "#c62828" : "#888", marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.5 } }, label, required && /* @__PURE__ */ React.createElement("span", { style: { color: "#c62828" } }, " *")), opts ? /* @__PURE__ */ React.createElement(
+  "select",
+  {
+    value: value || "",
+    onChange: (e) => onChange(fkey, e.target.value),
+    style: { width: "100%", padding: "9px 12px", border: `1.5px solid ${error ? "#ef5350" : "#ddd"}`, borderRadius: 8, fontSize: 13, outline: "none", background: error ? "#fff8f8" : "#fff" }
+  },
+  /* @__PURE__ */ React.createElement("option", { value: "" }, "Select..."),
+  opts.map((o) => typeof o === "string" ? /* @__PURE__ */ React.createElement("option", { key: o, value: o }, o) : /* @__PURE__ */ React.createElement("option", { key: o.v, value: o.v }, o.l))
+) : /* @__PURE__ */ React.createElement(
+  "input",
+  {
+    type: type || "text",
+    value: value || "",
+    placeholder: ph || "",
+    onChange: (e) => fmt ? onFmtChange(fkey, fmt, e.target.value) : onChange(fkey, e.target.value),
+    style: { width: "100%", padding: "9px 12px", border: `1.5px solid ${error ? "#ef5350" : "#ddd"}`, borderRadius: 8, fontSize: 13, outline: "none", background: error ? "#fff8f8" : "#fff" }
+  }
+), note && !error && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#aaa", marginTop: 2 } }, note), /* @__PURE__ */ React.createElement(Err, { msg: error }));
 function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i;
   const [f, setF] = useState(emp ? { ...BLANK_EMP, ...emp } : { ...BLANK_EMP });
@@ -1774,6 +1805,28 @@ function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
       console.warn("setFmt:", e.message);
     }
   };
+  const stableSet = useCallback((k, v) => {
+    setF((p2) => {
+      const np = { ...p2, [k]: v };
+      if (k === "basic" && +v > 0) {
+        if (!p2._hraManual) np.hra = String(Math.round(+v * 0.4));
+        if (!p2.conv) np.conv = "1600";
+        if (!p2.med) np.med = "1250";
+      }
+      if (k === "hra" && +v > 0) np._hraManual = true;
+      return np;
+    });
+    setErrs((p2) => ({ ...p2, [k]: null }));
+  }, []);
+  const stableFmt = useCallback((k, fmt, v) => {
+    try {
+      const fv = (fmt || String)(v);
+      setF((p2) => ({ ...p2, [k]: fv }));
+    } catch (e) {
+      setF((p2) => ({ ...p2, [k]: v }));
+    }
+    setErrs((p2) => ({ ...p2, [k]: null }));
+  }, []);
   const p = (() => {
     try {
       return calcPay(f, 0, pol2);
@@ -1825,22 +1878,7 @@ function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
       return true;
     }
   }
-  const Err = ({ k }) => errs[k] ? /* @__PURE__ */ React.createElement("div", { style: { color: "#c62828", fontSize: 11, marginTop: 2, display: "flex", gap: 4 } }, /* @__PURE__ */ React.createElement("span", null, "\u26A0"), /* @__PURE__ */ React.createElement("span", null, errs[k])) : null;
-  const SmInp = ({ label, fkey, fmt, ph, type, opts, note, required }) => /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: errs[fkey] ? "#c62828" : "#888", marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.5 } }, label, required && /* @__PURE__ */ React.createElement("span", { style: { color: "#c62828" } }, " *")), opts ? /* @__PURE__ */ React.createElement("select", { value: f[fkey] || "", onChange: (e) => {
-    set(fkey, e.target.value);
-  }, style: { width: "100%", padding: "9px 12px", border: `1.5px solid ${errs[fkey] ? "#ef5350" : "#ddd"}`, borderRadius: 8, fontSize: 13, outline: "none", background: errs[fkey] ? "#fff8f8" : "#fff" } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Select..."), opts.map((o) => typeof o === "string" ? /* @__PURE__ */ React.createElement("option", { key: o, value: o }, o) : /* @__PURE__ */ React.createElement("option", { key: o.v, value: o.v }, o.l))) : /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      type: type || "text",
-      value: f[fkey] || "",
-      onChange: (e) => {
-        fmt ? setFmt(fkey, fmt, e.target.value) : set(fkey, e.target.value);
-      },
-      placeholder: ph || "",
-      style: { width: "100%", padding: "9px 12px", border: `1.5px solid ${errs[fkey] ? "#ef5350" : "#ddd"}`, borderRadius: 8, fontSize: 13, outline: "none", background: errs[fkey] ? "#fff8f8" : "#fff" }
-    }
-  ), note && !errs[fkey] && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#aaa", marginTop: 2 } }, note), /* @__PURE__ */ React.createElement(Err, { k: fkey }));
-  return /* @__PURE__ */ React.createElement(Modal, { title: emp ? "Edit Employee" : "Add Employee", onClose, w: 860 }, /* @__PURE__ */ React.createElement(Divider, { t: "Personal Details" }), /* @__PURE__ */ React.createElement(G, { cols: 3 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Employee Code", fkey: "code", fmt: FMT.code, ph: "EMP001", required: true, note: "Alphanumeric, no spaces" }), /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "span 2" } }, /* @__PURE__ */ React.createElement(SmInp, { label: "Full Name", fkey: "name", ph: "Rahul Kumar", required: true, note: "Letters and spaces only \u2014 no numbers" }))), /* @__PURE__ */ React.createElement(G, { cols: 3 }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(SmInp, { label: "Date of Birth", fkey: "dob", type: "date" }), ageAtJoin !== null && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, marginTop: 3, fontWeight: 600, color: ageAtJoin < 18 ? "#c62828" : ageAtJoin > 60 ? "#e65100" : "#2e7d32" } }, ageAtJoin < 18 ? `\u26A0 Age ${ageAtJoin} yrs \u2014 must be 18+` : ageAtJoin > 60 ? `\u2139 Age ${ageAtJoin} yrs at joining` : `\u2713 Age ${ageAtJoin} years`), errs.dob && /* @__PURE__ */ React.createElement("div", { style: { color: "#c62828", fontSize: 11, marginTop: 2 } }, "\u26A0 ", errs.dob)), /* @__PURE__ */ React.createElement(SmInp, { label: "Date of Joining", fkey: "doj", type: "date", required: true }), /* @__PURE__ */ React.createElement(SmInp, { label: "Gender", fkey: "gen", opts: ["Male", "Female", "Other"] })), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Father's Name", fkey: "fatherName", ph: "e.g. Ramesh Kumar", note: "Letters only" }), /* @__PURE__ */ React.createElement(SmInp, { label: "Marital Status", fkey: "maritalStatus", opts: ["Single", "Married", "Divorced", "Widowed", "Separated"] })), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Phone", fkey: "phone", fmt: FMT.phone, ph: "9876543210", note: "10 digits, starts with 6/7/8/9", required: true }), /* @__PURE__ */ React.createElement(SmInp, { label: "Work Email", fkey: "email", ph: "name@company.com", note: "Valid email format" })), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "PAN", fkey: "pan", fmt: FMT.pan, ph: "ABCDE1234F", note: `Auto-capitalised \xB7 ${((_a = f.pan) == null ? void 0 : _a.length) || 0}/10 chars \xB7 Format: 5 letters + 4 digits + 1 letter` }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(SmInp, { label: "Aadhaar", fkey: "aadhaar", fmt: FMT.aadhaar, ph: "XXXX XXXX XXXX", note: `Numbers only \xB7 ${((_b = f.aadhaar) == null ? void 0 : _b.length) || 0}/12 digits` }), ((_c = f.aadhaar) == null ? void 0 : _c.length) === 12 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#2e7d32", marginTop: 2 } }, "\u2713 Valid Aadhaar"))), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Location / Branch", fkey: "location", ph: "Mumbai HQ / Delhi Branch / WFH" }), /* @__PURE__ */ React.createElement(SmInp, { label: "Employee Notes", fkey: "note", ph: "Internal notes only" })), /* @__PURE__ */ React.createElement(Divider, { t: "Employment Details" }), /* @__PURE__ */ React.createElement(G, { cols: 3 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Designation", fkey: "desig", ph: "Software Engineer", required: true }), /* @__PURE__ */ React.createElement(SmInp, { label: "Department", fkey: "dept", opts: ["Engineering", "Finance", "HR", "Marketing", "Operations", "Admin", "Sales", "Legal", "Other"] }), /* @__PURE__ */ React.createElement(SmInp, { label: "Category", fkey: "cat", opts: ["Permanent", "Contractual", "Probation", "Intern", "Part-time"] })), /* @__PURE__ */ React.createElement(G, { cols: 3 }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(Modal, { title: emp ? "Edit Employee" : "Add Employee", onClose, w: 860 }, /* @__PURE__ */ React.createElement(Divider, { t: "Personal Details" }), /* @__PURE__ */ React.createElement(G, { cols: 3 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Employee Code", fkey: "code", fmt: FMT.code, ph: "EMP001", required: true, note: "Alphanumeric, no spaces", value: f.code, error: errs.code, onChange: stableSet, onFmtChange: stableFmt }), /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "span 2" } }, /* @__PURE__ */ React.createElement(SmInp, { label: "Full Name", fkey: "name", ph: "Rahul Kumar", required: true, note: "Letters and spaces only \u2014 no numbers", value: f.name, error: errs.name, onChange: stableSet, onFmtChange: stableFmt }))), /* @__PURE__ */ React.createElement(G, { cols: 3 }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(SmInp, { label: "Date of Birth", fkey: "dob", type: "date", value: f.dob, error: errs.dob, onChange: stableSet, onFmtChange: stableFmt }), ageAtJoin !== null && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, marginTop: 3, fontWeight: 600, color: ageAtJoin < 18 ? "#c62828" : ageAtJoin > 60 ? "#e65100" : "#2e7d32" } }, ageAtJoin < 18 ? `\u26A0 Age ${ageAtJoin} yrs \u2014 must be 18+` : ageAtJoin > 60 ? `\u2139 Age ${ageAtJoin} yrs at joining` : `\u2713 Age ${ageAtJoin} years`), errs.dob && /* @__PURE__ */ React.createElement("div", { style: { color: "#c62828", fontSize: 11, marginTop: 2 } }, "\u26A0 ", errs.dob)), /* @__PURE__ */ React.createElement(SmInp, { label: "Date of Joining", fkey: "doj", type: "date", required: true, value: f.doj, error: errs.doj, onChange: stableSet, onFmtChange: stableFmt }), /* @__PURE__ */ React.createElement(SmInp, { label: "Gender", fkey: "gen", opts: ["Male", "Female", "Other"], value: f.gen, error: errs.gen, onChange: stableSet, onFmtChange: stableFmt })), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Father's Name", fkey: "fatherName", ph: "e.g. Ramesh Kumar", note: "Letters only", value: f.fatherName, error: errs.fatherName, onChange: stableSet, onFmtChange: stableFmt }), /* @__PURE__ */ React.createElement(SmInp, { label: "Marital Status", fkey: "maritalStatus", opts: ["Single", "Married", "Divorced", "Widowed", "Separated"], value: f.maritalStatus, error: errs.maritalStatus, onChange: stableSet, onFmtChange: stableFmt })), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Phone", fkey: "phone", fmt: FMT.phone, ph: "9876543210", note: "10 digits, starts with 6/7/8/9", required: true, value: f.phone, error: errs.phone, onChange: stableSet, onFmtChange: stableFmt }), /* @__PURE__ */ React.createElement(SmInp, { label: "Work Email", fkey: "email", ph: "name@company.com", note: "Valid email format", value: f.email, error: errs.email, onChange: stableSet, onFmtChange: stableFmt })), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "PAN", fkey: "pan", fmt: FMT.pan, ph: "ABCDE1234F", note: `Auto-capitalised \xB7 ${((_a = f.pan) == null ? void 0 : _a.length) || 0}/10 chars \xB7 Format: 5 letters + 4 digits + 1 letter`, value: f.pan, error: errs.pan, onChange: stableSet, onFmtChange: stableFmt }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(SmInp, { label: "Aadhaar", fkey: "aadhaar", fmt: FMT.aadhaar, ph: "XXXX XXXX XXXX", note: `Numbers only \xB7 ${((_b = f.aadhaar) == null ? void 0 : _b.length) || 0}/12 digits`, value: f.aadhaar, error: errs.aadhaar, onChange: stableSet, onFmtChange: stableFmt }), ((_c = f.aadhaar) == null ? void 0 : _c.length) === 12 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#2e7d32", marginTop: 2 } }, "\u2713 Valid Aadhaar"))), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Location / Branch", fkey: "location", ph: "Mumbai HQ / Delhi Branch / WFH", value: f.location, error: errs.location, onChange: stableSet, onFmtChange: stableFmt }), /* @__PURE__ */ React.createElement(SmInp, { label: "Employee Notes", fkey: "note", ph: "Internal notes only", value: f.note, error: errs.note, onChange: stableSet, onFmtChange: stableFmt })), /* @__PURE__ */ React.createElement(Divider, { t: "Employment Details" }), /* @__PURE__ */ React.createElement(G, { cols: 3 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Designation", fkey: "desig", ph: "Software Engineer", required: true, value: f.desig, error: errs.desig, onChange: stableSet, onFmtChange: stableFmt }), /* @__PURE__ */ React.createElement(SmInp, { label: "Department", fkey: "dept", opts: ["Engineering", "Finance", "HR", "Marketing", "Operations", "Admin", "Sales", "Legal", "Other"], value: f.dept, error: errs.dept, onChange: stableSet, onFmtChange: stableFmt }), /* @__PURE__ */ React.createElement(SmInp, { label: "Category", fkey: "cat", opts: ["Permanent", "Contractual", "Probation", "Intern", "Part-time"], value: f.cat, error: errs.cat, onChange: stableSet, onFmtChange: stableFmt })), /* @__PURE__ */ React.createElement(G, { cols: 3 }, /* @__PURE__ */ React.createElement(
     SmInp,
     {
       label: "Shift",
@@ -1853,7 +1891,7 @@ function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
         set("shift", v);
       }
     }
-  ), /* @__PURE__ */ React.createElement(SmInp, { label: "Status", fkey: "status", opts: ["Active", "Inactive", "Resigned", "Terminated", "On Leave"] }), /* @__PURE__ */ React.createElement(SmInp, { label: "Min Wages Category", fkey: "mwCategory", opts: [{ v: "unskilled", l: "Unskilled (\u20B911,700)" }, { v: "semiskilled", l: "Semi-Skilled (\u20B912,220)" }, { v: "skilled", l: "Skilled (\u20B912,922)" }, { v: "highskilled", l: "Highly Skilled (\u20B913,650)" }] })), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff3e0", border: "1px solid #ffcc80", borderRadius: 10, padding: "14px 16px", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#e65100", marginBottom: 10 } }, "\u{1F4CD} Work Location State ", /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 400, fontSize: 11, color: "#888" } }, "\u2014 determines Professional Tax & LWF (per Indian law)")), /* @__PURE__ */ React.createElement(G, { cols: 3 }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Work State *"), /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement(SmInp, { label: "Status", fkey: "status", opts: ["Active", "Inactive", "Resigned", "Terminated", "On Leave"], value: f.status, error: errs.status, onChange: stableSet, onFmtChange: stableFmt }), /* @__PURE__ */ React.createElement(SmInp, { label: "Min Wages Category", fkey: "mwCategory", opts: [{ v: "unskilled", l: "Unskilled (\u20B911,700)" }, { v: "semiskilled", l: "Semi-Skilled (\u20B912,220)" }, { v: "skilled", l: "Skilled (\u20B912,922)" }, { v: "highskilled", l: "Highly Skilled (\u20B913,650)" }], value: f.mwCategory, error: errs.mwCategory, onChange: stableSet, onFmtChange: stableFmt })), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff3e0", border: "1px solid #ffcc80", borderRadius: 10, padding: "14px 16px", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#e65100", marginBottom: 10 } }, "\u{1F4CD} Work Location State ", /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 400, fontSize: 11, color: "#888" } }, "\u2014 determines Professional Tax & LWF (per Indian law)")), /* @__PURE__ */ React.createElement(G, { cols: 3 }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Work State *"), /* @__PURE__ */ React.createElement(
     "select",
     {
       value: f.workState || "",
@@ -1983,22 +2021,6 @@ function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
       const gross = p.g || 0;
       const state = f.workState || ((_a2 = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _a2.state) || "Maharashtra";
       const rec = getStatutoryRecommendation(f.basic, gross, state);
-      const StatCard = ({ checked, onCheck, icon, title, badge, note, children }) => /* @__PURE__ */ React.createElement("div", { style: { background: checked ? "#f8fff8" : "#fafafa", border: `1.5px solid ${checked ? "#a5d6a7" : "#e0e0e0"}`, borderRadius: 10, padding: 14, transition: "all .15s" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer", flex: 1 } }, /* @__PURE__ */ React.createElement(
-        "input",
-        {
-          type: "checkbox",
-          checked: !!checked,
-          onChange: (e) => onCheck(e.target.checked),
-          style: { width: 16, height: 16, accentColor: "#1a237e", cursor: "pointer" }
-        }
-      ), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 13 } }, icon, " ", title)), /* @__PURE__ */ React.createElement("span", { style: {
-        fontSize: 10,
-        fontWeight: 700,
-        padding: "1px 8px",
-        borderRadius: 8,
-        background: badge === "Mandatory" ? "#e8f5e9" : badge === "Voluntary" ? "#e3f2fd" : "#f5f5f5",
-        color: badge === "Mandatory" ? "#1b5e20" : badge === "Voluntary" ? "#1565c0" : "#999"
-      } }, badge)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#888", lineHeight: 1.5, marginBottom: children && checked ? 8 : 0 } }, note), checked && children);
       return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 } }, /* @__PURE__ */ React.createElement(
         StatCard,
         {
@@ -2016,7 +2038,11 @@ function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
             fkey: "uan",
             fmt: FMT.uan,
             ph: "100000000000",
-            note: `${((_b2 = f.uan) == null ? void 0 : _b2.length) || 0}/12 digits \xB7 From previous employer`
+            note: `${((_b2 = f.uan) == null ? void 0 : _b2.length) || 0}/12 digits \xB7 From previous employer`,
+            value: f.uan,
+            error: errs.uan,
+            onChange: stableSet,
+            onFmtChange: stableFmt
           }
         ),
         /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8 } }, /* @__PURE__ */ React.createElement(
@@ -2025,7 +2051,11 @@ function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
             label: "PF Number",
             fkey: "pfNo",
             ph: "MH/BAN/0000/000/0000000",
-            note: "Leave blank for new joinee"
+            note: "Leave blank for new joinee",
+            value: f.pfNo,
+            error: errs.pfNo,
+            onChange: stableSet,
+            onFmtChange: stableFmt
           }
         ))
       ), /* @__PURE__ */ React.createElement(
@@ -2045,7 +2075,11 @@ function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
             fkey: "esicNo",
             fmt: FMT.esic,
             ph: "3100000000",
-            note: `${((_c2 = f.esicNo) == null ? void 0 : _c2.length) || 0}/10 digits`
+            note: `${((_c2 = f.esicNo) == null ? void 0 : _c2.length) || 0}/10 digits`,
+            value: f.esicNo,
+            error: errs.esicNo,
+            onChange: stableSet,
+            onFmtChange: stableFmt
           }
         )
       ), /* @__PURE__ */ React.createElement(
@@ -2146,7 +2180,7 @@ function EmpForm({ emp, onSave, onClose, pol: pol2 = DEFAULT_POLICIES }) {
     } catch (e) {
       return null;
     }
-  })()), /* @__PURE__ */ React.createElement(Divider, { t: "Bank Details" }), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Bank Name", fkey: "bank", ph: "State Bank of India" }), /* @__PURE__ */ React.createElement(SmInp, { label: "Branch Name", fkey: "bankBranch", ph: "e.g. MG Road, Bengaluru" })), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Account Number", fkey: "acc", fmt: FMT.acc, ph: "00000000000000", note: "9-18 digits \xB7 Salary will be credited here" }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(SmInp, { label: "IFSC Code", fkey: "ifsc", fmt: FMT.ifsc, ph: "SBIN0001234", note: `Auto-capitalised \xB7 ${((_h = f.ifsc) == null ? void 0 : _h.length) || 0}/11 chars`, required: true }), ((_i = f.ifsc) == null ? void 0 : _i.length) === 11 && !errs.ifsc && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#2e7d32", marginTop: 2 } }, "\u2713 Valid IFSC"))), Object.keys(errs).filter((k) => errs[k]).length > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "#ffebee", border: "1px solid #ef9a9a", borderRadius: 10, padding: "12px 16px", marginTop: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#c62828", marginBottom: 8, fontSize: 13 } }, "\u26A0 Please fix before saving:"), Object.entries(errs).filter(([, v]) => v).map(([k, v]) => /* @__PURE__ */ React.createElement("div", { key: k, style: { fontSize: 12, color: "#c62828", marginBottom: 3 } }, "\u2022 ", v))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
+  })()), /* @__PURE__ */ React.createElement(Divider, { t: "Bank Details" }), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Bank Name", fkey: "bank", ph: "State Bank of India", value: f.bank, error: errs.bank, onChange: stableSet, onFmtChange: stableFmt }), /* @__PURE__ */ React.createElement(SmInp, { label: "Branch Name", fkey: "bankBranch", ph: "e.g. MG Road, Bengaluru", value: f.bankBranch, error: errs.bankBranch, onChange: stableSet, onFmtChange: stableFmt })), /* @__PURE__ */ React.createElement(G, { cols: 2 }, /* @__PURE__ */ React.createElement(SmInp, { label: "Account Number", fkey: "acc", fmt: FMT.acc, ph: "00000000000000", note: "9-18 digits \xB7 Salary will be credited here", value: f.acc, error: errs.acc, onChange: stableSet, onFmtChange: stableFmt }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(SmInp, { label: "IFSC Code", fkey: "ifsc", fmt: FMT.ifsc, ph: "SBIN0001234", note: `Auto-capitalised \xB7 ${((_h = f.ifsc) == null ? void 0 : _h.length) || 0}/11 chars`, required: true, value: f.ifsc, error: errs.ifsc, onChange: stableSet, onFmtChange: stableFmt }), ((_i = f.ifsc) == null ? void 0 : _i.length) === 11 && !errs.ifsc && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#2e7d32", marginTop: 2 } }, "\u2713 Valid IFSC"))), Object.keys(errs).filter((k) => errs[k]).length > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "#ffebee", border: "1px solid #ef9a9a", borderRadius: 10, padding: "12px 16px", marginTop: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#c62828", marginBottom: 8, fontSize: 13 } }, "\u26A0 Please fix before saving:"), Object.entries(errs).filter(([, v]) => v).map(([k, v]) => /* @__PURE__ */ React.createElement("div", { key: k, style: { fontSize: 12, color: "#c62828", marginBottom: 3 } }, "\u2022 ", v))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: onClose }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
     if (!validate()) return;
     const empData = { ...f, id: (emp == null ? void 0 : emp.id) || "E" + uid() };
     if (!empData.hra && empData.basic) empData.hra = Math.round(+empData.basic * 0.4);
@@ -2283,6 +2317,24 @@ function AttendanceModule({ emps, attendance, setAttendance, holidays = [], onMa
       return np;
     });
     setPopup(null);
+  }
+  function calcHrs(inT, outT) {
+    const [ih, im] = inT.split(":").map(Number);
+    const [oh, om] = outT.split(":").map(Number);
+    let h = oh * 60 + om - (ih * 60 + im);
+    if (h < 0) h += 24 * 60;
+    return Math.max(0, h / 60);
+  }
+  function markStatusFull(eid, day, status, inT, outT, hrs) {
+    const ds = `${yr}-${String(mo).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const rec = { status, in: inT, out: outT, hrs };
+    setAttendance((p) => {
+      const np = { ...p };
+      if (!np[eid]) np[eid] = {};
+      np[eid][ds] = rec;
+      return np;
+    });
+    if (onMark) onMark(eid, ds, rec);
   }
   function getSummary(empId) {
     const s = getMonthSummary(empId, month, attendance, holidays);
@@ -2672,7 +2724,44 @@ ${e.code},${e.name},${month}-02,A`).join("\n");
       /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 800, fontSize: 10, minWidth: 24, textAlign: "center", background: st.bg, color: st.color, padding: "1px 4px", borderRadius: 4 } }, k),
       /* @__PURE__ */ React.createElement("span", null, l)
     );
-  })), /* @__PURE__ */ React.createElement("button", { onClick: () => clearStatus(popup.empId, popup.day), style: { width: "100%", padding: "6px", background: "#f5f5f5", color: "#666", border: "none", borderRadius: 7, fontSize: 11, cursor: "pointer", fontWeight: 600 } }, "\u2715 Clear")), fullMonthModal && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setFullMonthModal(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, padding: 28, width: 440, boxShadow: "0 20px 60px rgba(0,0,0,.3)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 17, marginBottom: 6 } }, "\u{1F4C5} Mark Full Month"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 18, lineHeight: 1.6 } }, "Fills all weekdays as Present and weekends as Week Off. Public holidays marked as H. Existing entries preserved unless you choose Overwrite."), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement("input", { type: "month", value: fmMonth, onChange: (e) => setFmMonth(e.target.value), style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 10, fontSize: 14, outline: "none" } })), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Apply to"), /* @__PURE__ */ React.createElement("select", { value: fmTarget, onChange: (e) => setFmTarget(e.target.value), style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 10, fontSize: 13, outline: "none" } }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All employees (", emps.length, ")"), emps.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setFullMonthModal(false), style: { flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: "pointer", fontSize: 13 } }, "Cancel"), /* @__PURE__ */ React.createElement("button", { onClick: () => markFullMonthFn(fmTarget, fmMonth, false), style: { flex: 1, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Fill Empty Days"), /* @__PURE__ */ React.createElement("button", { onClick: () => markFullMonthFn(fmTarget, fmMonth, true), style: { flex: 1, padding: "10px", border: "none", borderRadius: 10, background: "#1b5e20", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Overwrite All"))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16 } }, "Shift / Work Schedules"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginTop: 2 } }, "Define work timings \u2014 assign shifts to employees in their profile")), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+  })), (() => {
+    var _a2;
+    const cur = (_a2 = attendance[popup.empId]) == null ? void 0 : _a2[popup.date];
+    return (cur == null ? void 0 : cur.status) && ["P", "WFH", "HD"].includes(cur.status) ? /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, paddingTop: 8, borderTop: "1px solid #f0f0f0" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 6 } }, "HOURS WORKED"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#aaa", marginBottom: 2 } }, "IN TIME"), /* @__PURE__ */ React.createElement("input", { type: "time", defaultValue: cur.in || "09:00", onBlur: (e) => {
+      const inT = e.target.value;
+      const outEl = e.target.closest("div").nextSibling.querySelector("input");
+      const hrs = outEl ? calcHrs(inT, outEl.value) : null;
+      if (hrs != null) markStatusFull(popup.empId, popup.day, cur.status, inT, outEl.value, hrs);
+    }, style: { width: "100%", padding: "4px 6px", border: "1px solid #ddd", borderRadius: 6, fontSize: 11 } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#aaa", marginBottom: 2 } }, "OUT TIME"), /* @__PURE__ */ React.createElement("input", { type: "time", defaultValue: cur.out || "18:00", onBlur: (e) => {
+      const outT = e.target.value;
+      const inEl = e.target.closest("div").previousSibling.querySelector("input");
+      const hrs = inEl ? calcHrs(inEl.value, outT) : null;
+      if (hrs != null) markStatusFull(popup.empId, popup.day, cur.status, inEl.value, outT, hrs);
+    }, style: { width: "100%", padding: "4px 6px", border: "1px solid #ddd", borderRadius: 6, fontSize: 11 } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#aaa", marginBottom: 2 } }, "HRS"), /* @__PURE__ */ React.createElement("div", { style: { padding: "5px 6px", background: "#f0f4ff", borderRadius: 6, fontSize: 12, fontWeight: 700, color: "#1a237e", textAlign: "center" } }, cur.in && cur.out ? calcHrs(cur.in, cur.out).toFixed(1) : (cur.hrs || 9).toFixed(1)))), (() => {
+      var _a3, _b2, _c2, _d, _e, _f, _g, _h;
+      const pol2 = window2._payrolla_pol || {};
+      const flexi = (_a3 = pol2.shifts) == null ? void 0 : _a3.flexiTiming;
+      if (!flexi || !cur.in) return null;
+      const [h, m] = cur.in.split(":").map(Number);
+      const stdIn = ((_d = (_c2 = (_b2 = pol2.shifts) == null ? void 0 : _b2.shifts) == null ? void 0 : _c2[0]) == null ? void 0 : _d.start) || "09:00";
+      const [sh, sm] = stdIn.split(":").map(Number);
+      const diffMins = h * 60 + m - (sh * 60 + sm);
+      const window2 = ((_e = pol2.shifts) == null ? void 0 : _e.flexiWindowMins) || 30;
+      if (diffMins <= 0) return null;
+      const stdDur = (((_h = (_g = (_f = pol2.shifts) == null ? void 0 : _f.shifts) == null ? void 0 : _g[0]) == null ? void 0 : _h.hrs) || 9) * 60;
+      const reqOutMins = sh * 60 + sm + stdDur + diffMins;
+      const reqH = Math.floor(reqOutMins / 60), reqM = reqOutMins % 60;
+      const reqStr = `${String(reqH).padStart(2, "0")}:${String(reqM).padStart(2, "0")}`;
+      return /* @__PURE__ */ React.createElement("div", { style: {
+        marginTop: 6,
+        fontSize: 10,
+        padding: "5px 8px",
+        borderRadius: 6,
+        background: diffMins > window2 ? "#ffebee" : "#fff8e1",
+        color: diffMins > window2 ? "#c62828" : "#f57f17"
+      } }, diffMins > window2 ? `\u26A0 Arrived ${diffMins} min late (>${window2} min window) \u2014 LOP applies` : `\u23F1 Flexi: arrived ${diffMins} min late \u2192 must work until ${reqStr}`);
+    })()) : null;
+  })(), /* @__PURE__ */ React.createElement("button", { onClick: () => clearStatus(popup.empId, popup.day), style: { width: "100%", padding: "6px", background: "#f5f5f5", color: "#666", border: "none", borderRadius: 7, fontSize: 11, cursor: "pointer", fontWeight: 600, marginTop: 8 } }, "\u2715 Clear")), fullMonthModal && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setFullMonthModal(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, padding: 28, width: 440, boxShadow: "0 20px 60px rgba(0,0,0,.3)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 17, marginBottom: 6 } }, "\u{1F4C5} Mark Full Month"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 18, lineHeight: 1.6 } }, "Fills all weekdays as Present and weekends as Week Off. Public holidays marked as H. Existing entries preserved unless you choose Overwrite."), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement("input", { type: "month", value: fmMonth, onChange: (e) => setFmMonth(e.target.value), style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 10, fontSize: 14, outline: "none" } })), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Apply to"), /* @__PURE__ */ React.createElement("select", { value: fmTarget, onChange: (e) => setFmTarget(e.target.value), style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 10, fontSize: 13, outline: "none" } }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All employees (", emps.length, ")"), emps.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setFullMonthModal(false), style: { flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: "pointer", fontSize: 13 } }, "Cancel"), /* @__PURE__ */ React.createElement("button", { onClick: () => markFullMonthFn(fmTarget, fmMonth, false), style: { flex: 1, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Fill Empty Days"), /* @__PURE__ */ React.createElement("button", { onClick: () => markFullMonthFn(fmTarget, fmMonth, true), style: { flex: 1, padding: "10px", border: "none", borderRadius: 10, background: "#1b5e20", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Overwrite All")))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16 } }, "Shift / Work Schedules"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginTop: 2 } }, "Define work timings \u2014 assign shifts to employees in their profile")), /* @__PURE__ */ React.createElement("button", { onClick: () => {
     var _a2, _b2;
     const name = prompt("Shift name (e.g. 'General', 'Night', 'Field'):");
     if (!(name == null ? void 0 : name.trim())) return;
@@ -2694,7 +2783,7 @@ ${e.code},${e.name},${month}-02,A`).join("\n");
     const updated = { ...pol, shifts: (((_a2 = pol == null ? void 0 : pol.shifts) == null ? void 0 : _a2.shifts) || ((_b2 = DEFAULT_POLICIES.shifts) == null ? void 0 : _b2.shifts) || []).filter((x) => x.id !== s.id) };
     setPol(updated);
     apiSavePolicies(updated);
-  }, style: { fontSize: 11, padding: "3px 10px", border: "1px solid #ef9a9a", borderRadius: 6, background: "#fff", color: "#c62828", cursor: "pointer" } }, "Delete"))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, fontSize: 12, color: "#888" } }, 'Assign a shift to each employee under Employee \u2192 Edit \u2192 "Shift". Used by web punch-in to show correct timings. Future: auto-mark WO/H on non-working days per shift schedule.'))), showImport && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setShowImport(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, padding: 28, width: 540, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.3)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 17, marginBottom: 6 } }, "\u{1F4E5} Import Attendance"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", lineHeight: 1.6, marginBottom: 16 } }, "Upload a CSV file with attendance data. Supports two formats:", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, "Vertical:"), " Code, Date (YYYY-MM-DD), Status", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, "Horizontal:"), " Code, Name, 1, 2, 3...31 (columns = days)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 16 } }, /* @__PURE__ */ React.createElement("label", { style: { flex: 1, padding: "12px", background: "#f4f5fa", border: "2px dashed #1a237e", borderRadius: 10, textAlign: "center", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#1a237e" } }, "\u{1F4C2} Choose CSV File", /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".csv,.txt", style: { display: "none" }, onChange: (e) => {
+  }, style: { fontSize: 11, padding: "3px 10px", border: "1px solid #ef9a9a", borderRadius: 6, background: "#fff", color: "#c62828", cursor: "pointer" } }, "Delete"))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, fontSize: 12, color: "#888" } }, 'Assign a shift to each employee under Employee \u2192 Edit \u2192 "Shift". Used by web punch-in to show correct timings. Future: auto-mark WO/H on non-working days per shift schedule.')), showImport && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setShowImport(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, padding: 28, width: 540, maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.3)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 17, marginBottom: 6 } }, "\u{1F4E5} Import Attendance"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", lineHeight: 1.6, marginBottom: 16 } }, "Upload a CSV file with attendance data. Supports two formats:", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, "Vertical:"), " Code, Date (YYYY-MM-DD), Status", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, "Horizontal:"), " Code, Name, 1, 2, 3...31 (columns = days)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 16 } }, /* @__PURE__ */ React.createElement("label", { style: { flex: 1, padding: "12px", background: "#f4f5fa", border: "2px dashed #1a237e", borderRadius: 10, textAlign: "center", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#1a237e" } }, "\u{1F4C2} Choose CSV File", /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".csv,.txt", style: { display: "none" }, onChange: (e) => {
     if (e.target.files[0]) parseCSV(e.target.files[0]);
   } })), /* @__PURE__ */ React.createElement("button", { onClick: downloadTemplate, style: { padding: "12px 16px", background: "#fff", border: "1px solid #1a237e", borderRadius: 10, color: "#1a237e", fontSize: 12, cursor: "pointer", fontWeight: 600 } }, "\u2B07 Template")), importErrors.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "#ffebee", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 12, color: "#c62828" } }, /* @__PURE__ */ React.createElement("b", null, "\u26A0 ", importErrors.length, " errors:"), importErrors.slice(0, 5).map((e, i) => /* @__PURE__ */ React.createElement("div", { key: i }, "\u2022 ", e))), importPreview.length > 0 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#1b5e20", marginBottom: 8 } }, "\u2713 ", importPreview.length, " records ready"), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: 200, overflowY: "auto", border: "1px solid #e0e0e0", borderRadius: 8, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: "#f5f5f5" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px", textAlign: "left" } }, "Employee"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px" } }, "Date"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 10px" } }, "Status"))), /* @__PURE__ */ React.createElement("tbody", null, importPreview.slice(0, 10).map((r, i) => {
     const st = ATT_STATUS[r.status];
@@ -4222,299 +4311,345 @@ function buildVestingSchedule(equity) {
   }
   return rows;
 }
-function generateOfferLetter(emp, co, joiningDate, cfg = null, returnHtml = false) {
-  const config = { ...DEFAULT_LETTER_CONFIG, ...cfg };
-  const p = calcPay(emp, 0, null);
-  const gross = p.g || 0;
-  const ac = config.accentColor;
-  const refNo = `${(co.name || "CO").substring(0, 3).toUpperCase()}/OL/${emp.code || "001"}/${(/* @__PURE__ */ new Date()).getFullYear()}`;
-  const equity = config.equity;
-  const vestRows = equity.enabled && equity.units > 0 ? buildVestingSchedule(equity) : [];
-  const vestTableHtml = vestRows.length > 0 ? `
-    <table class="equity-table">
-      <tr><th>Vesting Date</th><th>${equity.type === "phantom" ? "Units" : "Options"} Vesting</th><th>Cumulative</th><th>% of Grant</th><th>Note</th></tr>
-      ${vestRows.map((r) => `
-        <tr class="${r.note.includes("Final") ? "vested" : ""}">
-          <td>${r.period}</td>
-          <td>${r.vesting.toLocaleString("en-IN")}</td>
-          <td>${r.cumulative.toLocaleString("en-IN")} / ${equity.units.toLocaleString("en-IN")}</td>
-          <td>${Math.round(r.cumulative / equity.units * 100)}%</td>
-          <td style="font-size:10px;color:#666">${r.note}</td>
-        </tr>`).join("")}
-    </table>` : "";
-  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Offer Letter \u2014 ${emp.name}</title>${getLetterStyles(ac)}
-  </head><body>
-  ${config.showWatermark ? '<div class="watermark">PAYROLLA</div>' : ""}
-  <div class="page">
-
-    <!-- LETTERHEAD -->
-    <div class="lh">
-      <div>
-        <div class="lh-logo">${co.name || "Company Name"}<span style="color:#64b5f6;font-size:14px;font-weight:400"> &nbsp;Private Limited</span></div>
-        <div style="font-size:10px;color:#888;margin-top:3px">${co.addr || ""} ${co.city ? "\xB7 " + co.city : ""} ${co.state ? "\xB7 " + co.state : ""} ${co.pin || ""}</div>
-        ${co.gstin ? `<div style="font-size:10px;color:#888">GSTIN: ${co.gstin} ${co.cin ? "\xB7 CIN: " + co.cin : ""}</div>` : ""}
-      </div>
-      <div class="lh-details">
-        <div><strong>PAN:</strong> ${co.pan || "\u2014"}</div>
-        ${co.email ? `<div>${co.email}</div>` : ""}
-        ${co.website ? `<div>${co.website}</div>` : ""}
-      </div>
+function generateOfferLetter(emp, co, pol2, format = "standard") {
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u;
+  const C = co || {};
+  const E = emp || {};
+  const today = /* @__PURE__ */ new Date();
+  const doj = E.doj ? /* @__PURE__ */ new Date(E.doj + "T00:00:00") : today;
+  const gross = (+E.basic || 0) + (+E.hra || 0) + (+E.conv || 0) + (+E.med || 0) + (+E.spl || 0) + (+E.lta || 0);
+  const annual = gross * 12;
+  const fmt = (n) => "\u20B9" + n.toLocaleString("en-IN");
+  const fdate = (d) => d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+  const refNo = `${((_b = (_a = C.name) == null ? void 0 : _a.split(" ")[0]) == null ? void 0 : _b.toUpperCase()) || "CO"}/HR/OFFER/${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, "0")}/${E.code || Math.floor(Math.random() * 9e3 + 1e3)}`;
+  if (format === "brief") return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Offer Letter</title>
+<style>body{font-family:Arial,sans-serif;font-size:13px;margin:0;padding:30px;color:#222}
+h1{color:#1a237e;font-size:18px;border-bottom:2px solid #1a237e;padding-bottom:8px}
+.meta{color:#555;font-size:12px;margin-bottom:20px}.sig{margin-top:40px}
+p{line-height:1.7;margin:10px 0}</style></head><body>
+<h1>${C.name || "Company Name"}</h1>
+<div class="meta">${C.addr || ""} | Ref: ${refNo} | Date: ${fdate(today)}</div>
+<p><b>To: ${E.name || "Candidate Name"}</b><br/>Designation: <b>${E.desig || "Position"}</b> | Department: ${E.dept || "\u2014"}</p>
+<p>Dear ${((_c = E.name) == null ? void 0 : _c.split(" ")[0]) || "Candidate"},</p>
+<p>We are pleased to offer you the position of <b>${E.desig || "[Position]"}</b> at <b>${C.name || "our organization"}</b>,
+effective <b>${fdate(doj)}</b>.</p>
+<p><b>Compensation:</b> CTC of <b>${fmt(annual)}</b> per annum (${fmt(gross)}/month gross).</p>
+<p>Components: Basic ${fmt(+E.basic || 0)} \xB7 HRA ${fmt(+E.hra || 0)} \xB7 Conv ${fmt(+E.conv || 0)} \xB7 Medical ${fmt(+E.med || 0)} \xB7 Special ${fmt(+E.spl || 0)}.</p>
+<p>Kindly confirm acceptance within 7 days. This offer is conditional on verification of documents.</p>
+<div class="sig"><p>Regards,<br/><b>${C.name || "HR Team"}</b></p></div>
+</body></html>`;
+  if (format === "detailed") return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Offer Letter \u2014 ${E.name}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Times New Roman",serif;font-size:12pt;color:#111;background:#fff}
+  .page{max-width:800px;margin:0 auto;padding:40px 60px;border:1px solid #ddd}
+  .letterhead{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px double #1a237e;padding-bottom:18px;margin-bottom:20px}
+  .company-name{font-size:22pt;font-weight:bold;color:#1a237e;letter-spacing:-0.5px}
+  .company-details{font-size:9pt;color:#555;margin-top:4px;line-height:1.6}
+  .ref-block{text-align:right;font-size:10pt;color:#555;line-height:1.8}
+  .subject{background:#f0f4ff;border-left:4px solid #1a237e;padding:10px 16px;margin:20px 0;font-weight:bold;font-size:11pt}
+  .section-title{font-weight:bold;font-size:11pt;border-bottom:1px solid #ddd;padding-bottom:4px;margin:20px 0 10px;color:#1a237e;text-transform:uppercase;letter-spacing:.5px}
+  table{width:100%;border-collapse:collapse;font-size:11pt;margin:10px 0}
+  th{background:#1a237e;color:#fff;padding:8px 12px;text-align:left;font-weight:600;font-size:10pt}
+  td{padding:7px 12px;border-bottom:1px solid #e8e8e8}
+  tr:nth-child(even) td{background:#f9f9ff}
+  tr.total td{background:#e8eaf6;font-weight:bold;border-top:2px solid #1a237e}
+  .cond{font-size:10pt;color:#555;margin:5px 0;padding-left:12px;text-indent:-12px}
+  .cond::before{content:"\u2022 ";color:#1a237e}
+  .sig-block{margin-top:50px;display:grid;grid-template-columns:1fr 1fr;gap:40px}
+  .sig-line{border-top:1px solid #333;margin-top:40px;padding-top:6px;font-size:10pt}
+  .watermark{text-align:center;color:#e0e0e0;font-size:9pt;margin-top:30px;letter-spacing:1px}
+  @media print{.page{border:none;padding:20px 40px}}
+</style></head><body><div class="page">
+<div class="letterhead">
+  <div>
+    <div class="company-name">${C.name || "Company Name"}</div>
+    <div class="company-details">
+      ${C.addr || "Registered Address"}<br/>
+      ${C.gstin ? "GSTIN: " + C.gstin + " | " : ""}${C.pan ? "PAN: " + C.pan : ""}${C.phone ? " | Phone: " + C.phone : ""}${C.email ? " | " + C.email : ""}
     </div>
+  </div>
+  <div class="ref-block">
+    <b>Ref No:</b> ${refNo}<br/>
+    <b>Date:</b> ${fdate(today)}<br/>
+    <b>Private & Confidential</b>
+  </div>
+</div>
 
-    <!-- TITLE BAR -->
-    <div class="letter-title">Letter of Offer \u2014 Confidential</div>
+<p style="font-weight:bold">${E.name || "Candidate Name"}<br/>
+${E.addr || ""}</p>
 
-    <!-- META -->
-    <div class="meta">
-      <div class="meta-left">
-        <div class="meta-label">Reference Number</div>
-        <div class="meta-val">${refNo}</div>
-        <div class="meta-label" style="margin-top:8px">Date of Issue</div>
-        <div class="meta-val">${(/* @__PURE__ */ new Date()).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</div>
-      </div>
-      <div class="meta-right">
-        <div class="meta-label">Offer Valid Until</div>
-        <div class="meta-val">${new Date(Date.now() + config.offerValidDays * 864e5).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</div>
-        <div class="meta-label" style="margin-top:8px">Date of Joining</div>
-        <div class="meta-val" style="color:${ac};font-weight:700">${joiningDate || emp.doj || "\u2014"}</div>
-      </div>
-    </div>
+<div class="subject">OFFER OF EMPLOYMENT \u2014 ${(E.desig || "Position").toUpperCase()}</div>
 
-    <!-- ADDRESSEE -->
-    <div class="salutation">
-      <div style="margin-bottom:10px">To,<br/><strong style="font-size:14px">${emp.name || "\u2014"}</strong><br/>
-      ${emp.addr || ""} ${emp.city ? emp.city + ", " : ""}</div>
-      <div><strong>Dear ${(emp.name || "").split(" ")[0] || "Candidate"},</strong></div>
-    </div>
+<p style="line-height:1.8">Dear <b>${((_d = E.name) == null ? void 0 : _d.split(" ")[0]) || "Candidate"}</b>,</p>
+<p style="line-height:1.8;margin:10px 0">With reference to your application and subsequent interviews, we are delighted to offer you the position of <b>${E.desig || "[Position]"}</b> in our <b>${E.dept || "[Department]"}</b> department at <b>${C.name || "our organization"}</b>.</p>
 
-    <!-- WELCOME -->
-    <p class="body-para">${config.welcomeText}</p>
+<p style="line-height:1.8;margin:10px 0">Your appointment is scheduled to commence on <b>${fdate(doj)}</b>. You will be based at our <b>${C.addr || "[Location]"}</b> office and shall report to the <b>${E.dept || "[Department]"} Head</b>.</p>
 
-    <!-- POSITION DETAILS -->
-    <h2>Position Details</h2>
-    <table>
-      <tr><th style="width:40%">Particulars</th><th>Details</th></tr>
-      <tr><td>Designation</td><td><strong>${emp.desig || "\u2014"}</strong></td></tr>
-      <tr><td>Department</td><td>${emp.dept || "\u2014"}</td></tr>
-      <tr><td>Employment Type</td><td>${emp.cat || "Permanent"}</td></tr>
-      <tr><td>Place of Posting</td><td>${co.city || "\u2014"} (may be transferred as per company needs)</td></tr>
-      <tr><td>Date of Joining</td><td><strong style="color:${ac}">${joiningDate || emp.doj || "\u2014"}</strong></td></tr>
-      <tr><td>Work Hours</td><td>${config.workHours} (${config.workDays})</td></tr>
-      <tr><td>Probation Period</td><td>${config.probationMonths} months from date of joining</td></tr>
-      <tr><td>Reporting To</td><td>${emp.manager || "As assigned by management"}</td></tr>
-    </table>
+<div class="section-title">Compensation & Benefits</div>
+<table>
+  <tr><th>Component</th><th>Monthly (\u20B9)</th><th>Annual (\u20B9)</th></tr>
+  <tr><td>Basic Salary</td><td>${fmt(+E.basic || 0)}</td><td>${fmt((+E.basic || 0) * 12)}</td></tr>
+  <tr><td>House Rent Allowance (HRA)</td><td>${fmt(+E.hra || 0)}</td><td>${fmt((+E.hra || 0) * 12)}</td></tr>
+  <tr><td>Conveyance Allowance</td><td>${fmt(+E.conv || 0)}</td><td>${fmt((+E.conv || 0) * 12)}</td></tr>
+  <tr><td>Medical Allowance</td><td>${fmt(+E.med || 0)}</td><td>${fmt((+E.med || 0) * 12)}</td></tr>
+  <tr><td>Special Allowance</td><td>${fmt(+E.spl || 0)}</td><td>${fmt((+E.spl || 0) * 12)}</td></tr>
+  ${(+E.lta || 0) > 0 ? `<tr><td>Leave Travel Allowance (LTA)</td><td>${fmt(+E.lta || 0)}</td><td>${fmt((+E.lta || 0) * 12)}</td></tr>` : ""}
+  <tr class="total"><td>Gross CTC</td><td>${fmt(gross)}</td><td>${fmt(annual)}</td></tr>
+  ${E.pf ? `<tr><td colspan="3" style="font-size:10pt;color:#555">*PF contribution (employer's share) of \u20B9${fmt(Math.min(Math.round(+E.basic * 0.12), 1800))}/month is over and above the above CTC</td></tr>` : ""}
+</table>
 
-    <!-- COMPENSATION -->
-    <h2>Compensation Structure</h2>
-    <table>
-      <tr><th style="width:40%">Salary Component</th><th style="text-align:right">Monthly (\u20B9)</th><th style="text-align:right">Annual (\u20B9)</th></tr>
-      <tr><td>Basic Salary</td><td style="text-align:right">${INR(+emp.basic || 0)}</td><td style="text-align:right">${INR((+emp.basic || 0) * 12)}</td></tr>
-      ${+emp.hra > 0 ? `<tr><td>House Rent Allowance (HRA)</td><td style="text-align:right">${INR(+emp.hra)}</td><td style="text-align:right">${INR(+emp.hra * 12)}</td></tr>` : ""}
-      ${+emp.conv > 0 ? `<tr><td>Conveyance Allowance</td><td style="text-align:right">${INR(+emp.conv)}</td><td style="text-align:right">${INR(+emp.conv * 12)}</td></tr>` : ""}
-      ${+emp.med > 0 ? `<tr><td>Medical Allowance</td><td style="text-align:right">${INR(+emp.med)}</td><td style="text-align:right">${INR(+emp.med * 12)}</td></tr>` : ""}
-      ${+emp.lta > 0 ? `<tr><td>Leave Travel Allowance (LTA)</td><td style="text-align:right">${INR(+emp.lta)}</td><td style="text-align:right">${INR(+emp.lta * 12)}</td></tr>` : ""}
-      ${+emp.spl > 0 ? `<tr><td>Special Allowance</td><td style="text-align:right">${INR(+emp.spl)}</td><td style="text-align:right">${INR(+emp.spl * 12)}</td></tr>` : ""}
-      <tr class="subtotal"><td><strong>Gross Salary (A)</strong></td><td style="text-align:right"><strong>${INR(gross)}</strong></td><td style="text-align:right"><strong>${INR(gross * 12)}</strong></td></tr>
-      <tr class="ded"><td>PF Deduction (Employee 12%)</td><td style="text-align:right">(${INR(p.pfE)})</td><td style="text-align:right">(${INR(p.pfE * 12)})</td></tr>
-      ${p.esE > 0 ? `<tr class="ded"><td>ESIC (Employee 0.75%)</td><td style="text-align:right">(${INR(p.esE)})</td><td style="text-align:right">(${INR(p.esE * 12)})</td></tr>` : ""}
-      ${p.pt > 0 ? `<tr class="ded"><td>Professional Tax</td><td style="text-align:right">(${INR(p.pt)})</td><td style="text-align:right">(${INR(p.pt * 12)})</td></tr>` : ""}
-      <tr class="total"><td><strong>Net Take-Home Salary (B)</strong></td><td style="text-align:right"><strong>${INR(p.net)}</strong></td><td style="text-align:right"><strong>${INR(p.net * 12)}</strong></td></tr>
-      <tr style="background:#e8f5e9!important"><td style="color:#1b5e20">Employer PF Contribution (12%)</td><td style="text-align:right;color:#1b5e20">+ ${INR(p.pfR)}</td><td style="text-align:right;color:#1b5e20">+ ${INR(p.pfR * 12)}</td></tr>
-      ${p.esR > 0 ? `<tr style="background:#e8f5e9!important"><td style="color:#1b5e20">Employer ESIC (3.25%)</td><td style="text-align:right;color:#1b5e20">+ ${INR(p.esR)}</td><td style="text-align:right;color:#1b5e20">+ ${INR(p.esR * 12)}</td></tr>` : ""}
-      <tr class="total"><td><strong>Total Cost to Company (CTC)</strong></td><td style="text-align:right"><strong>${INR(p.ctc)}</strong></td><td style="text-align:right"><strong style="font-size:14px">${INR(p.ctc * 12)}</strong></td></tr>
-    </table>
-    <div style="font-size:11px;color:#888;margin-bottom:14px">
-      * Tax deduction (TDS) will be computed based on your investment declarations and applicable IT regime. Estimated monthly TDS under new regime: <strong>${INR(p.tdsSuggested || 0)}</strong>
-    </div>
+<div class="section-title">Terms & Conditions</div>
+${[
+    `This offer is subject to satisfactory completion of background verification and submission of original documents.`,
+    `The probationary period shall be <b>${((_e = pol2 == null ? void 0 : pol2.hr) == null ? void 0 : _e.probationMonths) || 6} months</b> from the date of joining.`,
+    `During probation, either party may terminate the contract with <b>${((_g = (_f = pol2 == null ? void 0 : pol2.fnf) == null ? void 0 : _f.noticePeriod) == null ? void 0 : _g.probation) || 7} days</b> written notice.`,
+    `Post confirmation, the notice period shall be <b>${((_i = (_h = pol2 == null ? void 0 : pol2.fnf) == null ? void 0 : _h.noticePeriod) == null ? void 0 : _i.confirmed) || 30} days</b> on either side.`,
+    `Your CTC will be reviewed annually in line with company policy and individual performance.`,
+    `You will be entitled to <b>${((_l = (_k = (_j = pol2 == null ? void 0 : pol2.leave) == null ? void 0 : _j.types) == null ? void 0 : _k.find((t) => t.id === "EL")) == null ? void 0 : _l.annualLimit) || 18} days</b> of Earned Leave per annum after completion of probation.`,
+    `You are required to maintain strict confidentiality of all business-related information.`,
+    `This offer is non-transferable and is made to you personally.`,
+    `The appointment is subject to you being medically fit at the time of joining.`
+  ].map((c) => `<p class="cond">${c}</p>`).join("")}
 
-    <!-- BENEFITS -->
-    <h2>Benefits & Perquisites</h2>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px">
-      ${Object.entries(config.benefits).filter(([, b]) => b.enabled).map(([k, b]) => `
-        <div style="display:flex;gap:6px;align-items:flex-start;padding:5px 0;border-bottom:1px solid #f0f0f0">
-          <span style="color:#1b5e20;font-size:12px;flex-shrink:0">\u2713</span>
-          <span style="font-size:12px">${b.desc}</span>
-        </div>`).join("")}
-    </div>
+<div class="section-title">Documents Required at the Time of Joining</div>
+${[
+    "10th, 12th, and Graduation Certificates with mark sheets",
+    "Previous employment Experience/Relieving Letters",
+    "Last 3 months salary slips from previous employer",
+    "Passport-size photographs (3 copies)",
+    "PAN Card and Aadhaar Card (original + 2 photocopies each)",
+    "Bank account details for salary credit",
+    "Form 11 (EPF) from previous employer if applicable"
+  ].map((c) => `<p class="cond">${c}</p>`).join("")}
 
-    ${equity.enabled && equity.units > 0 ? `
-    <!-- EQUITY SECTION -->
-    <h2>${equity.type === "esop" ? "ESOP \u2014 Employee Stock Option Plan" : equity.type === "phantom" ? "Phantom Stock Units (PSU)" : "Restricted Stock Units (RSU)"}</h2>
-    <div class="${equity.type === "phantom" ? "phantom-box" : "equity-box"}">
-      <h3>\u{1F331} Equity Grant \u2014 ${equity.planName}</h3>
-      <table style="margin-bottom:0;background:transparent">
-        <tr><td style="background:transparent;border:none;padding:4px 0;width:50%"><strong>Grant Type:</strong></td><td style="background:transparent;border:none;padding:4px 0">${equity.type === "esop" ? "Employee Stock Options (ESOPs)" : equity.type === "phantom" ? "Phantom Stock Units \u2014 cash-settled" : "Restricted Stock Units (RSUs)"}</td></tr>
-        <tr><td style="background:transparent;border:none;padding:4px 0"><strong>${equity.type === "phantom" ? "Units Granted:" : "Options Granted:"}</strong></td><td style="background:transparent;border:none;padding:4px 0"><strong style="font-size:15px">${equity.units.toLocaleString("en-IN")} ${equity.type === "phantom" ? "units" : "options"}</strong></td></tr>
-        ${equity.type !== "phantom" ? `<tr><td style="background:transparent;border:none;padding:4px 0"><strong>Exercise Price (Strike Price):</strong></td><td style="background:transparent;border:none;padding:4px 0">\u20B9${equity.strikePrice} per share (face value)</td></tr>` : ""}
-        <tr><td style="background:transparent;border:none;padding:4px 0"><strong>${equity.type === "phantom" ? "Unit Value (at grant):" : "Fair Market Value (at grant):"}</strong></td><td style="background:transparent;border:none;padding:4px 0">\u20B9${equity.currentFMV} per ${equity.type === "phantom" ? "unit" : "share"} <span class="badge badge-green">Current</span></td></tr>
-        <tr><td style="background:transparent;border:none;padding:4px 0"><strong>Vesting Period:</strong></td><td style="background:transparent;border:none;padding:4px 0">${equity.vestingYears} years with ${equity.cliffMonths}-month cliff</td></tr>
-        <tr><td style="background:transparent;border:none;padding:4px 0"><strong>Vesting Frequency:</strong></td><td style="background:transparent;border:none;padding:4px 0">${equity.vestingFreq.charAt(0).toUpperCase() + equity.vestingFreq.slice(1)} after cliff</td></tr>
-        ${equity.type !== "phantom" ? `<tr><td style="background:transparent;border:none;padding:4px 0"><strong>Exercise Window:</strong></td><td style="background:transparent;border:none;padding:4px 0">${equity.exerciseWindow} days from each vesting date</td></tr>` : ""}
-        ${equity.type === "phantom" ? `<tr><td style="background:transparent;border:none;padding:4px 0"><strong>Settlement:</strong></td><td style="background:transparent;border:none;padding:4px 0">Cash \u2014 paid as difference between FMV at exercise and grant value</td></tr>` : ""}
-        <tr><td style="background:transparent;border:none;padding:4px 0"><strong>Potential value at grant FMV:</strong></td><td style="background:transparent;border:none;padding:4px 0"><strong>\u20B9${(equity.units * equity.currentFMV).toLocaleString("en-IN")}</strong></td></tr>
-      </table>
-    </div>
-    <div style="font-size:12px;color:#555;margin-bottom:8px">Vesting schedule (from Date of Joining):</div>
-    ${vestTableHtml}
-    ${equity.customText ? `<div style="font-size:12px;color:#555;margin-top:8px;font-style:italic">${equity.customText}</div>` : ""}
-    <div style="font-size:11px;color:#888;margin-top:6px">
-      * ${equity.type === "phantom" ? "Phantom Stock Units are notional units and do not confer any actual ownership rights in the Company. Upon vesting, the cash equivalent of appreciation is paid to the employee." : equity.type === "esop" ? "ESOPs will be governed by the Company's ESOP Plan. Options can only be exercised after vesting. Unvested options lapse on separation." : "RSUs will be issued subject to the conditions set out in the Company's RSU plan."} Grant of equity is subject to Board approval. Details will be provided in the separate ESOP grant agreement.
-    </div>` : ""}
+<p style="margin:20px 0;line-height:1.8">Please confirm your acceptance of this offer by signing and returning the enclosed duplicate copy of this letter along with the acceptance confirmation by <b>${fdate(new Date(today.getTime() + 7 * 864e5))}</b>.</p>
 
-    <!-- STANDARD CONDITIONS -->
-    <h2>Terms & Conditions</h2>
-    <div style="margin-bottom:12px;font-size:12px;color:#444">
-      <p style="margin-bottom:8px">1. This offer is subject to satisfactory medical fitness and background verification.</p>
-      <p style="margin-bottom:8px">2. During probation, the notice period is <strong>${config.noticePeriodProbation} days</strong> on either side.</p>
-      <p style="margin-bottom:8px">3. Post-confirmation, the notice period is <strong>${config.noticePeriodDays} days</strong> on either side (or one month's salary in lieu).</p>
-      <p style="margin-bottom:8px">4. Please bring the following originals on Day 1: PAN card, Aadhaar, degree certificates, last 3 months' salary slips, experience letter from previous employer, 2 passport photos, cancelled cheque.</p>
-      <p style="margin-bottom:8px">5. Please sign and return a copy of this letter by <strong>${new Date(Date.now() + config.offerValidDays * 864e5).toLocaleDateString("en-IN")}</strong> to confirm your acceptance.</p>
-    </div>
+<p style="margin:10px 0;line-height:1.8">We look forward to you joining our team and are confident that you will make a significant contribution to our organisation's growth. Welcome aboard!</p>
 
-    <!-- CUSTOM CLAUSES -->
-    ${config.customClauses.filter((c) => c.enabled).length > 0 ? `
-    <h2>Additional Clauses</h2>
-    ${config.customClauses.filter((c) => c.enabled).map((c) => `
-      <div class="clause">
-        <div class="clause-title">${c.title}</div>
-        <div class="clause-text">${c.text}</div>
-      </div>`).join("")}` : ""}
-
-    <!-- SIGNATURE BLOCK -->
-    <div class="sig-block">
-      <div class="sig-side">
-        <div class="sig-line">
-          <div class="sig-name">For ${co.name || "Company"}</div>
-          <div class="sig-desig">${config.appointment.signatoryDesig}</div>
-          <div style="margin-top:6px;font-size:11px;color:#888">Date: ${(/* @__PURE__ */ new Date()).toLocaleDateString("en-IN")}</div>
-        </div>
-      </div>
-      <div class="sig-side">
-        <div class="sig-line">
-          <div class="sig-name">${emp.name || "\u2014"}</div>
-          <div class="sig-desig">Acceptance</div>
-          <div style="margin-top:6px;font-size:11px;color:#888">Date: _______________</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="footer">
-      ${co.name || "Company"} \u2014 ${co.addr || ""} ${co.city ? "\xB7 " + co.city : ""} \u2014 Generated via Payrolla.in
-    </div>
-  </div></body></html>`;
-  if (returnHtml) return html;
-  printOrDownload(`Offer_Letter_${(emp.name || "Employee").replace(/ /g, "_")}`, html, true);
+<div class="sig-block">
+  <div>
+    <div class="sig-line">Authorised Signatory<br/>${C.name || "Company Name"}<br/>HR Department</div>
+  </div>
+  <div>
+    <div class="sig-line">Accepted by Candidate<br/>${E.name || "Name"}<br/>Date: _______________</div>
+  </div>
+</div>
+<div class="watermark">CONFIDENTIAL \u2014 ${C.name || "Company"} \u2014 ${today.getFullYear()}</div>
+</div></body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Offer Letter</title>
+<style>
+  *{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:12pt;color:#222;max-width:750px;margin:40px auto;padding:0 40px}
+  .hdr{border-bottom:2px solid #1a237e;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end}
+  .co{font-size:18pt;font-weight:900;color:#1a237e}.co-sub{font-size:9pt;color:#666;margin-top:3px}
+  .ref{font-size:10pt;color:#666;text-align:right;line-height:1.8}
+  .subject{background:#1a237e;color:#fff;padding:10px 18px;font-weight:bold;margin:20px 0;font-size:11pt;letter-spacing:.3px}
+  p{line-height:1.8;margin:10px 0;font-size:11pt}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:11pt}
+  th{background:#e8eaf6;color:#1a237e;padding:8px 12px;text-align:left;border:1px solid #c5cae9;font-size:10pt}
+  td{padding:7px 12px;border:1px solid #e0e0e0}tr:nth-child(even) td{background:#f9f9ff}
+  .total{font-weight:bold;background:#e8eaf6}.cond{font-size:10.5pt;line-height:1.8;margin:4px 0;padding-left:14px;text-indent:-14px}
+  .cond:before{content:"\u2713 ";color:#1b5e20}.sig{display:flex;justify-content:space-between;margin-top:50px}
+  .sline{width:200px;border-top:1px solid #333;padding-top:6px;font-size:10pt}
+  @media print{body{margin:0}}
+</style></head><body>
+<div class="hdr">
+  <div><div class="co">${C.name || "Company Name"}</div><div class="co-sub">${C.addr || ""}</div></div>
+  <div class="ref">Ref: ${refNo}<br/>Date: ${fdate(today)}<br/>Confidential</div>
+</div>
+<p><b>${E.name || "Candidate"}</b></p>
+<div class="subject">LETTER OF OFFER \u2014 ${(E.desig || "Position").toUpperCase()}</div>
+<p>Dear <b>${((_m = E.name) == null ? void 0 : _m.split(" ")[0]) || "Candidate"}</b>,</p>
+<p>We are pleased to extend an offer of employment for the position of <b>${E.desig || "[Position]"}</b>, 
+${E.dept ? "Department of <b>" + E.dept + "</b>, " : ""} at <b>${C.name || "our company"}</b>, 
+with effect from <b>${fdate(doj)}</b>.</p>
+<p><b>Compensation Package:</b></p>
+<table>
+  <tr><th>Salary Component</th><th>Monthly Amount</th><th>Annual Amount</th></tr>
+  <tr><td>Basic Salary</td><td>${fmt(+E.basic || 0)}</td><td>${fmt((+E.basic || 0) * 12)}</td></tr>
+  <tr><td>HRA (House Rent Allowance)</td><td>${fmt(+E.hra || 0)}</td><td>${fmt((+E.hra || 0) * 12)}</td></tr>
+  <tr><td>Conveyance Allowance</td><td>${fmt(+E.conv || 0)}</td><td>${fmt((+E.conv || 0) * 12)}</td></tr>
+  <tr><td>Medical Allowance</td><td>${fmt(+E.med || 0)}</td><td>${fmt((+E.med || 0) * 12)}</td></tr>
+  <tr><td>Special Allowance</td><td>${fmt(+E.spl || 0)}</td><td>${fmt((+E.spl || 0) * 12)}</td></tr>
+  ${(+E.lta || 0) > 0 ? `<tr><td>LTA</td><td>${fmt(+E.lta || 0)}</td><td>${fmt((+E.lta || 0) * 12)}</td></tr>` : ""}
+  <tr class="total"><td><b>Total Gross CTC</b></td><td><b>${fmt(gross)}</b></td><td><b>${fmt(annual)}</b></td></tr>
+</table>
+<p><b>Key Terms:</b></p>
+${[
+    "Probation: " + (((_n = pol2 == null ? void 0 : pol2.hr) == null ? void 0 : _n.probationMonths) || 6) + " months from date of joining",
+    "Notice Period (during probation): " + (((_p = (_o = pol2 == null ? void 0 : pol2.fnf) == null ? void 0 : _o.noticePeriod) == null ? void 0 : _p.probation) || 7) + " days | Post-confirmation: " + (((_r = (_q = pol2 == null ? void 0 : pol2.fnf) == null ? void 0 : _q.noticePeriod) == null ? void 0 : _r.confirmed) || 30) + " days",
+    "Annual Leave: " + (((_u = (_t = (_s = pol2 == null ? void 0 : pol2.leave) == null ? void 0 : _s.types) == null ? void 0 : _t.find((t) => t.id === "EL")) == null ? void 0 : _u.annualLimit) || 18) + " days (after probation)",
+    "This offer is subject to satisfactory background verification and document submission",
+    "This letter does not constitute a contract of employment"
+  ].map((c) => `<p class="cond">${c}</p>`).join("")}
+<p>Kindly sign and return the duplicate copy of this letter as acceptance within <b>7 days</b> of the date of this letter. Failure to do so may result in this offer being rescinded.</p>
+<p>We look forward to welcoming you to the ${C.name || "team"}!</p>
+<div class="sig">
+  <div><div class="sline">Authorised Signatory<br/>${C.name || "Company"}<br/>HR Department</div></div>
+  <div><div class="sline">I accept the above offer<br/>${E.name || "Name"} \u2014 Signature<br/>Date: _______________</div></div>
+</div>
+</body></html>`;
 }
-function generateAppointmentLetter(emp, co, cfg = null, returnHtml = false) {
-  const config = { ...DEFAULT_LETTER_CONFIG, ...cfg };
-  const p = calcPay(emp, 0, null);
-  const ac = config.accentColor;
-  const refNo = `${(co.name || "CO").substring(0, 3).toUpperCase()}/AL/${emp.code || "001"}/${(/* @__PURE__ */ new Date()).getFullYear()}`;
-  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
-  <title>Appointment Letter \u2014 ${emp.name}</title>${getLetterStyles(ac)}
-  </head><body>
-  <div class="page">
-    <!-- LETTERHEAD -->
-    <div class="lh">
-      <div>
-        <div class="lh-logo">${co.name || "Company Name"}</div>
-        <div style="font-size:10px;color:#888;margin-top:3px">${co.addr || ""} ${co.city ? "\xB7 " + co.city : ""} ${co.state ? "\xB7 " + co.state : ""}</div>
-      </div>
-      <div class="lh-details">
-        ${co.cin ? `<div><strong>CIN:</strong> ${co.cin}</div>` : ""}
-        ${co.pan ? `<div><strong>PAN:</strong> ${co.pan}</div>` : ""}
-        ${co.email ? `<div>${co.email}</div>` : ""}
-      </div>
-    </div>
+function generateAppointmentLetter(emp, co, pol2, format = "standard") {
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y;
+  const C = co || {};
+  const E = emp || {};
+  const today = /* @__PURE__ */ new Date();
+  const doj = E.doj ? /* @__PURE__ */ new Date(E.doj + "T00:00:00") : today;
+  const gross = (+E.basic || 0) + (+E.hra || 0) + (+E.conv || 0) + (+E.med || 0) + (+E.spl || 0) + (+E.lta || 0);
+  const fmt = (n) => "\u20B9" + n.toLocaleString("en-IN");
+  const fdate = (d) => d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+  const refNo = `${((_b = (_a = C.name) == null ? void 0 : _a.split(" ")[0]) == null ? void 0 : _b.toUpperCase()) || "CO"}/HR/APPT/${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, "0")}/${E.code || Math.floor(Math.random() * 9e3 + 1e3)}`;
+  if (format === "brief") return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Appointment Letter</title>
+<style>body{font-family:Arial,sans-serif;font-size:12pt;margin:40px;color:#222;max-width:700px}
+h2{color:#1a237e;border-bottom:2px solid #1a237e;padding-bottom:8px}
+p{line-height:1.8;margin:10px 0}.sig{margin-top:50px}</style></head><body>
+<h2>${C.name || "Company"}</h2>
+<p><b>Ref:</b> ${refNo} &nbsp;&nbsp; <b>Date:</b> ${fdate(today)}</p>
+<p><b>To: ${E.name}</b><br/><b>Designation:</b> ${E.desig || "\u2014"} | <b>Employee Code:</b> ${E.code || "\u2014"}</p>
+<p>Dear ${((_c = E.name) == null ? void 0 : _c.split(" ")[0]) || "Employee"},</p>
+<p>Following your successful completion of the selection process, you are hereby appointed as <b>${E.desig || "[Designation]"}</b> in the <b>${E.dept || "[Department]"}</b> department with effect from <b>${fdate(doj)}</b>.</p>
+<p>Your gross monthly salary will be <b>${fmt(gross)}</b> (Annual CTC: <b>${fmt(gross * 12)}</b>).</p>
+<p>You are required to abide by all company policies, rules, and regulations as may be amended from time to time.</p>
+<div class="sig"><p>For <b>${C.name || "Company"}</b><br/><br/><br/>___________________<br/>Authorised Signatory</p>
+<p style="margin-top:40px">I acknowledge receipt<br/><br/><br/>___________________<br/>${E.name} | Date: _______</p></div>
+</body></html>`;
+  if (format === "detailed") return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Appointment Letter \u2014 ${E.name}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Times New Roman",serif;font-size:12pt;color:#111}
+.page{max-width:800px;margin:0 auto;padding:40px 60px}
+.hdr{border-bottom:3px double #1a237e;padding-bottom:16px;margin-bottom:22px;display:flex;justify-content:space-between}
+.co{font-size:20pt;font-weight:bold;color:#1a237e}.co-sub{font-size:9pt;color:#555;margin-top:3px;line-height:1.7}
+.ref{text-align:right;font-size:10pt;color:#555;line-height:1.9}
+.title{text-align:center;font-size:14pt;font-weight:bold;border:2px solid #1a237e;padding:10px;margin:18px 0;letter-spacing:1px;color:#1a237e;text-transform:uppercase}
+p{line-height:1.9;margin:10px 0;font-size:11.5pt}
+.clause{font-size:11pt;margin:8px 0;padding-left:18px;text-indent:-18px;line-height:1.8}
+.clause-num{color:#1a237e;font-weight:bold}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:11pt}
+th{background:#1a237e;color:#fff;padding:8px 14px;text-align:left;font-weight:600}
+td{padding:7px 14px;border-bottom:1px solid #e0e0e0}
+tr:nth-child(even) td{background:#f9f9ff}.total{background:#e8eaf6;font-weight:bold}
+.sig-block{margin-top:60px;display:grid;grid-template-columns:1fr 1fr;gap:60px}
+.sig-line{border-top:1px solid #333;margin-top:50px;padding-top:6px;font-size:10pt;line-height:1.7}
+@media print{.page{padding:20px 40px}}
+</style></head><body><div class="page">
+<div class="hdr">
+  <div><div class="co">${C.name || "Company Name"}</div>
+  <div class="co-sub">${C.addr || ""}<br/>${C.gstin ? "GSTIN: " + C.gstin + br : ""}${C.pan ? "PAN: " + C.pan : ""}</div></div>
+  <div class="ref"><b>Ref No.:</b> ${refNo}<br/><b>Date:</b> ${fdate(today)}<br/><b>Private & Confidential</b><br/><b>Employee Code:</b> ${E.code || "\u2014"}</div>
+</div>
+<div class="title">Letter of Appointment</div>
+<p><b>${E.name || "Employee Name"}</b></p>
+<p>Dear <b>${((_d = E.name) == null ? void 0 : _d.split(" ")[0]) || "Employee"}</b>,</p>
+<p>We are pleased to confirm your appointment with <b>${C.name || "the Company"}</b> on the following terms and conditions:</p>
 
-    <div class="letter-title">Letter of Appointment</div>
+<p><b>1. DESIGNATION & DEPARTMENT</b></p>
+<p>You are appointed as <b>${E.desig || "[Designation]"}</b> in the <b>${E.dept || "[Department]"}</b> Department. Your employee code is <b>${E.code || "\u2014"}</b>.</p>
+<p>Your date of joining shall be <b>${fdate(doj)}</b>. You shall report to the Head of ${E.dept || "your Department"} or such other person as may be designated by the Management from time to time.</p>
 
-    <div class="meta">
-      <div><div class="meta-label">Reference</div><div class="meta-val">${refNo}</div></div>
-      <div style="text-align:right"><div class="meta-label">Date</div><div class="meta-val">${(/* @__PURE__ */ new Date()).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</div></div>
-    </div>
+<p><b>2. COMPENSATION</b></p>
+<table>
+  <tr><th>Salary Component</th><th>Monthly (\u20B9)</th><th>Annual (\u20B9)</th></tr>
+  <tr><td>Basic Salary</td><td>${fmt(+E.basic || 0)}</td><td>${fmt((+E.basic || 0) * 12)}</td></tr>
+  <tr><td>House Rent Allowance (HRA)</td><td>${fmt(+E.hra || 0)}</td><td>${fmt((+E.hra || 0) * 12)}</td></tr>
+  <tr><td>Conveyance Allowance</td><td>${fmt(+E.conv || 0)}</td><td>${fmt((+E.conv || 0) * 12)}</td></tr>
+  <tr><td>Medical Allowance</td><td>${fmt(+E.med || 0)}</td><td>${fmt((+E.med || 0) * 12)}</td></tr>
+  <tr><td>Special Allowance</td><td>${fmt(+E.spl || 0)}</td><td>${fmt((+E.spl || 0) * 12)}</td></tr>
+  ${(+E.lta || 0) > 0 ? `<tr><td>Leave Travel Allowance (LTA)</td><td>${fmt(+E.lta || 0)}</td><td>${fmt((+E.lta || 0) * 12)}</td></tr>` : ""}
+  <tr class="total"><td><b>Total Gross</b></td><td><b>${fmt(gross)}</b></td><td><b>${fmt(gross * 12)}</b></td></tr>
+</table>
+<p style="font-size:10pt;color:#555">Statutory deductions (PF, ESI, TDS, PT as applicable) will be made from the above gross salary as per prevailing rules.</p>
 
-    <div class="salutation">
-      To,<br/><strong style="font-size:14px">${emp.name || "\u2014"}</strong>
-      <div style="margin-top:12px"><strong>Dear ${(emp.name || "").split(" ")[0] || "Employee"},</strong></div>
-    </div>
+<p><b>3. PROBATION</b></p>
+<p>You will be on probation for a period of <b>${((_e = pol2 == null ? void 0 : pol2.hr) == null ? void 0 : _e.probationMonths) || 6} months</b> from the date of joining. The Company reserves the right to extend the probationary period. During probation, either party may terminate the employment by giving <b>${((_g = (_f = pol2 == null ? void 0 : pol2.fnf) == null ? void 0 : _f.noticePeriod) == null ? void 0 : _g.probation) || 7} days</b> written notice or payment in lieu thereof.</p>
 
-    <p class="body-para">
-      We are pleased to appoint you to the position of <strong>${emp.desig || "Employee"}</strong> in the <strong>${emp.dept || "\u2014"}</strong> department with effect from <strong style="color:${ac}">${emp.doj || "\u2014"}</strong>, subject to the terms and conditions set out below.
-    </p>
+<p><b>4. CONFIRMATION & NOTICE PERIOD</b></p>
+<p>Upon satisfactory completion of probation, you will be confirmed in service. Post-confirmation, the notice period shall be <b>${((_i = (_h = pol2 == null ? void 0 : pol2.fnf) == null ? void 0 : _h.noticePeriod) == null ? void 0 : _i.confirmed) || 30} days</b> on either side, which may be waived off by mutual consent with payment in lieu of notice.</p>
 
-    <h2>Appointment Details</h2>
-    <table>
-      <tr><th style="width:40%">Particulars</th><th>Details</th></tr>
-      <tr><td>Employee Code</td><td><strong>${emp.code || "\u2014"}</strong></td></tr>
-      <tr><td>Designation</td><td><strong>${emp.desig || "\u2014"}</strong></td></tr>
-      <tr><td>Department</td><td>${emp.dept || "\u2014"}</td></tr>
-      <tr><td>Date of Joining</td><td><strong style="color:${ac}">${emp.doj || "\u2014"}</strong></td></tr>
-      <tr><td>Employment Category</td><td>${emp.cat || "Permanent"}</td></tr>
-      <tr><td>Place of Posting</td><td>${co.city || "\u2014"}</td></tr>
-      <tr><td>Reporting Manager</td><td>${emp.manager || "As assigned by HR"}</td></tr>
-      <tr><td>Work Hours</td><td>${config.workHours} (${config.workDays})</td></tr>
-      <tr><td>CTC Per Annum</td><td><strong style="color:${ac};font-size:14px">${INR(p.ctc * 12)}</strong></td></tr>
-    </table>
+<p><b>5. WORKING HOURS & LEAVE</b></p>
+<p>Working hours shall be as per company policy (generally 9:00 AM to 6:00 PM, Monday to Saturday or as otherwise notified). You will be entitled to <b>${((_l = (_k = (_j = pol2 == null ? void 0 : pol2.leave) == null ? void 0 : _j.types) == null ? void 0 : _k.find((t) => t.id === "EL")) == null ? void 0 : _l.annualLimit) || 18} days</b> Earned Leave, <b>${((_o = (_n = (_m = pol2 == null ? void 0 : pol2.leave) == null ? void 0 : _m.types) == null ? void 0 : _n.find((t) => t.id === "SL")) == null ? void 0 : _o.annualLimit) || 12} days</b> Sick Leave, and <b>${((_r = (_q = (_p = pol2 == null ? void 0 : pol2.leave) == null ? void 0 : _p.types) == null ? void 0 : _q.find((t) => t.id === "CL")) == null ? void 0 : _r.annualLimit) || 12} days</b> Casual Leave per annum, subject to applicable leave policy.</p>
 
-    ${config.appointment.showAllowances ? `
-    <h2>Monthly Salary Breakup</h2>
-    <table>
-      <tr><th style="width:60%">Component</th><th style="text-align:right">Monthly (\u20B9)</th></tr>
-      ${+emp.basic > 0 ? `<tr><td>Basic Salary</td><td style="text-align:right">${INR(+emp.basic)}</td></tr>` : ""}
-      ${+emp.hra > 0 ? `<tr><td>House Rent Allowance</td><td style="text-align:right">${INR(+emp.hra)}</td></tr>` : ""}
-      ${+emp.conv > 0 ? `<tr><td>Conveyance Allowance</td><td style="text-align:right">${INR(+emp.conv)}</td></tr>` : ""}
-      ${+emp.med > 0 ? `<tr><td>Medical Allowance</td><td style="text-align:right">${INR(+emp.med)}</td></tr>` : ""}
-      ${+emp.spl > 0 ? `<tr><td>Special Allowance</td><td style="text-align:right">${INR(+emp.spl)}</td></tr>` : ""}
-      <tr class="total"><td>Gross Monthly Salary</td><td style="text-align:right"><strong>${INR(p.g)}</strong></td></tr>
-      <tr class="ded"><td>PF Deduction (Employee Share)</td><td style="text-align:right">(${INR(p.pfE)})</td></tr>
-      ${p.pt > 0 ? `<tr class="ded"><td>Professional Tax</td><td style="text-align:right">(${INR(p.pt)})</td></tr>` : ""}
-      <tr class="total"><td><strong>Net Monthly Take-Home</strong></td><td style="text-align:right"><strong>${INR(p.net)}</strong></td></tr>
-    </table>` : ""}
+<p><b>6. CONFIDENTIALITY</b></p>
+<p>You shall maintain strict confidentiality of all information, data, trade secrets, business plans, and client details belonging to the Company or its clients, both during and after the term of your employment. Breach of confidentiality shall constitute grounds for immediate dismissal.</p>
 
-    ${config.appointment.showConditions ? `
-    <h2>Terms of Employment</h2>
-    <div style="font-size:12px;color:#333;line-height:1.9">
-      <p><strong>1. Probation:</strong> You will be on probation for <strong>${config.probationMonths} months</strong>. During this period either party may terminate employment with <strong>${config.noticePeriodProbation} days</strong> written notice.</p>
-      <p><strong>2. Notice Period (post-confirmation):</strong> <strong>${config.noticePeriodDays} days</strong> on either side, or salary in lieu thereof.</p>
-      <p><strong>3. Transfer:</strong> The Company reserves the right to transfer you to any branch, subsidiary, or associated company without change in terms of employment.</p>
-      <p><strong>4. Duties:</strong> You shall perform the duties assigned by your superiors diligently and shall not take up any other employment without prior written consent.</p>
-      <p><strong>5. Statutory deductions:</strong> All statutory deductions including PF, ESIC, TDS and Professional Tax shall be made from your salary as applicable.</p>
-      <p><strong>6. Leave:</strong> You will be entitled to leaves as per the Company's Leave Policy.</p>
-      <p><strong>7. Code of Conduct:</strong> You shall abide by the Company's policies, rules, and standing orders, which may be amended from time to time.</p>
-      <p><strong>8. Separation:</strong> On resignation/termination, you shall hand over all company property and complete the full and final settlement process.</p>
-    </div>` : ""}
+<p><b>7. CODE OF CONDUCT</b></p>
+<p>You are required to observe and comply with all rules, regulations, policies, and procedures of the Company as may be communicated from time to time. Any violation may lead to disciplinary action, including termination.</p>
 
-    ${config.customClauses.filter((c) => c.enabled).length > 0 ? `
-    <h2>Additional Terms</h2>
-    ${config.customClauses.filter((c) => c.enabled).map((c) => `
-      <div class="clause">
-        <div class="clause-title">${c.title}</div>
-        <div class="clause-text">${c.text}</div>
-      </div>`).join("")}` : ""}
+<p><b>8. INTELLECTUAL PROPERTY</b></p>
+<p>All work product, inventions, and intellectual property developed during the course of your employment shall remain the exclusive property of the Company.</p>
 
-    <div class="sig-block">
-      <div class="sig-side">
-        <div class="sig-line">
-          <div class="sig-name">For ${co.name || "Company"}</div>
-          <div class="sig-desig">${config.appointment.signatoryDesig}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px">Date: ${(/* @__PURE__ */ new Date()).toLocaleDateString("en-IN")}</div>
-        </div>
-      </div>
-      <div class="sig-side">
-        <div class="sig-line">
-          <div style="margin-bottom:4px;font-size:11px;color:#888">I accept the appointment on the above terms:</div>
-          <div class="sig-name">${emp.name || "\u2014"}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px">Date: _______________</div>
-        </div>
-      </div>
-    </div>
+<p><b>9. NON-COMPETE / NON-SOLICITATION</b></p>
+<p>During the period of your employment, you shall not engage in any business activity competitive to the Company's interests. You shall not solicit or entice any employee, client, or vendor of the Company for a period of <b>12 months</b> after leaving the organization.</p>
 
-    <div class="footer">${co.name || "Company"} \u2014 ${co.addr || ""} ${co.city ? "\xB7 " + co.city : ""} \u2014 Generated via Payrolla.in</div>
-  </div></body></html>`;
-  if (returnHtml) return html;
-  printOrDownload(`Appointment_Letter_${(emp.name || "Employee").replace(/ /g, "_")}`, html, true);
+<p><b>10. ENTIRE AGREEMENT</b></p>
+<p>This letter, together with any policies or procedures issued by the Company, constitutes the entire agreement between you and the Company with respect to your employment and supersedes all prior discussions and agreements.</p>
+
+<p>Please sign and return the duplicate copy of this letter as acknowledgement of your acceptance of the above terms and conditions.</p>
+<p>We welcome you to the ${C.name || "organization"} family and wish you a rewarding career with us.</p>
+
+<div class="sig-block">
+  <div><div class="sig-line">For <b>${C.name || "Company Name"}</b><br/>Authorised Signatory<br/>HR / Management</div></div>
+  <div><div class="sig-line">I accept the above terms<br/><b>${E.name || "Name"}</b><br/>Date: _______________</div></div>
+</div>
+</div></body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Appointment Letter</title>
+<style>
+*{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:11.5pt;color:#222;max-width:760px;margin:40px auto;padding:0 44px}
+.hdr{border-bottom:2px solid #1a237e;padding-bottom:14px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end}
+.co{font-size:17pt;font-weight:900;color:#1a237e}.co-sub{font-size:9pt;color:#666;margin-top:3px;line-height:1.6}
+.ref{font-size:10pt;color:#666;text-align:right;line-height:1.8}
+.title{text-align:center;font-size:13pt;font-weight:bold;border:1.5px solid #1a237e;padding:9px;margin:18px 0;color:#1a237e;letter-spacing:.5px}
+p{line-height:1.8;margin:9px 0}h3{color:#1a237e;font-size:11pt;margin:16px 0 6px;border-bottom:1px solid #e0e0e0;padding-bottom:3px}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:11pt}
+th{background:#e8eaf6;color:#1a237e;padding:7px 12px;text-align:left;border:1px solid #c5cae9}
+td{padding:6px 12px;border:1px solid #e0e0e0}tr:nth-child(even) td{background:#f9f9ff}.total{font-weight:bold;background:#e8eaf6}
+.cond{font-size:11pt;line-height:1.8;margin:5px 0;padding-left:16px;text-indent:-16px}.cond:before{content:"\u25B8 ";color:#1a237e}
+.sig{display:flex;justify-content:space-between;margin-top:55px}
+.sline{width:220px;border-top:1px solid #333;padding-top:6px;font-size:10pt;line-height:1.7}
+@media print{body{margin:0}}
+</style></head><body>
+<div class="hdr">
+  <div><div class="co">${C.name || "Company Name"}</div><div class="co-sub">${C.addr || ""}<br/>${C.gstin ? "GSTIN: " + C.gstin : ""}</div></div>
+  <div class="ref">Ref: ${refNo}<br/>Date: ${fdate(today)}<br/>Emp Code: ${E.code || "\u2014"}</div>
+</div>
+<div class="title">LETTER OF APPOINTMENT</div>
+<p><b>${E.name || "Employee"}</b></p>
+<p>Dear <b>${((_s = E.name) == null ? void 0 : _s.split(" ")[0]) || "Employee"}</b>,</p>
+<p>We are pleased to appoint you as <b>${E.desig || "[Designation]"}</b> in the <b>${E.dept || "[Department]"}</b> department of <b>${C.name || "our Company"}</b>, effective <b>${fdate(doj)}</b>, subject to the terms and conditions set out below.</p>
+<h3>1. Compensation</h3>
+<table>
+  <tr><th>Component</th><th>Per Month</th><th>Per Annum</th></tr>
+  <tr><td>Basic Salary</td><td>${fmt(+E.basic || 0)}</td><td>${fmt((+E.basic || 0) * 12)}</td></tr>
+  <tr><td>HRA</td><td>${fmt(+E.hra || 0)}</td><td>${fmt((+E.hra || 0) * 12)}</td></tr>
+  <tr><td>Conveyance</td><td>${fmt(+E.conv || 0)}</td><td>${fmt((+E.conv || 0) * 12)}</td></tr>
+  <tr><td>Medical</td><td>${fmt(+E.med || 0)}</td><td>${fmt((+E.med || 0) * 12)}</td></tr>
+  <tr><td>Special Allowance</td><td>${fmt(+E.spl || 0)}</td><td>${fmt((+E.spl || 0) * 12)}</td></tr>
+  ${(+E.lta || 0) > 0 ? `<tr><td>LTA</td><td>${fmt(+E.lta || 0)}</td><td>${fmt((+E.lta || 0) * 12)}</td></tr>` : ""}
+  <tr class="total"><td><b>Gross CTC</b></td><td><b>${fmt(gross)}</b></td><td><b>${fmt(gross * 12)}</b></td></tr>
+</table>
+<h3>2. Probation & Notice Period</h3>
+${[
+    "Probation period: <b>" + (((_t = pol2 == null ? void 0 : pol2.hr) == null ? void 0 : _t.probationMonths) || 6) + " months</b> from date of joining",
+    "Notice period during probation: <b>" + (((_v = (_u = pol2 == null ? void 0 : pol2.fnf) == null ? void 0 : _u.noticePeriod) == null ? void 0 : _v.probation) || 7) + " days</b>",
+    "Notice period post-confirmation: <b>" + (((_x = (_w = pol2 == null ? void 0 : pol2.fnf) == null ? void 0 : _w.noticePeriod) == null ? void 0 : _x.confirmed) || 30) + " days</b>"
+  ].map((c) => `<p class="cond">${c}</p>`).join("")}
+<h3>3. Leave Entitlement</h3>
+${(((_y = pol2 == null ? void 0 : pol2.leave) == null ? void 0 : _y.types) || [{ id: "EL", name: "Earned Leave", annualLimit: 18 }, { id: "SL", name: "Sick Leave", annualLimit: 12 }, { id: "CL", name: "Casual Leave", annualLimit: 12 }]).slice(0, 4).map((t) => `<p class="cond"><b>${t.name}:</b> ${t.annualLimit || 0} days per annum</p>`).join("")}
+<h3>4. Terms & Conditions</h3>
+${[
+    "You are required to maintain strict confidentiality of all company and client information",
+    "All work product and intellectual property created during employment belongs to the Company",
+    "You shall comply with all Company policies, Code of Conduct, and applicable laws",
+    "This appointment is subject to satisfactory verification of all documents submitted",
+    "The Company reserves the right to transfer/reassign you to any department or location"
+  ].map((c) => `<p class="cond">${c}</p>`).join("")}
+<p>Please sign and return the duplicate copy within <b>7 days</b> as your acceptance of the above terms.</p>
+<div class="sig">
+  <div><div class="sline">For <b>${C.name || "Company"}</b><br/>Authorised Signatory<br/>HR Department</div></div>
+  <div><div class="sline">Accepted \u2014 ${E.name || "Name"}<br/>Signature<br/>Date: _______________</div></div>
+</div>
+</body></html>`;
 }
 function Settings({
   co,
@@ -5567,8 +5702,11 @@ Run payroll anyway?`
       }
     } }))));
   }), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setOnbForm((p) => ({ ...p, step: 1 })) }, "\u2190 Back"), /* @__PURE__ */ React.createElement(Btn, { v: "ok", onClick: () => setOnbForm((p) => ({ ...p, step: 3 })) }, "Next: Salary Setup \u2192"))), onbForm.step === 3 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14, color: P } }, "Step 3 \u2014 Salary & Payroll Setup"), /* @__PURE__ */ React.createElement(G, { cols: 3, gap: 14 }, /* @__PURE__ */ React.createElement(NumInp, { label: "Basic Salary (\u20B9)", val: +onbForm.basic || 0, set: (v) => setOnbForm((p) => ({ ...p, basic: v, hra: Math.round(v * 0.4), conv: 1600, med: 1250, spl: Math.max(0, v * 0.2 - 1600) })), note: "HRA/Conv auto-calculated" }), /* @__PURE__ */ React.createElement(NumInp, { label: "HRA (\u20B9)", val: +onbForm.hra || 0, set: (v) => setOnbForm((p) => ({ ...p, hra: v })) }), /* @__PURE__ */ React.createElement(NumInp, { label: "Conveyance (\u20B9)", val: +onbForm.conv || 0, set: (v) => setOnbForm((p) => ({ ...p, conv: v })) }), /* @__PURE__ */ React.createElement(NumInp, { label: "Medical (\u20B9)", val: +onbForm.med || 0, set: (v) => setOnbForm((p) => ({ ...p, med: v })) }), /* @__PURE__ */ React.createElement(NumInp, { label: "Special Allowance (\u20B9)", val: +onbForm.spl || 0, set: (v) => setOnbForm((p) => ({ ...p, spl: v })) }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: MT, marginBottom: 6, textTransform: "uppercase" } }, "Gross CTC"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, fontWeight: 800, color: OK } }, INR((+onbForm.basic || 0) + (+onbForm.hra || 0) + (+onbForm.conv || 0) + (+onbForm.med || 0) + (+onbForm.spl || 0)), "/mo"))), /* @__PURE__ */ React.createElement(G, { cols: 3, gap: 14, s: { marginTop: 14 } }, /* @__PURE__ */ React.createElement(Inp, { label: "Bank Account", val: onbForm.acc || "", set: (v) => setOnbForm((p) => ({ ...p, acc: v })), ph: "Account number" }), /* @__PURE__ */ React.createElement(Inp, { label: "Bank IFSC", val: onbForm.ifsc || "", set: (v) => setOnbForm((p) => ({ ...p, ifsc: v.toUpperCase() })), ph: "SBIN0001234" }), /* @__PURE__ */ React.createElement(Inp, { label: "Bank Name", val: onbForm.bank || "", set: (v) => setOnbForm((p) => ({ ...p, bank: v })), ph: "SBI" })), /* @__PURE__ */ React.createElement(G, { cols: 3, gap: 14, s: { marginTop: 14 } }, /* @__PURE__ */ React.createElement(Toggle, { label: "Enroll in PF", val: onbForm.pf !== false, set: (v) => setOnbForm((p) => ({ ...p, pf: v })), note: "Employee PF 12%" }), /* @__PURE__ */ React.createElement(Toggle, { label: "Enroll in ESIC", val: onbForm.esic !== false, set: (v) => setOnbForm((p) => ({ ...p, esic: v })), note: "If gross \u2264 \u20B921K" }), /* @__PURE__ */ React.createElement(Toggle, { label: "Deduct PT", val: onbForm.pt !== false, set: (v) => setOnbForm((p) => ({ ...p, pt: v })), note: "Professional Tax" })), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setOnbForm((p) => ({ ...p, step: 2 })) }, "\u2190 Back"), /* @__PURE__ */ React.createElement(Btn, { v: "ok", onClick: () => setOnbForm((p) => ({ ...p, step: 4 })) }, "Next: Review \u2192"))), onbForm.step === 4 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 14, color: OK } }, "Step 4 \u2014 Review & Complete"), /* @__PURE__ */ React.createElement("div", { style: { background: AX, border: `1px solid ${AC}`, borderRadius: 10, padding: 16, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: AC, marginBottom: 10 } }, "\u2713 All steps completed"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 13 } }, [["Name", onbForm.name], ["Email", onbForm.email], ["Phone", onbForm.phone], ["Designation", onbForm.desig], ["Department", onbForm.dept], ["Date of Joining", onbForm.doj], ["PAN", onbForm.pan], ["Gross Salary", INR((+onbForm.basic || 0) + (+onbForm.hra || 0) + (+onbForm.conv || 0) + (+onbForm.med || 0) + (+onbForm.spl || 0))], ["Documents Uploaded", Object.keys(onbForm.docs || {}).length + " / 6"]].map(([k, v]) => /* @__PURE__ */ React.createElement("div", { key: k }, /* @__PURE__ */ React.createElement("span", { style: { color: MT, fontSize: 11 } }, k, ": "), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600 } }, v))))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => setOnbForm((p) => ({ ...p, step: 3 })) }, "\u2190 Back"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { v: "sec", onClick: () => {
-    generateOfferLetter(onbForm, co, onbForm.doj);
-  } }, "\u{1F4C4} Generate Offer Letter"), /* @__PURE__ */ React.createElement(Btn, { v: "ok", onClick: () => {
+    generateOfferLetter(onbForm, co, pol2, "standard");
+    const w = window.open("", "_blank");
+    w.document.write(_html1);
+    w.print();
+  } }, "\u{1F4C4} Offer Letter"), /* @__PURE__ */ React.createElement(Btn, { v: "ok", onClick: () => {
     const id = "ONB" + Date.now();
     setOnboarding((p) => [...p, { ...onbForm, id }]);
     setOnbForm(null);
@@ -5889,15 +6027,23 @@ Run payroll anyway?`
         alert("No employees");
         return;
       }
-      generateOfferLetter(e, co, e.doj, letterConfig);
+      generateOfferLetter(e, co, pol2, (letterConfig == null ? void 0 : letterConfig.format) || "standard");
+      const w = window.open("", "_blank");
+      w.document.write(_html2);
+      w.print();
     }, color: P },
     { label: "Appointment Letter", desc: "Formal appointment letter", action: () => {
       const e = active[0];
       if (!e) {
-        alert("No employees");
+        alert("Select an employee first");
         return;
       }
-      generateAppointmentLetter(e, co, letterConfig);
+      const fmt = prompt("Format: standard / detailed / brief", "standard") || "standard";
+      const html = generateAppointmentLetter(e, co, pol2, fmt);
+      const w = window.open("", "_blank");
+      w.document.write(html);
+      w.document.title = "Appointment Letter \u2014 " + e.name;
+      w.print();
     }, color: OK },
     { label: "\u2699 Letter Settings", desc: "Customise format, clauses, ESOP", action: () => setShowLetterConfig(true), color: "#7b1fa2" },
     { label: "Bulk Salary Slips", desc: "All slips for this payroll run", action: () => {
