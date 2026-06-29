@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v16.1 — EMPLOYEE PORTAL LOGIN FIXED -->
+<!-- PAYROLLA v16.2 — SETTINGS + PAYROLL USERS -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v16.1...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v16.2...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -4379,6 +4379,336 @@ function generateAppointmentLetter(emp, co, cfg = null, returnHtml = false) {
   </div></body></html>`;
   if (returnHtml) return html;
   printOrDownload(`Appointment_Letter_${(emp.name || "Employee").replace(/ /g, "_")}`, html, true);
+}
+function Settings({
+  co,
+  setCo,
+  pol: pol2,
+  setPol: setPol2,
+  user,
+  onLogout,
+  integ,
+  setInteg,
+  emps,
+  active,
+  apiSaveCo,
+  apiSavePolicies: apiSavePolicies2,
+  showToast,
+  addAudit
+}) {
+  const [stab, setStab] = useState("users");
+  const [users, setUsers] = useState([]);
+  const [loadingU, setLoadingU] = useState(true);
+  const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "hr" });
+  const [adding, setAdding] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
+  const [pwMsg, setPwMsg] = useState("");
+  useEffect(() => {
+    async function loadUsers() {
+      setLoadingU(true);
+      try {
+        const { data } = await sb.from("hr_users").select("*").order("created_at", { ascending: false });
+        if (data) setUsers(data);
+      } catch (e) {
+        setUsers([{
+          id: user.id || "current",
+          name: user.name || "HR Admin",
+          email: user.email || "\u2014",
+          role: user.role === "sa" ? "Super Admin" : "HR Admin",
+          status: "Active",
+          created_at: (/* @__PURE__ */ new Date()).toISOString()
+        }]);
+      }
+      setLoadingU(false);
+    }
+    if (stab === "users") loadUsers();
+  }, [stab]);
+  async function addUser() {
+    var _a;
+    if (!newUser.email.trim() || !newUser.password.trim() || !newUser.name.trim()) {
+      showToast("Name, email and password are required", "warn");
+      return;
+    }
+    if (newUser.password.length < 8) {
+      showToast("Password must be at least 8 characters", "warn");
+      return;
+    }
+    setAdding(true);
+    try {
+      const { data, error } = await sb.auth.signUp({
+        email: newUser.email.trim().toLowerCase(),
+        password: newUser.password,
+        options: { data: { role: newUser.role, name: newUser.name.trim() } }
+      });
+      if (error) throw new Error(error.message);
+      try {
+        await sb.from("hr_users").insert({
+          id: ((_a = data.user) == null ? void 0 : _a.id) || "hr_" + Date.now(),
+          name: newUser.name.trim(),
+          email: newUser.email.trim().toLowerCase(),
+          role: newUser.role,
+          status: "Active",
+          created_by: user.email || "admin"
+        });
+      } catch (e) {
+      }
+      setUsers((p) => {
+        var _a2;
+        return [{
+          id: ((_a2 = data.user) == null ? void 0 : _a2.id) || "hr_" + Date.now(),
+          name: newUser.name.trim(),
+          email: newUser.email.trim().toLowerCase(),
+          role: newUser.role,
+          status: "Active",
+          created_at: (/* @__PURE__ */ new Date()).toISOString()
+        }, ...p];
+      });
+      setNewUser({ name: "", email: "", password: "", role: "hr" });
+      showToast(newUser.name + " added as " + newUser.role.toUpperCase() + " \u2713");
+      addAudit && addAudit("User Added", "HR", "Added user: " + newUser.email);
+    } catch (e) {
+      showToast("Error: " + e.message.slice(0, 60), "warn");
+    }
+    setAdding(false);
+  }
+  async function deactivateUser(u) {
+    if (!confirm("Deactivate " + u.name + "? They won't be able to log in.")) return;
+    try {
+      await sb.from("hr_users").update({ status: "Inactive" }).eq("id", u.id);
+      setUsers((p) => p.map((x) => x.id === u.id ? { ...x, status: "Inactive" } : x));
+      showToast(u.name + " deactivated");
+    } catch (e) {
+      showToast("Update failed: " + e.message, "warn");
+    }
+  }
+  async function changePassword() {
+    if (!pwForm.next || pwForm.next.length < 8) {
+      setPwMsg("Password must be at least 8 characters");
+      return;
+    }
+    if (pwForm.next !== pwForm.confirm) {
+      setPwMsg("Passwords do not match");
+      return;
+    }
+    try {
+      const { error } = await sb.auth.updateUser({ password: pwForm.next });
+      if (error) throw new Error(error.message);
+      setPwMsg("\u2713 Password changed successfully");
+      setPwForm({ current: "", next: "", confirm: "" });
+    } catch (e) {
+      setPwMsg("Error: " + e.message);
+    }
+  }
+  const STABS = [
+    ["users", "\u{1F465}", "Payroll Users"],
+    ["integrations", "\u{1F517}", "Integrations"],
+    ["security", "\u{1F512}", "Security"],
+    ["data", "\u{1F4BE}", "Data & Backup"]
+  ];
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 20, background: "#f5f6fa", borderRadius: 12, padding: 4, width: "fit-content" } }, STABS.map(([id, icon, label]) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: id,
+      onClick: () => setStab(id),
+      style: {
+        padding: "8px 18px",
+        border: "none",
+        borderRadius: 9,
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: "pointer",
+        background: stab === id ? "#1a237e" : "transparent",
+        color: stab === id ? "#fff" : "#555",
+        transition: "all .15s"
+      }
+    },
+    icon,
+    " ",
+    label
+  ))), stab === "users" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: "#1a237e", marginBottom: 4 } }, "\u2795 Add HR / Admin User"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 16 } }, "New user can log in to the HR portal with these credentials."), [
+    { k: "name", label: "Full Name *", ph: "Anshul Garg" },
+    { k: "email", label: "Work Email *", ph: "hr@company.com", type: "email" },
+    { k: "password", label: "Temporary Password *", ph: "Min 8 chars", type: "password" }
+  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k, style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: f.type || "text",
+      value: newUser[f.k],
+      onChange: (e) => setNewUser((p) => ({ ...p, [f.k]: e.target.value })),
+      placeholder: f.ph,
+      style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, "Role"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, [
+    ["hr", "HR Admin", "Can manage payroll, employees, attendance"],
+    ["sa", "Super Admin", "Full access including settings and all users"]
+  ].map(([r, l, desc]) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: r,
+      type: "button",
+      onClick: () => setNewUser((p) => ({ ...p, role: r })),
+      style: {
+        flex: 1,
+        padding: "9px 10px",
+        border: `2px solid ${newUser.role === r ? "#1a237e" : "#ddd"}`,
+        borderRadius: 9,
+        background: newUser.role === r ? "#e8eaf6" : "#fff",
+        cursor: "pointer",
+        textAlign: "left"
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: newUser.role === r ? "#1a237e" : "#333" } }, l),
+    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, desc)
+  )))), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: addUser,
+      disabled: adding,
+      style: {
+        width: "100%",
+        padding: "11px",
+        border: "none",
+        borderRadius: 10,
+        background: adding ? "#90a4ae" : "#1a237e",
+        color: "#fff",
+        fontWeight: 700,
+        fontSize: 14,
+        cursor: adding ? "not-allowed" : "pointer"
+      }
+    },
+    adding ? "Creating account..." : "\u2713 Add User"
+  ), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, fontSize: 11, color: "#888" } }, "\u{1F4A1} Share the email + password with the user. They can change their password after login under Settings \u2192 Security.")), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: "#1a237e", marginBottom: 4 } }, "\u{1F465} Current Users"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 16 } }, "All HR portal login accounts"), loadingU ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: 30, color: "#aaa" } }, "Loading...") : users.length === 0 ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: 30, color: "#aaa" } }, "No users found. Add one to get started.") : users.map((u) => /* @__PURE__ */ React.createElement("div", { key: u.id, style: { display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid #f5f5f5" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 36, height: 36, borderRadius: 18, background: "#e8eaf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 } }, u.role === "sa" ? "\u{1F451}" : "\u{1F464}"), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13 } }, u.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, u.email), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, marginTop: 2 } }, /* @__PURE__ */ React.createElement("span", { style: { background: u.role === "sa" ? "#fff3e0" : "#e8eaf6", color: u.role === "sa" ? "#e65100" : "#1a237e", padding: "1px 8px", borderRadius: 6, fontWeight: 700, fontSize: 10 } }, u.role === "sa" ? "Super Admin" : "HR Admin"), u.status === "Inactive" && /* @__PURE__ */ React.createElement("span", { style: { marginLeft: 6, background: "#ffebee", color: "#c62828", padding: "1px 8px", borderRadius: 6, fontWeight: 700, fontSize: 10 } }, "Inactive"))), u.email !== user.email && u.status !== "Inactive" && /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => deactivateUser(u),
+      style: { padding: "4px 10px", border: "1px solid #ef9a9a", borderRadius: 6, background: "#fff", color: "#c62828", fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0 }
+    },
+    "Deactivate"
+  ), u.email === user.email && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#888", flexShrink: 0 } }, "You"))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, background: "#fff8e1", border: "1px solid #ffe082", borderRadius: 10, padding: "12px 16px", fontSize: 12, color: "#795548" } }, /* @__PURE__ */ React.createElement("b", null, "First time setup:"), " Run this SQL in Supabase \u2192 SQL Editor to enable the user list:", /* @__PURE__ */ React.createElement("pre", { style: { background: "#fff3e0", borderRadius: 6, padding: "8px 12px", marginTop: 8, fontSize: 11, overflowX: "auto" } }, `CREATE TABLE IF NOT EXISTS hr_users (
+  id TEXT PRIMARY KEY,
+  name TEXT, email TEXT, role TEXT DEFAULT 'hr',
+  status TEXT DEFAULT 'Active',
+  created_by TEXT, created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE hr_users ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon_all" ON hr_users FOR ALL TO anon USING (true) WITH CHECK (true);`))), stab === "integrations" && /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 15, color: "#1a237e", marginBottom: 4 } }, "\u{1F4E7} EmailJS"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 14 } }, "Send salary slips and offer letters via email. Get keys from emailjs.com \u2192 free plan."), [
+    { k: "emailJsServiceId", label: "Service ID", ph: "service_xxx" },
+    { k: "emailJsTemplateId", label: "Template ID", ph: "template_xxx" },
+    { k: "emailJsPublicKey", label: "Public Key", ph: "abc123xyz" }
+  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k, style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: (integ == null ? void 0 : integ[f.k]) || "",
+      onChange: (e) => setInteg((p) => ({ ...p, [f.k]: e.target.value })),
+      placeholder: f.ph,
+      style: { width: "100%", padding: "8px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 12, outline: "none", boxSizing: "border-box" }
+    }
+  ))), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    try {
+      localStorage.setItem("payrolla_settings", JSON.stringify(integ));
+    } catch (e) {
+    }
+    showToast("EmailJS settings saved \u2713");
+  }, style: { padding: "8px 20px", border: "none", borderRadius: 8, background: "#1a237e", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginTop: 4 } }, "Save")), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 15, color: "#25D366", marginBottom: 4 } }, "\u{1F4AC} WhatsApp"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 14 } }, "Auto-send salary slips and leave approvals via WhatsApp Business API."), [
+    { k: "waPhone", label: "Business Phone (with country code)", ph: "+919876543210" },
+    { k: "waApiKey", label: "API Key (optional)", ph: "From Meta Business Portal" }
+  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k, style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: (integ == null ? void 0 : integ[f.k]) || "",
+      onChange: (e) => setInteg((p) => ({ ...p, [f.k]: e.target.value })),
+      placeholder: f.ph,
+      style: { width: "100%", padding: "8px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 12, outline: "none", boxSizing: "border-box" }
+    }
+  ))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#888", marginTop: 6 } }, "\u{1F4A1} Without API key, WhatsApp links open the native app with pre-filled message (free)."), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    try {
+      localStorage.setItem("payrolla_settings", JSON.stringify(integ));
+    } catch (e) {
+    }
+    showToast("WhatsApp settings saved \u2713");
+  }, style: { padding: "8px 20px", border: "none", borderRadius: 8, background: "#25D366", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginTop: 10 } }, "Save")), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 15, color: "#3395FF", marginBottom: 4 } }, "\u{1F4B3} Razorpay Payroll"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 14 } }, "Enable direct bank transfers for salary disbursement. Get keys from dashboard.razorpay.com."), [
+    { k: "razorpayKeyId", label: "Key ID", ph: "rzp_live_xxx" },
+    { k: "razorpayKeySecret", label: "Key Secret", ph: "Keep this secure" }
+  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k, style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: f.k.includes("Secret") ? "password" : "text",
+      value: (integ == null ? void 0 : integ[f.k]) || "",
+      onChange: (e) => setInteg((p) => ({ ...p, [f.k]: e.target.value })),
+      placeholder: f.ph,
+      style: { width: "100%", padding: "8px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 12, outline: "none", boxSizing: "border-box" }
+    }
+  ))), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    try {
+      localStorage.setItem("payrolla_settings", JSON.stringify(integ));
+    } catch (e) {
+    }
+    showToast("Razorpay settings saved \u2713");
+  }, style: { padding: "8px 20px", border: "none", borderRadius: 8, background: "#3395FF", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", marginTop: 4 } }, "Save")), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 15, color: "#e65100", marginBottom: 4 } }, "\u{1F4D2} Tally Integration"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 14 } }, "Export payroll as Tally XML for direct import into Tally Prime / ERP9."), /* @__PURE__ */ React.createElement("div", { style: { background: "#e8f5e9", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#1b5e20" } }, "\u2713 Tally XML export is always available \u2014 go to ", /* @__PURE__ */ React.createElement("b", null, "Payroll \u2192 Run Payroll \u2192 Download Tally XML"), " after running payroll."), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, fontSize: 11, color: "#888" } }, "Ledger mapping for salary, PF, ESIC, PT and TDS is pre-configured for Schedule III compliance."))), stab === "security" && /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: "#1a237e", marginBottom: 4 } }, "\u{1F511} Change Password"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 16 } }, "Logged in as: ", /* @__PURE__ */ React.createElement("b", null, user.email || "\u2014")), [
+    { k: "next", label: "New Password", type: "password" },
+    { k: "confirm", label: "Confirm Password", type: "password" }
+  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k, style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: f.type,
+      value: pwForm[f.k],
+      onChange: (e) => setPwForm((p) => ({ ...p, [f.k]: e.target.value })),
+      placeholder: "Min 8 characters",
+      style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }
+    }
+  ))), pwMsg && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: pwMsg.startsWith("\u2713") ? "#2e7d32" : "#c62828", marginBottom: 10, padding: "6px 10px", background: pwMsg.startsWith("\u2713") ? "#e8f5e9" : "#ffebee", borderRadius: 6 } }, pwMsg), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: changePassword,
+      style: { width: "100%", padding: "10px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }
+    },
+    "Update Password"
+  )), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: "#1a237e", marginBottom: 4 } }, "\u{1F6AA} Session"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 20 } }, "You are currently logged in. Logging out will require you to sign in again."), /* @__PURE__ */ React.createElement("div", { style: { background: "#f5f6fa", borderRadius: 8, padding: "12px 14px", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#555" } }, "Current user"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, marginTop: 2 } }, user.name || "\u2014"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888" } }, user.email || "\u2014"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, marginTop: 6, background: user.role === "sa" ? "#fff3e0" : "#e8eaf6", color: user.role === "sa" ? "#e65100" : "#1a237e", display: "inline-block", padding: "2px 10px", borderRadius: 6, fontWeight: 700 } }, user.role === "sa" ? "Super Admin" : "HR Admin")), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: onLogout,
+      style: { width: "100%", padding: "10px", border: "1px solid #ef9a9a", borderRadius: 9, background: "#fff", color: "#c62828", fontWeight: 700, fontSize: 13, cursor: "pointer" }
+    },
+    "\u{1F6AA} Logout"
+  ))), stab === "data" && /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: "#1a237e", marginBottom: 4 } }, "\u{1F4E4} Export Data"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 16 } }, "Download your data as CSV or JSON backup."), [
+    { label: "Employees CSV", onClick: () => {
+      const csv = ["Code,Name,Email,Dept,Desig,Basic,HRA,Status"].concat(
+        (active || []).map((e) => [e.code, e.name, e.email, e.dept, e.desig, e.basic, e.hra, e.status].join(","))
+      ).join("\n");
+      const a = document.createElement("a");
+      a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+      a.download = "employees.csv";
+      a.click();
+    } },
+    { label: "Salary Structure JSON", onClick: () => {
+      const j = JSON.stringify((pol2 == null ? void 0 : pol2.salaryStructures) || [], null, 2);
+      const a = document.createElement("a");
+      a.href = "data:application/json;charset=utf-8," + encodeURIComponent(j);
+      a.download = "salary_structures.json";
+      a.click();
+    } },
+    { label: "Policy Settings JSON", onClick: () => {
+      const j = JSON.stringify(pol2 || {}, null, 2);
+      const a = document.createElement("a");
+      a.href = "data:application/json;charset=utf-8," + encodeURIComponent(j);
+      a.download = "payrolla_policies.json";
+      a.click();
+    } }
+  ].map(({ label, onClick }) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: label,
+      onClick,
+      style: { display: "block", width: "100%", padding: "10px 16px", marginBottom: 8, border: "1px solid #e0e0e0", borderRadius: 8, background: "#fff", fontSize: 13, cursor: "pointer", textAlign: "left", fontWeight: 500 }
+    },
+    "\u2B07 ",
+    label
+  ))), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: "#1a237e", marginBottom: 4 } }, "\u{1F5C4} Database Info"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 14 } }, "Your Supabase database connection details."), [
+    ["Project", "ughybjrpggoutpoutkpz"],
+    ["Region", "South Asia (ap-south-1)"],
+    ["Employees", String((active || []).length) + " active"],
+    ["Storage", "Supabase PostgreSQL"]
+  ].map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { display: "flex", padding: "8px 0", borderBottom: "1px solid #f5f5f5", fontSize: 13 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 140, color: "#888", fontWeight: 500 } }, l), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, color: "#1a237e" } }, v))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, fontSize: 11, color: "#888" } }, "All data is stored in your own Supabase project. Payrolla never stores your payroll data on its own servers."))));
 }
 function HRAdmin({ user, onLogout }) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, __, _$, _aa, _ba, _ca;
