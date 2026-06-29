@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v17.0 — EMP LOGIN + POLICY SAVE FIXED PROPERLY -->
+<!-- PAYROLLA v17.0 — EMP LOGIN + POLICY SAVE + DOB IN QUICK ADD -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
@@ -6210,9 +6210,11 @@ Regards, HR`;
     return /* @__PURE__ */ React.createElement("div", { key: n, style: { display: "flex", alignItems: "center", flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: 12, background: done ? "#69f0ae" : active2 ? "#fff" : "rgba(255,255,255,.2)", color: done ? "#1b5e20" : active2 ? "#1a237e" : "rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0 } }, done ? "\u2713" : n), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: active2 ? "#fff" : done ? "#69f0ae" : "rgba(255,255,255,.4)", fontWeight: active2 ? 700 : 400 } }, l)), i < 2 && /* @__PURE__ */ React.createElement("div", { style: { flex: 1, height: 1, background: "rgba(255,255,255,.2)", margin: "0 8px" } }));
   }))), /* @__PURE__ */ React.createElement("div", { style: { padding: 24, overflowY: "auto", flex: 1, minHeight: 0 } }, qaStep === 1 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 18 } }, "Just the essentials \u2014 everything else the employee can fill themselves later."), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 } }, [
     { k: "name", label: "Full Name *", ph: "Rahul Kumar", span: 2 },
-    { k: "email", label: "Work Email *", ph: "rahul@company.com", span: 2 },
+    { k: "email", label: "Work Email", ph: "rahul@company.com", span: 2 },
+    { k: "dob", label: "Date of Birth *", type: "date", span: 1, note: "Used to generate login password" },
     { k: "phone", label: "Mobile Number", ph: "9876543210", span: 1 },
-    { k: "doj", label: "Date of Joining *", type: "date", span: 1 }
+    { k: "doj", label: "Date of Joining *", type: "date", span: 1 },
+    { k: "code", label: "Employee Code *", ph: "EMP001", span: 1, note: "Used to generate login password" }
   ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k, style: { gridColumn: `span ${f.span}` } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
     "input",
     {
@@ -6222,8 +6224,7 @@ Regards, HR`;
       placeholder: f.ph || "",
       style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }
     }
-  )))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", background: "#e8f5e9", borderRadius: 8, fontSize: 12, color: "#1b5e20" } }, "\u{1F4A1} After adding, employee gets a link to fill PAN, Aadhaar, bank details and other info themselves.")), qaStep === 2 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 18 } }, "Role and location determine statutory deductions (PT & LWF)."), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 } }, [
-    { k: "code", label: "Employee Code *", ph: "EMP001" },
+  ), f.note && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 3 } }, "\u2139 ", f.note)))), qaData.code && qaData.dob && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, padding: "10px 14px", background: "#e8eaf6", borderRadius: 8, fontSize: 12, color: "#1a237e" } }, "\u{1F511} Employee login password will be: ", /* @__PURE__ */ React.createElement("b", null, qaData.code, "@", qaData.dob.slice(8, 10) + qaData.dob.slice(5, 7) + qaData.dob.slice(0, 4)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#666", marginTop: 2 } }, "Share this with the employee. They use their email or code to log in.")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, padding: "10px 14px", background: "#e8f5e9", borderRadius: 8, fontSize: 12, color: "#1b5e20" } }, "\u{1F4A1} After adding, employee gets a link to fill PAN, Aadhaar, bank details and other info themselves.")), qaStep === 2 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 18 } }, "Role and location determine statutory deductions (PT & LWF)."), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 } }, [
     { k: "desig", label: "Designation *", ph: "Software Engineer" },
     { k: "dept", label: "Department", type: "select", opts: ["Engineering", "Finance", "HR", "Marketing", "Operations", "Admin", "Sales", "Legal", "Other"] },
     { k: "cat", label: "Category", type: "select", opts: ["Permanent", "Contractual", "Probation", "Intern", "Part-time"] }
@@ -6389,16 +6390,20 @@ Regards, HR`;
         alert("Name is required");
         return;
       }
+      if (!((_b2 = qaData.code) == null ? void 0 : _b2.trim())) {
+        alert("Employee Code is required");
+        return;
+      }
+      if (!qaData.dob) {
+        alert("Date of Birth is required \u2014 it is used to generate the employee login password");
+        return;
+      }
       if (!qaData.doj) {
         alert("Date of Joining is required");
         return;
       }
       setQaStep(2);
     } else if (qaStep === 2) {
-      if (!((_b2 = qaData.code) == null ? void 0 : _b2.trim())) {
-        alert("Employee Code is required");
-        return;
-      }
       if (!((_c2 = qaData.desig) == null ? void 0 : _c2.trim())) {
         alert("Designation is required");
         return;
