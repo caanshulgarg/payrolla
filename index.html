@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v16.2 — SETTINGS + PAYROLL USERS -->
+<!-- PAYROLLA v16.4 — POLICY SAVE FULLY FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v16.2...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v16.4...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -142,11 +142,19 @@ const db = {
   },
   // Policies (whole JSON blob per company)
   async getPolicies() {
-    const { data } = await sb.from("company_policies").select("policies").single();
-    return (data == null ? void 0 : data.policies) || {};
+    const { data } = await sb.from("company_policies").select("policies").eq("company_id", "00000000-0000-0000-0000-000000000001").maybeSingle();
+    if (data == null ? void 0 : data.policies) return data.policies;
+    const { data: d2 } = await sb.from("company_policies").select("policies").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    return (d2 == null ? void 0 : d2.policies) || {};
   },
   async savePolicies(pol2) {
-    await sb.from("company_policies").upsert({ policies: pol2, updated_at: /* @__PURE__ */ new Date() }, { onConflict: "company_id" });
+    const { data: coRow } = await sb.from("companies").select("id").order("created_at").limit(1).maybeSingle();
+    const coId = coRow == null ? void 0 : coRow.id;
+    if (coId) {
+      await sb.from("company_policies").upsert({ company_id: coId, policies: pol2, updated_at: /* @__PURE__ */ new Date() }, { onConflict: "company_id" });
+    } else {
+      await sb.from("company_policies").upsert({ policies: pol2, updated_at: /* @__PURE__ */ new Date() });
+    }
   },
   // Attendance
   async getAtt(date) {
@@ -6478,7 +6486,8 @@ function EmployeePortal({ user, onLogout }) {
         const eid = user.eid || user.employee_id;
         const userEmail = (_a2 = user.email) == null ? void 0 : _a2.trim().toLowerCase();
         if (userEmail) {
-          const { data } = await sb.from("employees").select("*").eq("email", userEmail).maybeSingle();
+          const { data, error } = await sb.from("employees").select("*").eq("email", userEmail).maybeSingle();
+          if (error) console.warn("Portal S1 error:", error.message, "code:", error.code);
           if (data) empData = fromDbEmp(data);
         }
         if (!empData && userEmail) {
@@ -6489,7 +6498,8 @@ function EmployeePortal({ user, onLogout }) {
           }
         }
         if (!empData && eid) {
-          const { data } = await sb.from("employees").select("*").eq("id", eid).maybeSingle();
+          const { data, error } = await sb.from("employees").select("*").eq("id", eid).maybeSingle();
+          if (error) console.warn("Portal S3 error:", error.message, "code:", error.code);
           if (data) empData = fromDbEmp(data);
         }
         if (!empData && user.id) {
