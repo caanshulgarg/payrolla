@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v18.14 -->
+<!-- PAYROLLA v18.15 -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.14...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.15...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -2274,8 +2274,13 @@ function getMonthSummary(empId, monthStr, attendance, holidays = [], unmarkedSta
   const netPaid = Math.max(0, working - lop);
   return { total, working, present, absent, halfDays, leaves, wfh, weekOffs, publicHols, lop, ot, lwp, netPaid, daysInMonth };
 }
-const StatusCell = React.memo(function StatusCell2({ empId, day, yr, mo, attendance, getStatus, popup, setPopup }) {
+const StatusCell = React.memo(function StatusCell2({ empId, day, yr, mo, attendance, getStatus, popup, setPopup, empDoj }) {
   const date = `${yr}-${String(mo).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  // Before DOJ: show as N/A, non-interactive
+  const beforeDoj = empDoj && new Date(date) < new Date(empDoj);
+  if(beforeDoj) return /* @__PURE__ */ React.createElement("div", {
+    style: { width: 28, height: 28, borderRadius: 6, background: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: "#ccc", cursor: "default", border: "1px dashed #e0e0e0" }
+  }, "N/A");
   const s = getStatus(empId, day);
   const st = s ? ATT_STATUS[s] : null;
   const dow = new Date(date).getDay();
@@ -2641,6 +2646,12 @@ ${e.code},${e.name},${month}-02,A`).join("\n");
     return /* @__PURE__ */ React.createElement("tr", { key: emp.id, style: { borderBottom: "1px solid #f0f0f0", background: rowIdx % 2 === 0 ? "#fff" : "#fafbff" } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "8px 14px", position: "sticky", left: 0, background: rowIdx % 2 === 0 ? "#fff" : "#fafbff", zIndex: 2, borderRight: "1px solid #e8eaf6" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 12, color: "#333", whiteSpace: "nowrap" } }, emp.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888" } }, emp.code || "\u2014", " \xB7 ", emp.desig || "\u2014")), days.map((day) => {
       var _a2;
       const date = `${yr}-${String(mo).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      // Before DOJ: render as non-interactive "N/A" cell
+      if(emp.doj && new Date(date) < new Date(emp.doj)) {
+        return /* @__PURE__ */ React.createElement("td", { key: day, style: { padding: "2px 1px", textAlign: "center" } },
+          /* @__PURE__ */ React.createElement("div", { style: { width: 28, height: 28, borderRadius: 6, background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: "#ccc", margin: "0 auto", border: "1px dashed #e0e0e0" } }, "\u2014")
+        );
+      }
       const dow = new Date(date).getDay();
       const isWknd = dow === 0 || dow === 6;
       const isToday = date === TODAY;
@@ -5581,7 +5592,7 @@ Run payroll anyway?`
     const month = payMonth, year = payYear;
     const mwViolations = active.filter((e) => {
       const p = calcP(e);
-      return p.g < (e.mwCategory === "skilled" ? 12922 : e.mwCategory === "semiskilled" ? 12220 : 11700);
+      if(p.joiningProration < 1) return false; return p.g < (e.mwCategory === "skilled" ? 12922 : e.mwCategory === "semiskilled" ? 12220 : 11700);
     });
     if (mwViolations.length > 0) {
       if (!confirm("\u26A0 " + mwViolations.length + " employees below min wages. Continue?")) {
@@ -5591,112 +5602,96 @@ Run payroll anyway?`
   } }, "\u{1F50D} Pre-check"), runs.length > 0 && /* @__PURE__ */ React.createElement("select", { onChange: (e) => {
     const r = runs.find((x) => x.id === e.target.value);
     if (r) setActiveRun(r);
-  }, style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "View past runs..."), runs.map((r) => /* @__PURE__ */ React.createElement("option", { key: r.id, value: r.id }, MONTHS[r.month - 1], " ", r.year, " \u2014 ", INR(r.total))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, background: PX, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: P } }, "\u2139 Payroll auto-calculates LOP from attendance, PT from ", ((_b = pol == null ? void 0 : pol.pt) == null ? void 0 : _b.state) || (co == null ? void 0 : co.state) || "Maharashtra", " slabs, and LWF if applicable. Add OT/Bonus below before running.")), activeRun && /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16 } }, "Payroll \u2014 ", MONTHS[activeRun.month - 1], " ", activeRun.year), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, "Processed ", activeRun.on, " \xB7 ", activeRun.count, " employees")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "Total Net Payout"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 900, fontSize: 22, color: OK } }, INR(activeRun.total)))), /* @__PURE__ */ React.createElement(G, { cols: 5, gap: 12 }, /* @__PURE__ */ React.createElement("div", { style: { background: PX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: P, marginBottom: 3 } }, "Gross"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: P } }, INR(activeRun.results.reduce((s2, e) => s2 + e.g, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: AX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: AC, marginBottom: 3 } }, "PF (Employer)"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: AC } }, INR(activeRun.results.reduce((s2, e) => s2 + e.pfR, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: WX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: WN, marginBottom: 3 } }, "TDS Total"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: WN } }, INR(activeRun.results.reduce((s2, e) => s2 + e.tds, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: DX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: DG, marginBottom: 3 } }, "LOP Deductions"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: DG } }, activeRun.results.filter((e) => e.lop > 0).length, " employees")), /* @__PURE__ */ React.createElement("div", { style: { background: OX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: OK, marginBottom: 3 } }, "Net Payout"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: OK } }, INR(activeRun.total)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" } },
-    /* @__PURE__ */ React.createElement("button", { 
-      onClick: () => {
-        if (!activeRun?.results?.length) { alert("No payroll run"); return; }
-        const headers = ["Code","Name","Department","Designation","Days","LOP","Per Day","Gross","PF (Emp)","PF (Emr)","ESIC (Emp)","PT","LWF","TDS","Loan EMI","Total Ded","Net Pay"];
-        const rows = activeRun.results.map(e => [
-          e.code, e.name, e.dept||"", e.desig||"",
-          e.attSummary?.working||"", e.lop||0,
-          Math.round((e.perDaySalary||0)/(e.divisor||30)),
-          e.g, e.pfE||0, e.pfR||0, e.esE||0, e.pt||0, e.lwfE||0, e.tds||0,
-          e.loanEmi||0, e.ded||0, e.netFinal??e.net
-        ]);
-        const totalRow = ["","TOTAL","","","","","",
-          activeRun.results.reduce((s,e)=>s+(e.g||0),0),
-          activeRun.results.reduce((s,e)=>s+(e.pfE||0),0),
-          activeRun.results.reduce((s,e)=>s+(e.pfR||0),0),
-          activeRun.results.reduce((s,e)=>s+(e.esE||0),0),
-          activeRun.results.reduce((s,e)=>s+(e.pt||0),0),
-          activeRun.results.reduce((s,e)=>s+(e.lwfE||0),0),
-          activeRun.results.reduce((s,e)=>s+(e.tds||0),0),
-          activeRun.results.reduce((s,e)=>s+(e.loanEmi||0),0),
-          activeRun.results.reduce((s,e)=>s+(e.ded||0),0),
-          activeRun.results.reduce((s,e)=>s+(e.netFinal??e.net??0),0)
-        ];
-        const csv = [headers, ...rows, totalRow].map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");
-        const a = document.createElement("a");
+  }, style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "View past runs..."), runs.map((r) => /* @__PURE__ */ React.createElement("option", { key: r.id, value: r.id }, MONTHS[r.month - 1], " ", r.year, " \u2014 ", INR(r.total))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, background: PX, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: P } }, "\u2139 Payroll auto-calculates LOP from attendance, PT from ", ((_b = pol == null ? void 0 : pol.pt) == null ? void 0 : _b.state) || (co == null ? void 0 : co.state) || "Maharashtra", " slabs, and LWF if applicable. Add OT/Bonus below before running.")), activeRun && /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16 } }, "Payroll \u2014 ", MONTHS[activeRun.month - 1], " ", activeRun.year), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, "Processed ", activeRun.on, " \xB7 ", activeRun.count, " employees")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "Total Net Payout"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 900, fontSize: 22, color: OK } }, INR(activeRun.total)))), /* @__PURE__ */ React.createElement(G, { cols: 5, gap: 12 }, /* @__PURE__ */ React.createElement("div", { style: { background: PX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: P, marginBottom: 3 } }, "Gross"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: P } }, INR(activeRun.results.reduce((s2, e) => s2 + e.g, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: AX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: AC, marginBottom: 3 } }, "PF (Employer)"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: AC } }, INR(activeRun.results.reduce((s2, e) => s2 + e.pfR, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: WX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: WN, marginBottom: 3 } }, "TDS Total"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: WN } }, INR(activeRun.results.reduce((s2, e) => s2 + e.tds, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: DX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: DG, marginBottom: 3 } }, "LOP Deductions"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: DG } }, activeRun.results.filter((e) => e.lop > 0).length, " employees")), /* @__PURE__ */ React.createElement("div", { style: { background: OX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: OK, marginBottom: 3 } }, "Net Payout"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: OK } }, INR(activeRun.total)))), /* @__PURE__ */ React.createElement("div", null,
+  /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" } },
+    /* @__PURE__ */ React.createElement("button", {
+      style: { padding: "8px 16px", border: "1.5px solid #1b5e20", borderRadius: 8, background: "#e8f5e9", color: "#1b5e20", fontWeight: 700, fontSize: 12, cursor: "pointer" },
+      onClick: function() {
+        if (!activeRun || !activeRun.results || !activeRun.results.length) { alert("No payroll run"); return; }
+        var hdrs = ["Code","Name","Department","Designation","Days","LOP","Gross","PF Emp","PF Emr","ESIC","PT","LWF","TDS","Loan EMI","Net Pay"];
+        var rows2 = activeRun.results.map(function(e) {
+          return [e.code,e.name,e.dept||"",e.desig||"",e.attSummary&&e.attSummary.working||"",e.lop||0,e.g||0,e.pfE||0,e.pfR||0,e.esE||0,e.pt||0,e.lwfE||0,e.tds||0,e.loanEmi||0,e.netFinal!=null?e.netFinal:e.net||0];
+        });
+        var tot = function(field) { return activeRun.results.reduce(function(s,e){ return s+(e[field]||0); },0); };
+        var totalRow = ["","TOTAL","","","","",tot("g"),tot("pfE"),tot("pfR"),tot("esE"),tot("pt"),tot("lwfE"),tot("tds"),tot("loanEmi"),activeRun.results.reduce(function(s,e){return s+(e.netFinal!=null?e.netFinal:e.net||0);},0)];
+        var csv = [hdrs].concat(rows2).concat([totalRow]).map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(","); }).join("\n");
+        var a = document.createElement("a");
         a.href = "data:text/csv;charset=utf-8,\uFEFF" + encodeURIComponent(csv);
         a.download = "Payroll_" + MONTHS[activeRun.month-1] + "_" + activeRun.year + ".csv";
         a.click();
-        showToast && showToast("Excel/CSV downloaded ✓");
-      },
-      style: { padding: "8px 16px", border: "1.5px solid #1b5e20", borderRadius: 8, background: "#e8f5e9", color: "#1b5e20", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }
-    }, "📊 Download Excel"),
+        showToast && showToast("Excel downloaded \u2713");
+      }
+    }, "\uD83D\uDCCA Download Excel"),
     /* @__PURE__ */ React.createElement("button", {
-      onClick: () => {
-        if (!activeRun?.results?.length) { alert("No payroll run"); return; }
-        const rows = activeRun.results.map((e,i) => `
-          <tr style="background:${i%2===0?'#fff':'#f8f9ff'}">
-            <td>${e.code}</td><td><b>${e.name}</b><br/><span style="font-size:10px;color:#888">${e.dept||""} · ${e.desig||""}</span></td>
-            <td style="text-align:center">${e.attSummary?.working||"—"}</td>
-            <td style="text-align:center;color:${(e.lop||0)>0?"#c62828":"#888"}">${e.lop||0}</td>
-            <td style="text-align:right">₹${(e.g||0).toLocaleString("en-IN")}</td>
-            <td style="text-align:right">₹${(e.pfE||0).toLocaleString("en-IN")}</td>
-            <td style="text-align:right">₹${(e.pt||0).toLocaleString("en-IN")}</td>
-            <td style="text-align:right">₹${(e.lwfE||0).toLocaleString("en-IN")}</td>
-            <td style="text-align:right">₹${(e.tds||0).toLocaleString("en-IN")}</td>
-            <td style="text-align:right;color:${(e.netFinal??e.net??0)>=0?"#1b5e20":"#c62828"}"><b>₹${((e.netFinal??e.net??0)).toLocaleString("en-IN")}</b></td>
-          </tr>`).join("");
-        const total_g = activeRun.results.reduce((s,e)=>s+(e.g||0),0);
-        const total_pf = activeRun.results.reduce((s,e)=>s+(e.pfE||0),0);
-        const total_pt = activeRun.results.reduce((s,e)=>s+(e.pt||0),0);
-        const total_tds = activeRun.results.reduce((s,e)=>s+(e.tds||0),0);
-        const total_net = activeRun.results.reduce((s,e)=>s+(e.netFinal??e.net??0),0);
-        const html = \`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Payroll — \${MONTHS[activeRun.month-1]} \${activeRun.year}</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",Arial,sans-serif;font-size:12px;padding:24px;color:#222}
-.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a237e;padding-bottom:14px;margin-bottom:20px}
-.co{font-size:20px;font-weight:900;color:#1a237e}.sub{font-size:11px;color:#666;margin-top:3px}
-.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
-.summary-box{background:#f8f9ff;border:1px solid #e8eaf6;border-radius:8px;padding:10px 14px}
-.s-label{font-size:10px;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:3px}
-.s-val{font-size:16px;font-weight:800;color:#1a237e}
-table{width:100%;border-collapse:collapse;font-size:11px}
-th{background:#1a237e;color:#fff;padding:8px 10px;text-align:left;font-size:10px;font-weight:700}
-td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
-tr.total td{background:#e8eaf6;font-weight:700;font-size:12px}
-.footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #e0e0e0;padding-top:10px}
-@media print{body{padding:10px}}
-</style></head><body>
-<button onclick="window.print()" style="position:fixed;top:10px;right:10px;padding:8px 18px;background:#1a237e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;z-index:99">🖨 Print / Save PDF</button>
-<div class="hdr">
-  <div><div class="co">\${co?.name||"Company"}</div><div class="sub">\${co?.addr||""} \${co?.city??" · "+co?.city:""}</div></div>
-  <div style="text-align:right"><div style="font-size:15px;font-weight:700;color:#1a237e">PAYROLL REGISTER</div>
-  <div class="sub">\${MONTHS[activeRun.month-1]} \${activeRun.year} · \${activeRun.count} employees</div>
-  <div class="sub">Generated: \${new Date().toLocaleDateString("en-IN")}</div></div>
-</div>
-<div class="summary">
-  <div class="summary-box"><div class="s-label">Gross Salary</div><div class="s-val">₹\${total_g.toLocaleString("en-IN")}</div></div>
-  <div class="summary-box"><div class="s-label">PF Deductions</div><div class="s-val">₹\${total_pf.toLocaleString("en-IN")}</div></div>
-  <div class="summary-box"><div class="s-label">Prof. Tax</div><div class="s-val">₹\${total_pt.toLocaleString("en-IN")}</div></div>
-  <div class="summary-box"><div class="s-label">TDS</div><div class="s-val">₹\${total_tds.toLocaleString("en-IN")}</div></div>
-  <div class="summary-box" style="background:#e8f5e9;border-color:#a5d6a7"><div class="s-label" style="color:#2e7d32">Net Payout</div><div class="s-val" style="color:#1b5e20">₹\${total_net.toLocaleString("en-IN")}</div></div>
-</div>
-<table>
-  <tr><th>#</th><th>Code</th><th>Employee</th><th>Days</th><th>LOP</th><th>Gross (₹)</th><th>PF Emp (₹)</th><th>PT (₹)</th><th>LWF (₹)</th><th>TDS (₹)</th><th>Net Pay (₹)</th></tr>
-  \${rows}
-  <tr class="total"><td colspan="5">TOTAL (\${activeRun.count} employees)</td>
-    <td style="text-align:right">₹\${total_g.toLocaleString("en-IN")}</td>
-    <td style="text-align:right">₹\${total_pf.toLocaleString("en-IN")}</td>
-    <td style="text-align:right">₹\${total_pt.toLocaleString("en-IN")}</td>
-    <td></td>
-    <td style="text-align:right">₹\${total_tds.toLocaleString("en-IN")}</td>
-    <td style="text-align:right">₹\${total_net.toLocaleString("en-IN")}</td>
-  </tr>
-</table>
-<div class="footer">Payrolla.in · \${co?.name||""} · \${MONTHS[activeRun.month-1]} \${activeRun.year} Payroll</div>
-</body></html>\`;
-        const blob = new Blob([html], {type:"text/html"});
-        const url = URL.createObjectURL(blob);
-        window.open(url, "_blank");
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-        showToast && showToast("PDF ready — use browser Print → Save as PDF");
-      },
-      style: { padding: "8px 16px", border: "1.5px solid #c62828", borderRadius: 8, background: "#ffebee", color: "#c62828", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }
-    }, "📄 Download PDF")
+      style: { padding: "8px 16px", border: "1.5px solid #1a237e", borderRadius: 8, background: "#e8eaf6", color: "#1a237e", fontWeight: 700, fontSize: 12, cursor: "pointer" },
+      onClick: function() {
+        if (!activeRun || !activeRun.results || !activeRun.results.length) { alert("No payroll run"); return; }
+        var tot = function(field) { return activeRun.results.reduce(function(s,e){ return s+(e[field]||0); },0); };
+        var totalNet = activeRun.results.reduce(function(s,e){return s+(e.netFinal!=null?e.netFinal:e.net||0);},0);
+        var rowsHtml = activeRun.results.map(function(e,i) {
+          var net = e.netFinal!=null?e.netFinal:e.net||0;
+          return "<tr style='background:"+(i%2===0?"#fff":"#f8f9ff")+"'>"
+            +"<td>"+(i+1)+"</td>"
+            +"<td>"+e.code+"</td>"
+            +"<td><b>"+e.name+"</b><br/><span style='font-size:10px;color:#888'>"+(e.dept||"")+" "+(e.desig?"\u00B7 "+e.desig:"")+"</span></td>"
+            +"<td style='text-align:center'>"+(e.attSummary&&e.attSummary.working||"\u2014")+"</td>"
+            +"<td style='text-align:center;color:"+(e.lop||0)>0?"#c62828":"#888"+"'>"+(e.lop||0)+"</td>"
+            +"<td style='text-align:right'>\u20B9"+((e.g||0)).toLocaleString("en-IN")+"</td>"
+            +"<td style='text-align:right'>\u20B9"+((e.pfE||0)).toLocaleString("en-IN")+"</td>"
+            +"<td style='text-align:right'>\u20B9"+((e.pt||0)).toLocaleString("en-IN")+"</td>"
+            +"<td style='text-align:right'>\u20B9"+((e.lwfE||0)).toLocaleString("en-IN")+"</td>"
+            +"<td style='text-align:right'>\u20B9"+((e.tds||0)).toLocaleString("en-IN")+"</td>"
+            +"<td style='text-align:right;font-weight:700;color:"+(net>=0?"#1b5e20":"#c62828")+"'>\u20B9"+net.toLocaleString("en-IN")+"</td>"
+            +"</tr>";
+        }).join("");
+        var coName = co&&co.name?"":co.name;
+        var html = "<!DOCTYPE html><html><head><meta charset='UTF-8'/><title>Payroll Register</title>"
+          +"<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;padding:24px;color:#222}"
+          +".hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a237e;padding-bottom:14px;margin-bottom:18px}"
+          +".co{font-size:20px;font-weight:900;color:#1a237e}.sub{font-size:11px;color:#666;margin-top:3px}"
+          +".summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}"
+          +".sb{background:#f8f9ff;border:1px solid #e8eaf6;border-radius:8px;padding:10px 14px}"
+          +".sl{font-size:10px;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:3px}"
+          +".sv{font-size:15px;font-weight:800;color:#1a237e}"
+          +"table{width:100%;border-collapse:collapse;font-size:11px}"
+          +"th{background:#1a237e;color:#fff;padding:7px 10px;text-align:left;font-size:10px;font-weight:700}"
+          +"td{padding:6px 10px;border-bottom:1px solid #f0f0f0}"
+          +"tr.tot td{background:#e8eaf6;font-weight:700;font-size:12px}"
+          +".footer{margin-top:16px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:10px}"
+          +"@media print{body{padding:10px}.no-print{display:none}}</style></head><body>"
+          +"<button class='no-print' onclick='window.print()' style='position:fixed;top:10px;right:10px;padding:8px 18px;background:#1a237e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;z-index:99'>\uD83D\uDDA8 Print / Save PDF</button>"
+          +"<div class='hdr'>"
+          +"<div><div class='co'>"+(co&&co.name?co.name:"Company")+"</div><div class='sub'>"+(co&&co.addr?co.addr+", ":"")+(co&&co.city?co.city:"")+"</div></div>"
+          +"<div style='text-align:right'><div style='font-size:15px;font-weight:700;color:#1a237e'>PAYROLL REGISTER</div>"
+          +"<div class='sub'>"+MONTHS[activeRun.month-1]+" "+activeRun.year+" \u00B7 "+activeRun.count+" employees</div>"
+          +"<div class='sub'>Generated: "+new Date().toLocaleDateString("en-IN")+"</div></div></div>"
+          +"<div class='summary'>"
+          +"<div class='sb'><div class='sl'>Gross Salary</div><div class='sv'>\u20B9"+tot("g").toLocaleString("en-IN")+"</div></div>"
+          +"<div class='sb'><div class='sl'>PF (Employee)</div><div class='sv'>\u20B9"+tot("pfE").toLocaleString("en-IN")+"</div></div>"
+          +"<div class='sb'><div class='sl'>Prof. Tax</div><div class='sv'>\u20B9"+tot("pt").toLocaleString("en-IN")+"</div></div>"
+          +"<div class='sb'><div class='sl'>TDS</div><div class='sv'>\u20B9"+tot("tds").toLocaleString("en-IN")+"</div></div>"
+          +"<div class='sb' style='background:#e8f5e9;border-color:#a5d6a7'><div class='sl' style='color:#2e7d32'>Net Payout</div><div class='sv' style='color:#1b5e20'>\u20B9"+totalNet.toLocaleString("en-IN")+"</div></div>"
+          +"</div>"
+          +"<table><tr><th>#</th><th>Code</th><th>Employee</th><th>Days</th><th>LOP</th><th>Gross (\u20B9)</th><th>PF Emp (\u20B9)</th><th>PT (\u20B9)</th><th>LWF (\u20B9)</th><th>TDS (\u20B9)</th><th>Net Pay (\u20B9)</th></tr>"
+          +rowsHtml
+          +"<tr class='tot'><td colspan='5'>TOTAL ("+activeRun.count+" employees)</td>"
+          +"<td style='text-align:right'>\u20B9"+tot("g").toLocaleString("en-IN")+"</td>"
+          +"<td style='text-align:right'>\u20B9"+tot("pfE").toLocaleString("en-IN")+"</td>"
+          +"<td style='text-align:right'>\u20B9"+tot("pt").toLocaleString("en-IN")+"</td>"
+          +"<td style='text-align:right'>\u20B9"+tot("lwfE").toLocaleString("en-IN")+"</td>"
+          +"<td style='text-align:right'>\u20B9"+tot("tds").toLocaleString("en-IN")+"</td>"
+          +"<td style='text-align:right'>\u20B9"+totalNet.toLocaleString("en-IN")+"</td></tr></table>"
+          +"<div class='footer'>Payrolla.in \u00B7 "+(co&&co.name?co.name:"")+" \u00B7 "+MONTHS[activeRun.month-1]+" "+activeRun.year+" Payroll Register</div>"
+          +"</body></html>";
+        var blob = new Blob([html],{type:"text/html"});
+        var url = URL.createObjectURL(blob);
+        window.open(url,"_blank");
+        setTimeout(function(){ URL.revokeObjectURL(url); },60000);
+        showToast && showToast("PDF ready \u2014 Print \u2192 Save as PDF");
+      }
+    }, "\uD83D\uDCC4 Download PDF")
   ),
-  /* @__PURE__ */ React.createElement("div", { style: { marginTop: 0 } }, /* @__PURE__ */ React.createElement(
+  /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16 } }, /* @__PURE__ */ React.createElement(
     Tbl,
     {
       cols: ["Employee", "Days", "LOP", "Per Day", "Gross", "PF", "PT", "LWF", "TDS", "Net Pay", "Slip"],
@@ -6930,7 +6925,7 @@ Regards, HR`;
     } catch (e) {
       showToast("DB error: " + e.message, "warn");
     }
-  }, style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2713 Save Changes")))));
+  }, style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2713 Save Changes"))))));
 }
 const UI_C = "#1a237e", UI_G = "#1b5e20", UI_R = "#c62828";
 const EpCard = ({ children, s = {} }) => /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: "18px 20px", ...s } }, children);
