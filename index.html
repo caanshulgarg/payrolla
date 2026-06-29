@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v17.3 — EMP LOGIN FIXED -->
+<!-- PAYROLLA v17.4 -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Payrolla.in — Indian Payroll & HRMS</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
+<title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v17.3...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v17.4...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -1235,14 +1234,52 @@ function Login({ onLogin, onRegister }) {
         const input = email.trim();
         const inputLower = input.toLowerCase();
         let empRow = null;
-        const { data: allEmps, error: empErr } = await sb.from("employees").select("*");
-        if (empErr) throw new Error(empErr.message);
-        const active = (allEmps || []).filter((e) => e.status === "Active" || !e.status);
+        let allEmps = null, empErr = null;
+        try {
+          const r1 = await sb.from("employees").select("id,code,name,email,dob,doj,basic,hra,conv,med,spl,lta,pf,esic,pt,lwf,it_regime,work_state,status,dept,desig,cat,shift,pan,phone,acc,ifsc,bank,uan");
+          if (r1.data && r1.data.length > 0) {
+            allEmps = r1.data;
+          }
+          if (r1.error) empErr = r1.error;
+        } catch (e1) {
+          empErr = { message: e1.message };
+        }
+        if (!allEmps || allEmps.length === 0) {
+          try {
+            const r2a = await sb.from("employees").select("*").eq("email", inputLower).maybeSingle();
+            if (r2a.data) {
+              allEmps = [r2a.data];
+            } else {
+              const r2b = await sb.from("employees").select("*").eq("code", input).maybeSingle();
+              if (r2b.data) {
+                allEmps = [r2b.data];
+              } else {
+                const r2c = await sb.from("employees").select("*").eq("code", input.toUpperCase()).maybeSingle();
+                if (r2c.data) {
+                  allEmps = [r2c.data];
+                }
+              }
+            }
+          } catch (e2) {
+          }
+        }
+        if (!allEmps || allEmps.length === 0) {
+          const errDetail = empErr ? " (DB error: " + empErr.message + ")" : " (0 rows returned \u2014 check Supabase RLS: employees table needs anon SELECT policy)";
+          setErr("Could not load employee list" + errDetail + ". Contact HR to check Supabase RLS policy on employees table.");
+          setLoggingIn(false);
+          return;
+        }
+        const active = allEmps.filter((e) => e.status === "Active" || e.status == null || e.status === "");
         empRow = active.find((e) => e.email && e.email.toLowerCase() === inputLower) || null;
         if (!empRow) empRow = active.find((e) => e.code && e.code.toLowerCase() === inputLower) || null;
+        if (!empRow) empRow = active.find((e) => e.code && e.code.toUpperCase() === input.toUpperCase()) || null;
         if (!empRow) empRow = active.find((e) => e.name && e.name.toLowerCase() === inputLower) || null;
         if (!empRow) {
-          setErr("No employee found with email or code: " + input + ". Ask HR to check your email/code in the system.");
+          empRow = allEmps.find((e) => e.email && e.email.toLowerCase() === inputLower) || allEmps.find((e) => e.code && e.code.toUpperCase() === input.toUpperCase()) || null;
+        }
+        if (!empRow) {
+          const codes = allEmps.slice(0, 5).map((e) => e.code || "?").join(", ");
+          setErr("Employee '" + input + "' not found. Available codes: " + codes + ". Try entering your exact employee code or email.");
           setLoggingIn(false);
           return;
         }
