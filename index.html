@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v18.8 — SHIFT MANAGEMENT FIXED -->
+<!-- PAYROLLA v18.9 -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.8...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.9...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -590,13 +590,7 @@ const DEFAULT_POLICIES = {
     rebate87A_new: 6e4,
     // full rebate for ti ≤ ₹12L
     stdDed_new: 75e3,
-    stdDed_old: 5e4,
-    oldRegimeSlabs: [
-      { from: 0, to: 25e4, rate: 0 },
-      { from: 25e4, to: 5e5, rate: 5 },
-      { from: 5e5, to: 1e6, rate: 20 },
-      { from: 1e6, to: Infinity, rate: 30 }
-    ]
+    stdDed_old: 5e4
   },
   lwf: { enabled: true },
   payroll: { paymentDay: 5, paymentMode: "bank_transfer", workingDays: 26, lopMethod: "30", overtimeEnabled: false, otRate: 1.5, salaryRevision: "month_end", hraExemption: { metro: 50, nonMetro: 40, metroCities: ["Mumbai", "Delhi", "Chennai", "Kolkata", "Bengaluru", "Hyderabad"] } },
@@ -4974,7 +4968,7 @@ CREATE POLICY "anon_all" ON hr_users FOR ALL TO anon USING (true) WITH CHECK (tr
   ].map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { display: "flex", padding: "8px 0", borderBottom: "1px solid #f5f5f5", fontSize: 13 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 140, color: "#888", fontWeight: 500 } }, l), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, color: "#1a237e" } }, v))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, fontSize: 11, color: "#888" } }, "All data is stored in your own Supabase project. Payrolla never stores your payroll data on its own servers."))));
 }
 function HRAdmin({ user, onLogout }) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, __, _$, _aa, _ba, _ca;
+  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, __, _$, _aa, _ba, _ca, _da;
   const [tab, setTab] = useState(() => {
     try {
       return sessionStorage.getItem("hr_tab") || "dashboard";
@@ -6705,7 +6699,98 @@ Regards, HR`;
     } catch (e) {
       console.warn("DB save:", e.message);
     }
-  }, style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2713 Save Employee"))), /* @__PURE__ */ React.createElement("style", null, `@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`)))));
+  }, style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2713 Save Employee"))), /* @__PURE__ */ React.createElement("style", null, `@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`)))), quickEdit && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 700, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setQuickEdit(null) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "90vh", boxShadow: "0 20px 60px rgba(0,0,0,.25)", display: "flex", flexDirection: "column", overflow: "hidden" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: "#fff" } }, "\u270F\uFE0F Edit Employee"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,.7)", marginTop: 2 } }, quickEdit.name, " \xB7 ", quickEdit.code)), /* @__PURE__ */ React.createElement("button", { onClick: () => setQuickEdit(null), style: { background: "rgba(255,255,255,.15)", border: "none", color: "#fff", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 } }, "\u2715 Close")), /* @__PURE__ */ React.createElement("div", { style: { padding: 20, overflowY: "auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } }, [
+    { k: "name", label: "Full Name", span: 2 },
+    { k: "email", label: "Email", span: 2 },
+    { k: "desig", label: "Designation", span: 1 },
+    { k: "dept", label: "Department", span: 1 },
+    { k: "doj", label: "Date of Joining", type: "date", span: 1 },
+    { k: "status", label: "Status", opts: ["Active", "Inactive", "Resigned", "On Leave"], span: 1 }
+  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k, style: { gridColumn: `span ${f.span}` } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), f.opts ? /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      value: qf[f.k] !== void 0 ? qf[f.k] : quickEdit[f.k] || "",
+      onChange: (e) => setQf((p) => ({ ...p, [f.k]: e.target.value })),
+      style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
+    },
+    f.opts.map((o) => /* @__PURE__ */ React.createElement("option", { key: o, value: o }, o))
+  ) : /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: f.type || "text",
+      value: qf[f.k] !== void 0 ? qf[f.k] : quickEdit[f.k] || "",
+      onChange: (e) => setQf((p) => ({ ...p, [f.k]: e.target.value })),
+      style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
+    }
+  )))), /* @__PURE__ */ React.createElement("div", { style: { background: "#f8f9ff", border: "1px solid #e8eaf6", borderRadius: 10, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#1a237e", marginBottom: 10 } }, "\u{1F4B0} Salary Components"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 } }, [
+    { k: "basic", label: "Basic" },
+    { k: "hra", label: "HRA" },
+    { k: "conv", label: "Conv" },
+    { k: "med", label: "Medical" },
+    { k: "spl", label: "Special" },
+    { k: "lta", label: "LTA" }
+  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 10, fontWeight: 700, color: "#888", display: "block", marginBottom: 3, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "number",
+      value: qf[f.k] !== void 0 ? qf[f.k] : quickEdit[f.k] || "",
+      onChange: (e) => setQf((p) => ({ ...p, [f.k]: e.target.value })),
+      style: { width: "100%", padding: "7px 10px", border: "1px solid #ddd", borderRadius: 7, fontSize: 13, outline: "none" }
+    }
+  )))), (() => {
+    const emp2 = { ...quickEdit, ...qf };
+    try {
+      const p2 = calcPay({ ...BLANK_EMP, ...emp2, basic: +(emp2.basic || 0), hra: +(emp2.hra || 0), conv: +(emp2.conv || 0), med: +(emp2.med || 0), spl: +(emp2.spl || 0) }, 0, pol, payMonth, payYear);
+      return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, padding: "8px 10px", background: "#e8f5e9", borderRadius: 7 } }, /* @__PURE__ */ React.createElement("span", null, "Gross ", /* @__PURE__ */ React.createElement("b", { style: { color: "#1b5e20" } }, "\u20B9", p2.g.toLocaleString("en-IN"))), /* @__PURE__ */ React.createElement("span", null, "Deductions ", /* @__PURE__ */ React.createElement("b", { style: { color: "#c62828" } }, "-\u20B9", p2.ded.toLocaleString("en-IN"))), /* @__PURE__ */ React.createElement("span", null, "Net Pay ", /* @__PURE__ */ React.createElement("b", { style: { color: "#1b5e20", fontSize: 14 } }, "\u20B9", p2.net.toLocaleString("en-IN"))));
+    } catch (e) {
+      return null;
+    }
+  })()), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff8f0", border: "1px solid #ffcc80", borderRadius: 10, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#e65100", marginBottom: 10 } }, "\u{1F4CB} Statutory"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: qf.pf !== void 0 ? !!qf.pf : !!quickEdit.pf, onChange: (e) => setQf((p) => ({ ...p, pf: e.target.checked })), style: { width: 16, height: 16, accentColor: "#1a237e" } }), "\u{1F3DB}\uFE0F PF / EPF"), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: qf.esic !== void 0 ? !!qf.esic : !!quickEdit.esic, onChange: (e) => setQf((p) => ({ ...p, esic: e.target.checked })), style: { width: 16, height: 16, accentColor: "#1a237e" } }), "\u{1F3E5} ESIC"), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: qf.pt !== void 0 ? !!qf.pt : !!quickEdit.pt, onChange: (e) => setQf((p) => ({ ...p, pt: e.target.checked })), style: { width: 16, height: 16, accentColor: "#1a237e" } }), "\u{1F4CB} Prof. Tax"), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: qf.lwf !== void 0 ? !!qf.lwf : !!quickEdit.lwf, onChange: (e) => setQf((p) => ({ ...p, lwf: e.target.checked })), style: { width: 16, height: 16, accentColor: "#1a237e" } }), "\u{1F4BC} LWF")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, "Work State"), /* @__PURE__ */ React.createElement(
+    "select",
+    {
+      value: qf.workState !== void 0 ? qf.workState : quickEdit.workState || ((_da = pol == null ? void 0 : pol.pt) == null ? void 0 : _da.state) || "Maharashtra",
+      onChange: (e) => setQf((p) => ({ ...p, workState: e.target.value })),
+      style: { width: "100%", padding: "8px 12px", border: "1px solid #ffcc80", borderRadius: 7, fontSize: 13, outline: "none" }
+    },
+    ["Andhra Pradesh", "Assam", "Bihar", "Chhattisgarh", "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu & Kashmir", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"].map((s2) => /* @__PURE__ */ React.createElement("option", { key: s2, value: s2 }, s2))
+  )))), /* @__PURE__ */ React.createElement("div", { style: { padding: "14px 20px", borderTop: "1px solid #f0f0f0", display: "flex", gap: 10, background: "#f8f9ff" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    setQuickEdit(null);
+    setQf({});
+  }, style: { flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: "pointer", fontSize: 13, color: "#666", fontWeight: 600 } }, "Cancel"), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => {
+        setEditEmp(quickEdit);
+        setShowEmpForm(true);
+        setQuickEdit(null);
+      },
+      style: { padding: "10px 16px", border: "1px solid #1a237e", borderRadius: 10, background: "#e8eaf6", color: "#1a237e", fontWeight: 600, fontSize: 12, cursor: "pointer" }
+    },
+    "Open Full Form"
+  ), /* @__PURE__ */ React.createElement("button", { onClick: async () => {
+    const updated = {
+      ...quickEdit,
+      ...qf,
+      basic: +(qf.basic !== void 0 ? qf.basic : quickEdit.basic) || 0,
+      hra: +(qf.hra !== void 0 ? qf.hra : quickEdit.hra) || 0,
+      conv: +(qf.conv !== void 0 ? qf.conv : quickEdit.conv) || 0,
+      med: +(qf.med !== void 0 ? qf.med : quickEdit.med) || 0,
+      spl: +(qf.spl !== void 0 ? qf.spl : quickEdit.spl) || 0,
+      pf: qf.pf !== void 0 ? !!qf.pf : !!quickEdit.pf,
+      esic: qf.esic !== void 0 ? !!qf.esic : !!quickEdit.esic,
+      pt: qf.pt !== void 0 ? !!qf.pt : !!quickEdit.pt,
+      lwf: qf.lwf !== void 0 ? !!qf.lwf : !!quickEdit.lwf
+    };
+    setEmps((p) => p.map((e) => e.id === updated.id ? updated : e));
+    setQuickEdit(null);
+    setQf({});
+    showToast("Employee updated \u2713");
+    try {
+      await db.updateEmp(updated);
+    } catch (e) {
+      showToast("DB error: " + e.message, "warn");
+    }
+  }, style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2713 Save Changes")))));
 }
 const UI_C = "#1a237e", UI_G = "#1b5e20", UI_R = "#c62828";
 const EpCard = ({ children, s = {} }) => /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: "18px 20px", ...s } }, children);
