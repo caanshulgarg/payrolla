@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v18.13 — PAYROLL TABLE FIXED -->
+<!-- PAYROLLA v18.14 -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.13...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.14...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -761,7 +761,8 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   const halfCTC = Math.round(grossMonthlyFull * f * 0.5);
   const pfBaseAdj = Math.max(pfBase, halfCTC);
   const pfWage = Math.min(pfBaseAdj, ((_b = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _b.maxPfWage) || 15e3);
-  const pfE = e.pf && ((_c = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _c.enabled) !== false ? Math.min(Math.round(pfWage * (((_d = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _d.employeeRate) || 12) / 100), 1800) : 0;
+  const pfCapEnabled = (((_b2 = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _b2.maxPfWage) || 15e3) <= 15e3;
+  const pfE = e.pf && ((_c = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _c.enabled) !== false ? (pfCapEnabled ? Math.min(Math.round(pfWage * (((_d = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _d.employeeRate) || 12) / 100), 1800) : Math.round(pfWage * (((_d2 = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _d2.employeeRate) || 12) / 100)) : 0;
   const pfEPS = e.pf && ((_e = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _e.enabled) !== false ? Math.min(Math.round(pfWage * 8.33 / 100), 1250) : 0;
   const pfEPF_er = e.pf && ((_f = P_pol == null ? void 0 : P_pol.pf) == null ? void 0 : _f.enabled) !== false ? Math.max(0, Math.min(Math.round(pfWage * 12 / 100), 1800) - pfEPS) : 0;
   const pfR = pfEPS + pfEPF_er;
@@ -1007,7 +1008,7 @@ function Tbl({ cols, rows, empty = "No data" }) {
   return /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 13 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: PX } }, cols.map((c) => /* @__PURE__ */ React.createElement("th", { key: c, style: { textAlign: "left", padding: "10px 14px", color: P, fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" } }, c)))), /* @__PURE__ */ React.createElement("tbody", null, rows.length === 0 ? /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: cols.length, style: { padding: 32, textAlign: "center", color: MT } }, empty)) : rows.map((r, i) => /* @__PURE__ */ React.createElement("tr", { key: i, style: { borderBottom: `1px solid ${BD}`, background: i % 2 ? "#fafafa" : "#fff" } }, r.map((cell, j) => /* @__PURE__ */ React.createElement("td", { key: j, style: { padding: "10px 14px", verticalAlign: "middle" } }, cell)))))));
 }
 function Modal({ title, onClose, children, w = 520 }) {
-  return /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 9e3, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: w, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,.2)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 24px", borderBottom: `1px solid ${BD}`, position: "sticky", top: 0, background: "#fff", zIndex: 1 } }, /* @__PURE__ */ React.createElement("h3", { style: { margin: 0, fontSize: 16, fontWeight: 800 } }, title), /* @__PURE__ */ React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", fontSize: 20, cursor: "pointer", color: MT } }, "\u2715")), /* @__PURE__ */ React.createElement("div", { style: { padding: 24 } }, children)));
+  return /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 9e3, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: w, maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,.2)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 24px", borderBottom: `1px solid ${BD}`, position: "sticky", top: 0, background: "#fff", zIndex: 1 } }, /* @__PURE__ */ React.createElement("h3", { style: { margin: 0, fontSize: 16, fontWeight: 800 } }, title), /* @__PURE__ */ React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", fontSize: 20, cursor: "pointer", color: MT } }, "\u2715")), /* @__PURE__ */ React.createElement("div", { style: { padding: 24 } }, children)));
 }
 function Stat({ label, value, sub, color = P, icon }) {
   return /* @__PURE__ */ React.createElement(Card, { s: { padding: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 600, color: MT, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 } }, label), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 26, fontWeight: 800, color, lineHeight: 1 } }, value), sub && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginTop: 4 } }, sub)), icon && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 28, opacity: 0.6 } }, icon)));
@@ -5442,10 +5443,10 @@ Run payroll anyway?`
     const results = active.map((e) => {
       var _a3;
       const lop = getLOP(e.id);
-      const attSummary = typeof getMonthSummary === "function" ? getMonthSummary(e.id, monthStr, attendance, (pol == null ? void 0 : pol.holidays) || [], ((_a3 = pol == null ? void 0 : pol.attendance) == null ? void 0 : _a3.unmarkedDayStatus) || "P") : { total: 0, working: 0, present: 0, absent: 0, lop: 0, netPaid: 0 };
+      const attSummary = typeof getMonthSummary === "function" ? getMonthSummary(e.id, monthStr, attendance, (pol == null ? void 0 : pol.holidays) || [], ((_a3 = pol == null ? void 0 : pol.attendance) == null ? void 0 : _a3.unmarkedDayStatus) || "P", e.doj || null) : { total: 0, working: 0, present: 0, absent: 0, lop: 0, netPaid: 0 };
       const p = calcPay(e, lop, pol, payMonth, payYear);
       const loanEmi = loans.filter((l) => l.eid === e.id && l.status === "Approved" && l.remaining > 0).reduce((s2, l) => s2 + l.emi, 0);
-      return { ...e, ...p, lop, loanEmi, netFinal: p.net - loanEmi, attSummary };
+      return { ...e, ...p, _origBasic:e.basic, _origHra:e.hra, _origConv:e.conv, _origMed:e.med, _origSpl:e.spl, _origLta:e.lta, basic:e.basic, hra:e.hra, conv:e.conv, med:e.med, spl:e.spl, lta:e.lta, lop, loanEmi, netFinal: p.net - loanEmi, attSummary };
     });
     const totalNet = results.reduce((s2, e) => s2 + e.netFinal, 0);
     const run = { id: "PR" + uid(), month: payMonth, year: payYear, on: (/* @__PURE__ */ new Date()).toLocaleDateString("en-IN"), total: totalNet, gross: results.reduce((s2, e) => s2 + e.g, 0), count: results.length, results };
@@ -5590,7 +5591,112 @@ Run payroll anyway?`
   } }, "\u{1F50D} Pre-check"), runs.length > 0 && /* @__PURE__ */ React.createElement("select", { onChange: (e) => {
     const r = runs.find((x) => x.id === e.target.value);
     if (r) setActiveRun(r);
-  }, style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "View past runs..."), runs.map((r) => /* @__PURE__ */ React.createElement("option", { key: r.id, value: r.id }, MONTHS[r.month - 1], " ", r.year, " \u2014 ", INR(r.total))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, background: PX, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: P } }, "\u2139 Payroll auto-calculates LOP from attendance, PT from ", ((_b = pol == null ? void 0 : pol.pt) == null ? void 0 : _b.state) || (co == null ? void 0 : co.state) || "Maharashtra", " slabs, and LWF if applicable. Add OT/Bonus below before running.")), activeRun && /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16 } }, "Payroll \u2014 ", MONTHS[activeRun.month - 1], " ", activeRun.year), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, "Processed ", activeRun.on, " \xB7 ", activeRun.count, " employees")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "Total Net Payout"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 900, fontSize: 22, color: OK } }, INR(activeRun.total)))), /* @__PURE__ */ React.createElement(G, { cols: 5, gap: 12 }, /* @__PURE__ */ React.createElement("div", { style: { background: PX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: P, marginBottom: 3 } }, "Gross"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: P } }, INR(activeRun.results.reduce((s2, e) => s2 + e.g, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: AX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: AC, marginBottom: 3 } }, "PF (Employer)"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: AC } }, INR(activeRun.results.reduce((s2, e) => s2 + e.pfR, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: WX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: WN, marginBottom: 3 } }, "TDS Total"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: WN } }, INR(activeRun.results.reduce((s2, e) => s2 + e.tds, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: DX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: DG, marginBottom: 3 } }, "LOP Deductions"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: DG } }, activeRun.results.filter((e) => e.lop > 0).length, " employees")), /* @__PURE__ */ React.createElement("div", { style: { background: OX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: OK, marginBottom: 3 } }, "Net Payout"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: OK } }, INR(activeRun.total)))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16 } }, /* @__PURE__ */ React.createElement(
+  }, style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 13, outline: "none" } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "View past runs..."), runs.map((r) => /* @__PURE__ */ React.createElement("option", { key: r.id, value: r.id }, MONTHS[r.month - 1], " ", r.year, " \u2014 ", INR(r.total))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, background: PX, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: P } }, "\u2139 Payroll auto-calculates LOP from attendance, PT from ", ((_b = pol == null ? void 0 : pol.pt) == null ? void 0 : _b.state) || (co == null ? void 0 : co.state) || "Maharashtra", " slabs, and LWF if applicable. Add OT/Bonus below before running.")), activeRun && /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16 } }, "Payroll \u2014 ", MONTHS[activeRun.month - 1], " ", activeRun.year), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, "Processed ", activeRun.on, " \xB7 ", activeRun.count, " employees")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, "Total Net Payout"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 900, fontSize: 22, color: OK } }, INR(activeRun.total)))), /* @__PURE__ */ React.createElement(G, { cols: 5, gap: 12 }, /* @__PURE__ */ React.createElement("div", { style: { background: PX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: P, marginBottom: 3 } }, "Gross"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: P } }, INR(activeRun.results.reduce((s2, e) => s2 + e.g, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: AX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: AC, marginBottom: 3 } }, "PF (Employer)"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: AC } }, INR(activeRun.results.reduce((s2, e) => s2 + e.pfR, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: WX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: WN, marginBottom: 3 } }, "TDS Total"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: WN } }, INR(activeRun.results.reduce((s2, e) => s2 + e.tds, 0)))), /* @__PURE__ */ React.createElement("div", { style: { background: DX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: DG, marginBottom: 3 } }, "LOP Deductions"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: DG } }, activeRun.results.filter((e) => e.lop > 0).length, " employees")), /* @__PURE__ */ React.createElement("div", { style: { background: OX, borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: OK, marginBottom: 3 } }, "Net Payout"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, color: OK } }, INR(activeRun.total)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" } },
+    /* @__PURE__ */ React.createElement("button", { 
+      onClick: () => {
+        if (!activeRun?.results?.length) { alert("No payroll run"); return; }
+        const headers = ["Code","Name","Department","Designation","Days","LOP","Per Day","Gross","PF (Emp)","PF (Emr)","ESIC (Emp)","PT","LWF","TDS","Loan EMI","Total Ded","Net Pay"];
+        const rows = activeRun.results.map(e => [
+          e.code, e.name, e.dept||"", e.desig||"",
+          e.attSummary?.working||"", e.lop||0,
+          Math.round((e.perDaySalary||0)/(e.divisor||30)),
+          e.g, e.pfE||0, e.pfR||0, e.esE||0, e.pt||0, e.lwfE||0, e.tds||0,
+          e.loanEmi||0, e.ded||0, e.netFinal??e.net
+        ]);
+        const totalRow = ["","TOTAL","","","","","",
+          activeRun.results.reduce((s,e)=>s+(e.g||0),0),
+          activeRun.results.reduce((s,e)=>s+(e.pfE||0),0),
+          activeRun.results.reduce((s,e)=>s+(e.pfR||0),0),
+          activeRun.results.reduce((s,e)=>s+(e.esE||0),0),
+          activeRun.results.reduce((s,e)=>s+(e.pt||0),0),
+          activeRun.results.reduce((s,e)=>s+(e.lwfE||0),0),
+          activeRun.results.reduce((s,e)=>s+(e.tds||0),0),
+          activeRun.results.reduce((s,e)=>s+(e.loanEmi||0),0),
+          activeRun.results.reduce((s,e)=>s+(e.ded||0),0),
+          activeRun.results.reduce((s,e)=>s+(e.netFinal??e.net??0),0)
+        ];
+        const csv = [headers, ...rows, totalRow].map(r => r.map(c => '"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");
+        const a = document.createElement("a");
+        a.href = "data:text/csv;charset=utf-8,\uFEFF" + encodeURIComponent(csv);
+        a.download = "Payroll_" + MONTHS[activeRun.month-1] + "_" + activeRun.year + ".csv";
+        a.click();
+        showToast && showToast("Excel/CSV downloaded ✓");
+      },
+      style: { padding: "8px 16px", border: "1.5px solid #1b5e20", borderRadius: 8, background: "#e8f5e9", color: "#1b5e20", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }
+    }, "📊 Download Excel"),
+    /* @__PURE__ */ React.createElement("button", {
+      onClick: () => {
+        if (!activeRun?.results?.length) { alert("No payroll run"); return; }
+        const rows = activeRun.results.map((e,i) => `
+          <tr style="background:${i%2===0?'#fff':'#f8f9ff'}">
+            <td>${e.code}</td><td><b>${e.name}</b><br/><span style="font-size:10px;color:#888">${e.dept||""} · ${e.desig||""}</span></td>
+            <td style="text-align:center">${e.attSummary?.working||"—"}</td>
+            <td style="text-align:center;color:${(e.lop||0)>0?"#c62828":"#888"}">${e.lop||0}</td>
+            <td style="text-align:right">₹${(e.g||0).toLocaleString("en-IN")}</td>
+            <td style="text-align:right">₹${(e.pfE||0).toLocaleString("en-IN")}</td>
+            <td style="text-align:right">₹${(e.pt||0).toLocaleString("en-IN")}</td>
+            <td style="text-align:right">₹${(e.lwfE||0).toLocaleString("en-IN")}</td>
+            <td style="text-align:right">₹${(e.tds||0).toLocaleString("en-IN")}</td>
+            <td style="text-align:right;color:${(e.netFinal??e.net??0)>=0?"#1b5e20":"#c62828"}"><b>₹${((e.netFinal??e.net??0)).toLocaleString("en-IN")}</b></td>
+          </tr>`).join("");
+        const total_g = activeRun.results.reduce((s,e)=>s+(e.g||0),0);
+        const total_pf = activeRun.results.reduce((s,e)=>s+(e.pfE||0),0);
+        const total_pt = activeRun.results.reduce((s,e)=>s+(e.pt||0),0);
+        const total_tds = activeRun.results.reduce((s,e)=>s+(e.tds||0),0);
+        const total_net = activeRun.results.reduce((s,e)=>s+(e.netFinal??e.net??0),0);
+        const html = \`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Payroll — \${MONTHS[activeRun.month-1]} \${activeRun.year}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",Arial,sans-serif;font-size:12px;padding:24px;color:#222}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a237e;padding-bottom:14px;margin-bottom:20px}
+.co{font-size:20px;font-weight:900;color:#1a237e}.sub{font-size:11px;color:#666;margin-top:3px}
+.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.summary-box{background:#f8f9ff;border:1px solid #e8eaf6;border-radius:8px;padding:10px 14px}
+.s-label{font-size:10px;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:3px}
+.s-val{font-size:16px;font-weight:800;color:#1a237e}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{background:#1a237e;color:#fff;padding:8px 10px;text-align:left;font-size:10px;font-weight:700}
+td{padding:7px 10px;border-bottom:1px solid #f0f0f0}
+tr.total td{background:#e8eaf6;font-weight:700;font-size:12px}
+.footer{margin-top:20px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #e0e0e0;padding-top:10px}
+@media print{body{padding:10px}}
+</style></head><body>
+<button onclick="window.print()" style="position:fixed;top:10px;right:10px;padding:8px 18px;background:#1a237e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;z-index:99">🖨 Print / Save PDF</button>
+<div class="hdr">
+  <div><div class="co">\${co?.name||"Company"}</div><div class="sub">\${co?.addr||""} \${co?.city??" · "+co?.city:""}</div></div>
+  <div style="text-align:right"><div style="font-size:15px;font-weight:700;color:#1a237e">PAYROLL REGISTER</div>
+  <div class="sub">\${MONTHS[activeRun.month-1]} \${activeRun.year} · \${activeRun.count} employees</div>
+  <div class="sub">Generated: \${new Date().toLocaleDateString("en-IN")}</div></div>
+</div>
+<div class="summary">
+  <div class="summary-box"><div class="s-label">Gross Salary</div><div class="s-val">₹\${total_g.toLocaleString("en-IN")}</div></div>
+  <div class="summary-box"><div class="s-label">PF Deductions</div><div class="s-val">₹\${total_pf.toLocaleString("en-IN")}</div></div>
+  <div class="summary-box"><div class="s-label">Prof. Tax</div><div class="s-val">₹\${total_pt.toLocaleString("en-IN")}</div></div>
+  <div class="summary-box"><div class="s-label">TDS</div><div class="s-val">₹\${total_tds.toLocaleString("en-IN")}</div></div>
+  <div class="summary-box" style="background:#e8f5e9;border-color:#a5d6a7"><div class="s-label" style="color:#2e7d32">Net Payout</div><div class="s-val" style="color:#1b5e20">₹\${total_net.toLocaleString("en-IN")}</div></div>
+</div>
+<table>
+  <tr><th>#</th><th>Code</th><th>Employee</th><th>Days</th><th>LOP</th><th>Gross (₹)</th><th>PF Emp (₹)</th><th>PT (₹)</th><th>LWF (₹)</th><th>TDS (₹)</th><th>Net Pay (₹)</th></tr>
+  \${rows}
+  <tr class="total"><td colspan="5">TOTAL (\${activeRun.count} employees)</td>
+    <td style="text-align:right">₹\${total_g.toLocaleString("en-IN")}</td>
+    <td style="text-align:right">₹\${total_pf.toLocaleString("en-IN")}</td>
+    <td style="text-align:right">₹\${total_pt.toLocaleString("en-IN")}</td>
+    <td></td>
+    <td style="text-align:right">₹\${total_tds.toLocaleString("en-IN")}</td>
+    <td style="text-align:right">₹\${total_net.toLocaleString("en-IN")}</td>
+  </tr>
+</table>
+<div class="footer">Payrolla.in · \${co?.name||""} · \${MONTHS[activeRun.month-1]} \${activeRun.year} Payroll</div>
+</body></html>\`;
+        const blob = new Blob([html], {type:"text/html"});
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        showToast && showToast("PDF ready — use browser Print → Save as PDF");
+      },
+      style: { padding: "8px 16px", border: "1.5px solid #c62828", borderRadius: 8, background: "#ffebee", color: "#c62828", fontWeight: 700, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }
+    }, "📄 Download PDF")
+  ),
+  /* @__PURE__ */ React.createElement("div", { style: { marginTop: 0 } }, /* @__PURE__ */ React.createElement(
     Tbl,
     {
       cols: ["Employee", "Days", "LOP", "Per Day", "Gross", "PF", "PT", "LWF", "TDS", "Net Pay", "Slip"],
@@ -5599,6 +5705,7 @@ Run payroll anyway?`
         return [
           /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600 } }, e.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: MT } }, e.code, " \xB7 ", e.dept || "\u2014")),
           /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700 } }, ((_a2 = e.attSummary) == null ? void 0 : _a2.working) || "\u2014"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: MT } }, "working")),
+          /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#1b5e20" } }, ((_b2 = e.attSummary) == null ? void 0 : _b2.present) || "\u2014"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: MT } }, "present")),
           /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: (e.lop || 0) > 0 ? "#c62828" : "#888" } }, e.lop || 0), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: MT } }, "LOP days")),
           /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", fontSize: 11 } }, /* @__PURE__ */ React.createElement("div", null, INR(e.perDaySalary || 0)), /* @__PURE__ */ React.createElement("div", { style: { color: MT } }, "\xF7", e.divisor || 30)),
           /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600 } }, INR(e.g)),
