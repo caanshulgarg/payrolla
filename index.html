@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v16.8 — CREATE LOGIN BUTTON + POLICY FIX -->
+<!-- PAYROLLA v17.0 — EMP LOGIN + POLICY SAVE FIXED PROPERLY -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v16.8...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v17.0...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -138,32 +138,36 @@ const db = {
   },
   // Policies (whole JSON blob per company)
   async getPolicies() {
+    const ok = (p) => p && typeof p === "object" && Object.keys(p).length > 0;
     try {
-      const { data: d1 } = await sb.from("company_policies").select("policies").order("updated_at", { ascending: false }).limit(1).maybeSingle();
-      if (d1 == null ? void 0 : d1.policies) {
-        try {
-          localStorage.setItem("payrolla_pol", JSON.stringify(d1.policies));
-        } catch (e) {
-        }
-        return d1.policies;
+      const s = localStorage.getItem("payrolla_pol");
+      if (s) {
+        const p = JSON.parse(s);
+        if (ok(p)) return p;
       }
     } catch (e) {
     }
     try {
-      const { data: d2 } = await sb.from("company_policies").select("policies").limit(1).maybeSingle();
-      if (d2 == null ? void 0 : d2.policies) {
+      const { data } = await sb.from("company_policies").select("policies").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+      if (ok(data == null ? void 0 : data.policies)) {
         try {
-          localStorage.setItem("payrolla_pol", JSON.stringify(d2.policies));
+          localStorage.setItem("payrolla_pol", JSON.stringify(data.policies));
         } catch (e) {
         }
-        return d2.policies;
+        return data.policies;
       }
     } catch (e) {
-    }
-    try {
-      const cached = localStorage.getItem("payrolla_pol");
-      if (cached) return JSON.parse(cached);
-    } catch (e) {
+      try {
+        const { data } = await sb.from("company_policies").select("policies").limit(1).maybeSingle();
+        if (ok(data == null ? void 0 : data.policies)) {
+          try {
+            localStorage.setItem("payrolla_pol", JSON.stringify(data.policies));
+          } catch (e2) {
+          }
+          return data.policies;
+        }
+      } catch (e2) {
+      }
     }
     return {};
   },
@@ -1213,15 +1217,49 @@ function Login({ onLogin, onRegister }) {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
-  const hints = { sa: "admin@payrolla.in / Admin@123", hr: "hr@techcorp.in / Hr@123", emp: "rajesh.kumar@techcorp.in / Emp@123" };
+  const hints = { sa: "admin@payrolla.in / Admin@123", hr: "hr@techcorp.in / Hr@123", emp: "Employee Code & Password (Code@DDMMYYYY)" };
   const [loggingIn, setLoggingIn] = useState(false);
   async function go() {
     setErr("");
     setLoggingIn(true);
+    if (role === "emp") {
+      try {
+        const input = email.trim().toLowerCase();
+        let { data: empRow } = await sb.from("employees").select("*").ilike("email", input).eq("status", "Active").maybeSingle();
+        if (!empRow) {
+          const { data: byCode } = await sb.from("employees").select("*").ilike("code", email.trim()).eq("status", "Active").maybeSingle();
+          empRow = byCode;
+        }
+        if (!empRow) {
+          setErr("No active employee found with that email or code.");
+          setLoggingIn(false);
+          return;
+        }
+        const dob = empRow.dob ? empRow.dob.slice(8, 10) + empRow.dob.slice(5, 7) + empRow.dob.slice(0, 4) : "Pass123";
+        const expectedPw = (empRow.code || "EMP") + "@" + dob;
+        if (pw !== expectedPw) {
+          setErr("Wrong password. Format: " + empRow.code + "@" + dob + " (Code@DDMMYYYY of birth)");
+          setLoggingIn(false);
+          return;
+        }
+        onLogin({
+          id: empRow.id,
+          email: empRow.email || input,
+          name: empRow.name,
+          role: "emp",
+          eid: empRow.id
+        });
+        setLoggingIn(false);
+        return;
+      } catch (e) {
+        setErr("Login error: " + e.message);
+        setLoggingIn(false);
+        return;
+      }
+    }
     try {
       const user = await sbLogin(email.trim(), pw);
-      const finalUser = role === "emp" ? { ...user, role: "emp" } : user;
-      onLogin(finalUser);
+      onLogin(user);
       setLoggingIn(false);
       return;
     } catch (authErr) {
@@ -1240,7 +1278,7 @@ function Login({ onLogin, onRegister }) {
     setEmail("");
     setPw("");
     setErr("");
-  }, style: { flex: 1, padding: "7px 4px", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer", background: role === r ? P : "transparent", color: role === r ? "#fff" : MT } }, l))), /* @__PURE__ */ React.createElement("div", { style: { background: "#e3f2fd", border: "1px solid #90caf9", borderRadius: 9, padding: "9px 13px", fontSize: 12, color: "#1565c0", marginBottom: 20 } }, /* @__PURE__ */ React.createElement("b", null, "Demo:"), " ", hints[role]), /* @__PURE__ */ React.createElement(Inp, { label: "Email", val: email, set: setEmail, ph: "Enter email" }), /* @__PURE__ */ React.createElement(Inp, { label: "Password", val: pw, set: setPw, type: "password", ph: "Enter password" }), err && /* @__PURE__ */ React.createElement("div", { style: { background: DX, border: `1px solid ${DG}44`, borderRadius: 8, padding: "9px 13px", fontSize: 13, color: DG, marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement(Btn, { onClick: go, sz: "lg", s: { width: "100%", marginTop: 4 } }, loggingIn ? "Signing in..." : "Sign In \u2192"), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: 16, fontSize: 13, color: "rgba(255,255,255,.7)" } }, "No account? ", /* @__PURE__ */ React.createElement("span", { onClick: onRegister, style: { color: "#90caf9", cursor: "pointer", fontWeight: 700, textDecoration: "underline" } }, "Start 30-day free trial \u2192"))));
+  }, style: { flex: 1, padding: "7px 4px", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer", background: role === r ? P : "transparent", color: role === r ? "#fff" : MT } }, l))), /* @__PURE__ */ React.createElement("div", { style: { background: "#e3f2fd", border: "1px solid #90caf9", borderRadius: 9, padding: "9px 13px", fontSize: 12, color: "#1565c0", marginBottom: 20 } }, /* @__PURE__ */ React.createElement("b", null, "Demo:"), " ", hints[role]), /* @__PURE__ */ React.createElement(Inp, { label: "Email", val: email, set: setEmail, ph: "Enter email" }), /* @__PURE__ */ React.createElement(Inp, { label: role === "emp" ? "Password (Code@DDMMYYYY of DOB)" : "Password", val: pw, set: setPw, type: "password", ph: "Enter password" }), err && /* @__PURE__ */ React.createElement("div", { style: { background: DX, border: `1px solid ${DG}44`, borderRadius: 8, padding: "9px 13px", fontSize: 13, color: DG, marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement(Btn, { onClick: go, sz: "lg", s: { width: "100%", marginTop: 4 } }, loggingIn ? "Signing in..." : "Sign In \u2192"), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: 16, fontSize: 13, color: "rgba(255,255,255,.7)" } }, "No account? ", /* @__PURE__ */ React.createElement("span", { onClick: onRegister, style: { color: "#90caf9", cursor: "pointer", fontWeight: 700, textDecoration: "underline" } }, "Start 30-day free trial \u2192"))));
 }
 function SalarySlip({ slip, emp: empProp, month: monthProp, year: yearProp, lopDays: lopPropInit = 0, emps, runs, co, pol: pol2, onClose }) {
   var _a, _b, _c, _d;
@@ -5129,12 +5167,8 @@ function HRAdmin({ user, onLogout }) {
   }
   async function apiSavePolicies2(newPol) {
     setPol2(newPol);
-    try {
-      await db.savePolicies(newPol);
-      showToast("Policies saved \u2713");
-    } catch (e) {
-      showToast("Saved locally", "warn");
-    }
+    await db.savePolicies(newPol);
+    showToast("Policies saved \u2713");
   }
   async function apiSaveCo(newCo) {
     setCo(newCo);
@@ -6136,12 +6170,12 @@ Powered by Payrolla.in`);
     }
     setBulkDateModal(false);
     setBulkEmpIds([]);
-  } }, "\u2713 Mark ", bulkEmpIds.length, " Employees as ", bulkStatusVal)))), inviteResult && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setInviteResult(null) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 20px 60px rgba(0,0,0,.3)", overflow: "hidden" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1b5e20", padding: "18px 24px", color: "#fff" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17 } }, "\u2705 ", inviteResult.name, " Added"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, opacity: 0.8, marginTop: 4 } }, "Share login credentials with the employee")), /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#f4f5fa", borderRadius: 10, padding: 14, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", marginBottom: 10, letterSpacing: 0.5 } }, "Login Details"), [
+  } }, "\u2713 Mark ", bulkEmpIds.length, " Employees as ", bulkStatusVal)))), inviteResult && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setInviteResult(null) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 20px 60px rgba(0,0,0,.3)", overflow: "hidden" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: inviteResult.authErr ? "#c62828" : "#1b5e20", padding: "18px 24px", color: "#fff" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17 } }, inviteResult.authErr ? "\u26A0\uFE0F" : "\u2705", " ", inviteResult.name, " ", inviteResult.authErr ? "\u2014 Login Not Created" : "Added"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, opacity: 0.8, marginTop: 4 } }, "Share login credentials with the employee")), /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 24px" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#f4f5fa", borderRadius: 10, padding: 14, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", marginBottom: 10, letterSpacing: 0.5 } }, "Login Details"), [
     ["\u{1F310} Portal URL", window.location.href.split("?")[0]],
     ["\u{1F464} Login as", "Employee"],
     ["\u{1F4E7} Email / Username", inviteResult.email || "(no email \u2014 use Employee Code)"],
     ["\u{1F511} Temp Password", inviteResult.password]
-  ].map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #e8eaf6" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "#666" } }, l), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 13, color: l.includes("Password") ? "#c62828" : "#1a237e", fontFamily: l.includes("Password") || l.includes("URL") ? "monospace" : "inherit" } }, v)))), inviteResult.needsConfirmation && /* @__PURE__ */ React.createElement("div", { style: { background: "#fff3e0", border: "1px solid #ffcc80", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#e65100", lineHeight: 1.6 } }, /* @__PURE__ */ React.createElement("b", null, "\u26A0\uFE0F One-time Supabase setup needed:"), /* @__PURE__ */ React.createElement("br", null), "Supabase sends a confirmation email by default. Go to:", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, 'Supabase \u2192 Authentication \u2192 Providers \u2192 Email \u2192 disable "Confirm email"'), /* @__PURE__ */ React.createElement("br", null), "Until then, employee must click the Supabase confirmation email before they can login."), inviteResult.emailSent && /* @__PURE__ */ React.createElement("div", { style: { background: "#e8f5e9", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 12, color: "#1b5e20" } }, "\u2713 Welcome email sent to ", inviteResult.email), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#666", marginBottom: 14, lineHeight: 1.7, background: "#f8f9ff", borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("b", null, "Employee steps after first login:"), /* @__PURE__ */ React.createElement("div", null, "1. Login with the above credentials at this same URL"), /* @__PURE__ */ React.createElement("div", null, '2. Fill in PAN, Aadhaar and bank details in "My Details" tab'), /* @__PURE__ */ React.createElement("div", null, "3. View salary slips and attendance records")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+  ].map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #e8eaf6" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "#666" } }, l), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 13, color: l.includes("Password") ? "#c62828" : "#1a237e", fontFamily: l.includes("Password") || l.includes("URL") ? "monospace" : "inherit" } }, v)))), inviteResult.authErr && /* @__PURE__ */ React.createElement("div", { style: { background: "#ffebee", border: "1px solid #ef9a9a", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#c62828", lineHeight: 1.6 } }, /* @__PURE__ */ React.createElement("b", null, "Login account not created:"), " ", inviteResult.authErr, /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, "Fix in Supabase Dashboard:"), /* @__PURE__ */ React.createElement("br", null), "1. Authentication \u2192 Providers \u2192 Email \u2192 make sure Email is ", /* @__PURE__ */ React.createElement("b", null, "Enabled"), /* @__PURE__ */ React.createElement("br", null), "2. Toggle ", /* @__PURE__ */ React.createElement("b", null, '"Confirm email" OFF'), /* @__PURE__ */ React.createElement("br", null), "3. Authentication \u2192 Settings \u2192 make sure ", /* @__PURE__ */ React.createElement("b", null, '"Enable signups" is ON'), /* @__PURE__ */ React.createElement("br", null), "Then click \u{1F511} Create Login on this employee in the employee list."), !inviteResult.authErr && inviteResult.needsConfirmation && /* @__PURE__ */ React.createElement("div", { style: { background: "#fff3e0", border: "1px solid #ffcc80", borderRadius: 8, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#e65100", lineHeight: 1.6 } }, /* @__PURE__ */ React.createElement("b", null, "\u26A0\uFE0F One-time Supabase setup needed:"), /* @__PURE__ */ React.createElement("br", null), "Supabase sends a confirmation email by default. Go to:", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, 'Supabase \u2192 Authentication \u2192 Providers \u2192 Email \u2192 disable "Confirm email"'), /* @__PURE__ */ React.createElement("br", null), "Until then, employee must click the Supabase confirmation email before they can login."), inviteResult.emailSent && /* @__PURE__ */ React.createElement("div", { style: { background: "#e8f5e9", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 12, color: "#1b5e20" } }, "\u2713 Welcome email sent to ", inviteResult.email), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#666", marginBottom: 14, lineHeight: 1.7, background: "#f8f9ff", borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("b", null, "Employee steps after first login:"), /* @__PURE__ */ React.createElement("div", null, "1. Login with the above credentials at this same URL"), /* @__PURE__ */ React.createElement("div", null, '2. Fill in PAN, Aadhaar and bank details in "My Details" tab'), /* @__PURE__ */ React.createElement("div", null, "3. View salary slips and attendance records")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
     var _a2;
     const txt = `Hi ${((_a2 = inviteResult.name) == null ? void 0 : _a2.split(" ")[0]) || ""},
 
@@ -6403,8 +6437,9 @@ Regards, HR`;
       const invRes = await createEmployeeAccount(savedEmp, (co == null ? void 0 : co.name) || "Your Company");
       setInviteResult({
         name: savedEmp.name,
-        email: invRes.email || (savedEmp.email ? "" : null),
+        email: invRes.email || (savedEmp.email || null),
         password: invRes.password,
+        authErr: invRes.authErr || null,
         emailSent: invRes.emailSent,
         needsConfirmation: invRes.needsConfirmation || false,
         noEmail: invRes.noEmail
