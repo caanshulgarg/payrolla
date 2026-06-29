@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v18.2 FINAL -->
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<!-- PAYROLLA v18.3 — ATTENDANCE CRASH FIXED -->
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.2...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.3...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -2728,41 +2727,34 @@ ${e.code},${e.name},${month}-02,A`).join("\n");
   })), (() => {
     var _a2;
     const cur = (_a2 = attendance[popup.empId]) == null ? void 0 : _a2[popup.date];
-    return (cur == null ? void 0 : cur.status) && ["P", "WFH", "HD"].includes(cur.status) ? /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, paddingTop: 8, borderTop: "1px solid #f0f0f0" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 6 } }, "HOURS WORKED"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#aaa", marginBottom: 2 } }, "IN TIME"), /* @__PURE__ */ React.createElement("input", { type: "time", defaultValue: cur.in || "09:00", onBlur: (e) => {
-      const inT = e.target.value;
-      const outEl = e.target.closest("div").nextSibling.querySelector("input");
-      const hrs = outEl ? calcHrs(inT, outEl.value) : null;
-      if (hrs != null) markStatusFull(popup.empId, popup.day, cur.status, inT, outEl.value, hrs);
-    }, style: { width: "100%", padding: "4px 6px", border: "1px solid #ddd", borderRadius: 6, fontSize: 11 } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#aaa", marginBottom: 2 } }, "OUT TIME"), /* @__PURE__ */ React.createElement("input", { type: "time", defaultValue: cur.out || "18:00", onBlur: (e) => {
-      const outT = e.target.value;
-      const inEl = e.target.closest("div").previousSibling.querySelector("input");
-      const hrs = inEl ? calcHrs(inEl.value, outT) : null;
-      if (hrs != null) markStatusFull(popup.empId, popup.day, cur.status, inEl.value, outT, hrs);
-    }, style: { width: "100%", padding: "4px 6px", border: "1px solid #ddd", borderRadius: 6, fontSize: 11 } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#aaa", marginBottom: 2 } }, "HRS"), /* @__PURE__ */ React.createElement("div", { style: { padding: "5px 6px", background: "#f0f4ff", borderRadius: 6, fontSize: 12, fontWeight: 700, color: "#1a237e", textAlign: "center" } }, cur.in && cur.out ? calcHrs(cur.in, cur.out).toFixed(1) : (cur.hrs || 9).toFixed(1)))), (() => {
-      var _a3, _b2, _c2, _d, _e, _f, _g, _h;
-      const pol2 = window2._payrolla_pol || {};
-      const flexi = (_a3 = pol2.shifts) == null ? void 0 : _a3.flexiTiming;
-      if (!flexi || !cur.in) return null;
-      const [h, m] = cur.in.split(":").map(Number);
-      const stdIn = ((_d = (_c2 = (_b2 = pol2.shifts) == null ? void 0 : _b2.shifts) == null ? void 0 : _c2[0]) == null ? void 0 : _d.start) || "09:00";
-      const [sh, sm] = stdIn.split(":").map(Number);
-      const diffMins = h * 60 + m - (sh * 60 + sm);
-      const window2 = ((_e = pol2.shifts) == null ? void 0 : _e.flexiWindowMins) || 30;
-      if (diffMins <= 0) return null;
-      const stdDur = (((_h = (_g = (_f = pol2.shifts) == null ? void 0 : _f.shifts) == null ? void 0 : _g[0]) == null ? void 0 : _h.hrs) || 9) * 60;
-      const reqOutMins = sh * 60 + sm + stdDur + diffMins;
-      const reqH = Math.floor(reqOutMins / 60), reqM = reqOutMins % 60;
-      const reqStr = `${String(reqH).padStart(2, "0")}:${String(reqM).padStart(2, "0")}`;
-      return /* @__PURE__ */ React.createElement("div", { style: {
-        marginTop: 6,
-        fontSize: 10,
-        padding: "5px 8px",
-        borderRadius: 6,
-        background: diffMins > window2 ? "#ffebee" : "#fff8e1",
-        color: diffMins > window2 ? "#c62828" : "#f57f17"
-      } }, diffMins > window2 ? `\u26A0 Arrived ${diffMins} min late (>${window2} min window) \u2014 LOP applies` : `\u23F1 Flexi: arrived ${diffMins} min late \u2192 must work until ${reqStr}`);
-    })()) : null;
-  })(), /* @__PURE__ */ React.createElement("button", { onClick: () => clearStatus(popup.empId, popup.day), style: { width: "100%", padding: "6px", background: "#f5f5f5", color: "#666", border: "none", borderRadius: 7, fontSize: 11, cursor: "pointer", fontWeight: 600, marginTop: 8 } }, "\u2715 Clear")), fullMonthModal && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setFullMonthModal(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, padding: 28, width: 440, boxShadow: "0 20px 60px rgba(0,0,0,.3)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 17, marginBottom: 6 } }, "\u{1F4C5} Mark Full Month"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 18, lineHeight: 1.6 } }, "Fills all weekdays as Present and weekends as Week Off. Public holidays marked as H. Existing entries preserved unless you choose Overwrite."), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement("input", { type: "month", value: fmMonth, onChange: (e) => setFmMonth(e.target.value), style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 10, fontSize: 14, outline: "none" } })), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Apply to"), /* @__PURE__ */ React.createElement("select", { value: fmTarget, onChange: (e) => setFmTarget(e.target.value), style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 10, fontSize: 13, outline: "none" } }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All employees (", emps.length, ")"), emps.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setFullMonthModal(false), style: { flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: "pointer", fontSize: 13 } }, "Cancel"), /* @__PURE__ */ React.createElement("button", { onClick: () => markFullMonthFn(fmTarget, fmMonth, false), style: { flex: 1, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Fill Empty Days"), /* @__PURE__ */ React.createElement("button", { onClick: () => markFullMonthFn(fmTarget, fmMonth, true), style: { flex: 1, padding: "10px", border: "none", borderRadius: 10, background: "#1b5e20", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Overwrite All")))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16 } }, "Shift / Work Schedules"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginTop: 2 } }, "Define work timings \u2014 assign shifts to employees in their profile")), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    if (!(cur == null ? void 0 : cur.status) || !["P", "WFH", "HD"].includes(cur.status)) return null;
+    const inT = cur.in || "09:00";
+    const outT = cur.out || "18:00";
+    const hrsWorked = cur.hrs || calcHrs(inT, outT) || 9;
+    return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, paddingTop: 8, borderTop: "1px solid #f0f0f0" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "#888", marginBottom: 6, textTransform: "uppercase" } }, "Hours Worked"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#aaa", marginBottom: 2 } }, "IN TIME"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "time",
+        defaultValue: inT,
+        onChange: (e) => {
+          const t = e.target.value;
+          markStatusFull(popup.empId, popup.day, cur.status, t, outT, calcHrs(t, outT));
+        },
+        style: { width: "100%", padding: "4px 6px", border: "1px solid #ddd", borderRadius: 6, fontSize: 11, boxSizing: "border-box" }
+      }
+    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#aaa", marginBottom: 2 } }, "OUT TIME"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "time",
+        defaultValue: outT,
+        onChange: (e) => {
+          const t = e.target.value;
+          markStatusFull(popup.empId, popup.day, cur.status, inT, t, calcHrs(inT, t));
+        },
+        style: { width: "100%", padding: "4px 6px", border: "1px solid #ddd", borderRadius: 6, fontSize: 11, boxSizing: "border-box" }
+      }
+    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#aaa", marginBottom: 2 } }, "HRS"), /* @__PURE__ */ React.createElement("div", { style: { padding: "5px 0", textAlign: "center", fontWeight: 800, fontSize: 13, color: "#1a237e" } }, hrsWorked.toFixed(1)))));
+  })(), /* @__PURE__ */ React.createElement("button", { onClick: () => clearStatus(popup.empId, popup.day), style: { width: "100%", padding: "6px", background: "#f5f5f5", color: "#666", border: "none", borderRadius: 7, fontSize: 11, cursor: "pointer", fontWeight: 600, marginTop: 6 } }, "\u2715 Clear")), fullMonthModal && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1e3, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setFullMonthModal(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, padding: 28, width: 440, boxShadow: "0 20px 60px rgba(0,0,0,.3)" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 17, marginBottom: 6 } }, "\u{1F4C5} Mark Full Month"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#666", marginBottom: 18, lineHeight: 1.6 } }, "Fills all weekdays as Present and weekends as Week Off. Public holidays marked as H. Existing entries preserved unless you choose Overwrite."), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement("input", { type: "month", value: fmMonth, onChange: (e) => setFmMonth(e.target.value), style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 10, fontSize: 14, outline: "none" } })), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Apply to"), /* @__PURE__ */ React.createElement("select", { value: fmTarget, onChange: (e) => setFmTarget(e.target.value), style: { width: "100%", padding: "10px 12px", border: "1.5px solid #ddd", borderRadius: 10, fontSize: 13, outline: "none" } }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All employees (", emps.length, ")"), emps.map((e) => /* @__PURE__ */ React.createElement("option", { key: e.id, value: e.id }, e.name)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setFullMonthModal(false), style: { flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: "pointer", fontSize: 13 } }, "Cancel"), /* @__PURE__ */ React.createElement("button", { onClick: () => markFullMonthFn(fmTarget, fmMonth, false), style: { flex: 1, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Fill Empty Days"), /* @__PURE__ */ React.createElement("button", { onClick: () => markFullMonthFn(fmTarget, fmMonth, true), style: { flex: 1, padding: "10px", border: "none", borderRadius: 10, background: "#1b5e20", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Overwrite All")))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16 } }, "Shift / Work Schedules"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT, marginTop: 2 } }, "Define work timings \u2014 assign shifts to employees in their profile")), /* @__PURE__ */ React.createElement("button", { onClick: () => {
     var _a2, _b2;
     const name = prompt("Shift name (e.g. 'General', 'Night', 'Field'):");
     if (!(name == null ? void 0 : name.trim())) return;
