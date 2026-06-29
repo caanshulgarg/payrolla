@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v17.0 — EMP LOGIN + POLICY SAVE + DOB IN QUICK ADD -->
+<!-- PAYROLLA v17.1 — PROFILE NOT LINKED + POLICY BOTH PERMANENTLY FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v17.0...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v17.1...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -1247,7 +1247,9 @@ function Login({ onLogin, onRegister }) {
           email: empRow.email || input,
           name: empRow.name,
           role: "emp",
-          eid: empRow.id
+          eid: empRow.id,
+          _empRow: empRow
+          // Pass full row — portal uses this directly
         });
         setLoggingIn(false);
         return;
@@ -6578,61 +6580,75 @@ function EmployeePortal({ user, onLogout }) {
   const [myAttendance, setMyAtt] = useState({});
   useEffect(() => {
     async function load() {
-      var _a2, _b2;
       setLoading(true);
       try {
-        let empData = null;
-        const eid = user.eid || user.employee_id;
-        const userEmail = (_a2 = user.email) == null ? void 0 : _a2.trim().toLowerCase();
-        console.log("Portal load: email=" + userEmail + " eid=" + eid + " id=" + user.id);
-        if (userEmail) {
-          const { data, error } = await sb.from("employees").select("*").eq("email", userEmail).maybeSingle();
-          if (error) console.warn("Portal S1 error:", error.message, "code:", error.code);
-          if (data) empData = fromDbEmp(data);
-        }
-        if (!empData && userEmail) {
-          try {
-            const { data } = await sb.from("employees").select("*").ilike("email", userEmail).maybeSingle();
+        let empData = user._empRow ? fromDbEmp(user._empRow) : null;
+        if (!empData) {
+          const eid = user.eid || user.id;
+          if (eid) {
+            const { data } = await sb.from("employees").select("*").eq("id", eid).maybeSingle();
             if (data) empData = fromDbEmp(data);
-          } catch (e) {
           }
-        }
-        if (!empData && eid) {
-          const { data, error } = await sb.from("employees").select("*").eq("id", eid).maybeSingle();
-          if (error) console.warn("Portal S3 error:", error.message, "code:", error.code);
-          if (data) empData = fromDbEmp(data);
-        }
-        if (!empData && user.id) {
-          try {
-            const { data } = await sb.from("employees").select("*").eq("id", user.id).maybeSingle();
+          if (!empData && user.email && user.email.includes("@")) {
+            const { data } = await sb.from("employees").select("*").eq("email", user.email.trim().toLowerCase()).maybeSingle();
             if (data) empData = fromDbEmp(data);
-          } catch (e) {
           }
         }
         if (empData) {
           setEmp(empData);
-          setSelfData({ pan: empData.pan || "", aadhaar: empData.aadhaar || "", acc: empData.acc || "", ifsc: empData.ifsc || "", bank: empData.bank || "", bankBranch: empData.bankBranch || "", uan: empData.uan || "", esicNo: empData.esicNo || "", phone: empData.phone || "", email: empData.email || "", fatherName: empData.fatherName || "", maritalStatus: empData.maritalStatus || "", emergencyName: "", emergencyPhone: "", emergencyRel: "" });
-        }
-        const [lvData, polData, attData] = await Promise.all([
-          sb.from("leaves").select("*").eq("employee_id", (empData == null ? void 0 : empData.id) || eid || "x").order("created_at", { ascending: false }),
-          sb.from("company_policies").select("policies").single(),
-          sb.from("attendance").select("*").eq("employee_id", (empData == null ? void 0 : empData.id) || eid || "x").gte("date", `${(/* @__PURE__ */ new Date()).getFullYear() - 1}-01-01`).order("date", { ascending: false }).limit(400)
-        ]);
-        if (lvData.data) setMyLeaves(lvData.data.map(fromDbLeave));
-        if ((_b2 = polData.data) == null ? void 0 : _b2.policies) setPol2((p2) => ({ ...p2, ...polData.data.policies }));
-        if (attData.data) {
-          const attMap = {};
-          attData.data.forEach((r) => {
-            if (r.date) attMap[r.date] = {
-              status: r.status || "P",
-              punchIn: r.in_time || "",
-              // in_time not punch_in
-              punchOut: r.out_time || "",
-              hrs: +r.hrs || 0,
-              source: r.source || "hr"
-            };
+          setSelfData({
+            pan: empData.pan || "",
+            aadhaar: empData.aadhaar || "",
+            acc: empData.acc || "",
+            ifsc: empData.ifsc || "",
+            bank: empData.bank || "",
+            bankBranch: empData.bankBranch || "",
+            uan: empData.uan || "",
+            esicNo: empData.esicNo || "",
+            phone: empData.phone || "",
+            email: empData.email || "",
+            fatherName: empData.fatherName || "",
+            maritalStatus: empData.maritalStatus || "",
+            emergencyName: "",
+            emergencyPhone: "",
+            emergencyRel: ""
           });
-          setMyAtt(attMap);
+        }
+        const empId = (empData == null ? void 0 : empData.id) || user.eid || "none";
+        try {
+          const { data } = await sb.from("leaves").select("*").eq("employee_id", empId).order("created_at", { ascending: false });
+          if (data) setMyLeaves(data.map(fromDbLeave));
+        } catch (e) {
+          console.warn("Portal leaves:", e.message);
+        }
+        try {
+          const { data } = await sb.from("company_policies").select("policies").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+          if ((data == null ? void 0 : data.policies) && Object.keys(data.policies).length > 0)
+            setPol2((p2) => ({ ...p2, ...data.policies }));
+          else {
+            try {
+              const s = localStorage.getItem("payrolla_pol");
+              if (s) {
+                const p2 = JSON.parse(s);
+                if (Object.keys(p2).length > 0) setPol2((prev) => ({ ...prev, ...p2 }));
+              }
+            } catch (e) {
+            }
+          }
+        } catch (e) {
+          console.warn("Portal policy:", e.message);
+        }
+        try {
+          const { data } = await sb.from("attendance").select("*").eq("employee_id", empId).gte("date", `${(/* @__PURE__ */ new Date()).getFullYear() - 1}-01-01`).order("date", { ascending: false }).limit(400);
+          if (data) {
+            const attMap = {};
+            data.forEach((r) => {
+              if (r.date) attMap[r.date] = { status: r.status || "P", punchIn: r.in_time || "", punchOut: r.out_time || "", hrs: +r.hrs || 0 };
+            });
+            setMyAtt(attMap);
+          }
+        } catch (e) {
+          console.warn("Portal attendance:", e.message);
         }
       } catch (e) {
         console.warn("Portal load:", e.message);
@@ -6859,7 +6875,7 @@ function App() {
   if (!session) return /* @__PURE__ */ React.createElement(Login, { onLogin: handleLogin, onRegister: () => setShowRegister(true) });
   if (session.role === "sa") return /* @__PURE__ */ React.createElement(SuperAdmin, { user: { name: session.name || "Super Admin", role: "Super Admin" }, onLogout: handleLogout });
   if (session.role === "hr") return /* @__PURE__ */ React.createElement(HRAdmin, { user: { ...session, name: session.name || "HR Admin", role: "HR Admin", aiEnabled: session.aiEnabled }, onLogout: handleLogout });
-  if (session.role === "emp") return /* @__PURE__ */ React.createElement(EmployeePortal, { user: { name: session.name, role: "Employee", email: session.email, eid: session.eid || session.employee_id, id: session.id }, onLogout: handleLogout });
+  if (session.role === "emp") return /* @__PURE__ */ React.createElement(EmployeePortal, { user: { name: session.name, role: "Employee", email: session.email, eid: session.eid || session.employee_id, id: session.id, _empRow: session._empRow }, onLogout: handleLogout });
   return null;
 }
 function calcSalaryFromCTC(annualCTC, structure) {
