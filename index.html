@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v17.2 — ALL ISSUES FIXED -->
+<!-- PAYROLLA v17.3 — EMP LOGIN FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v17.2...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v17.3...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -1232,32 +1232,34 @@ function Login({ onLogin, onRegister }) {
     setLoggingIn(true);
     if (role === "emp") {
       try {
-        const input = email.trim().toLowerCase();
-        let { data: empRow } = await sb.from("employees").select("*").ilike("email", input).eq("status", "Active").maybeSingle();
+        const input = email.trim();
+        const inputLower = input.toLowerCase();
+        let empRow = null;
+        const { data: allEmps, error: empErr } = await sb.from("employees").select("*");
+        if (empErr) throw new Error(empErr.message);
+        const active = (allEmps || []).filter((e) => e.status === "Active" || !e.status);
+        empRow = active.find((e) => e.email && e.email.toLowerCase() === inputLower) || null;
+        if (!empRow) empRow = active.find((e) => e.code && e.code.toLowerCase() === inputLower) || null;
+        if (!empRow) empRow = active.find((e) => e.name && e.name.toLowerCase() === inputLower) || null;
         if (!empRow) {
-          const { data: byCode } = await sb.from("employees").select("*").ilike("code", email.trim()).eq("status", "Active").maybeSingle();
-          empRow = byCode;
-        }
-        if (!empRow) {
-          setErr("No active employee found with that email or code.");
+          setErr("No employee found with email or code: " + input + ". Ask HR to check your email/code in the system.");
           setLoggingIn(false);
           return;
         }
         const dob = empRow.dob ? empRow.dob.slice(8, 10) + empRow.dob.slice(5, 7) + empRow.dob.slice(0, 4) : "Pass123";
         const expectedPw = (empRow.code || "EMP") + "@" + dob;
         if (pw !== expectedPw) {
-          setErr("Wrong password. Format: " + empRow.code + "@" + dob + " (Code@DDMMYYYY of birth)");
+          setErr("Wrong password. Your password is: " + empRow.code + "@" + dob + " (EmployeeCode@DDMMYYYY of your birth date)");
           setLoggingIn(false);
           return;
         }
         onLogin({
           id: empRow.id,
-          email: empRow.email || input,
+          email: empRow.email || inputLower,
           name: empRow.name,
           role: "emp",
           eid: empRow.id,
           _empRow: empRow
-          // Pass full row — portal uses this directly
         });
         setLoggingIn(false);
         return;
