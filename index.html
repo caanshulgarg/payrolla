@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v17.2 — ALL CRASHES FIXED -->
+<!-- PAYROLLA v17.2 — ALL ISSUES FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
@@ -4996,34 +4996,6 @@ function HRAdmin({ user, onLogout }) {
       setLoading(false);
     }
     loadAll();
-    async function reloadAttMonth2(yearMonth) {
-      if (!dbReady) return;
-      try {
-        const [y, m] = yearMonth.split("-").map(Number);
-        const rows = await db.getMonthAtt(m, y);
-        if (!rows.length) return;
-        const patch = {};
-        rows.forEach((r) => {
-          if (!patch[r.employee_id]) patch[r.employee_id] = {};
-          patch[r.employee_id][r.date] = {
-            status: r.status,
-            in: r.in_time || "",
-            out: r.out_time || "",
-            hrs: +r.hrs || 0,
-            ot: +r.ot || 0
-          };
-        });
-        setAttendance((prev) => {
-          const merged = { ...prev };
-          Object.keys(patch).forEach((eid) => {
-            merged[eid] = { ...prev[eid], ...patch[eid] };
-          });
-          return merged;
-        });
-      } catch (e) {
-        console.warn("reloadAttMonth:", e.message);
-      }
-    }
   }, []);
   useEffect(() => {
     if (!dbReady) return;
@@ -5176,6 +5148,34 @@ function HRAdmin({ user, onLogout }) {
       showToast("All marked " + status + " \u2713");
     } catch (e) {
       showToast("Marked locally", "warn");
+    }
+  }
+  async function reloadAttMonth(yearMonth) {
+    if (!dbReady) return;
+    try {
+      const [y, m] = yearMonth.split("-").map(Number);
+      const rows = await db.getMonthAtt(m, y);
+      if (!rows.length) return;
+      const patch = {};
+      rows.forEach((r) => {
+        if (!patch[r.employee_id]) patch[r.employee_id] = {};
+        patch[r.employee_id][r.date] = {
+          status: r.status,
+          in: r.in_time || "",
+          out: r.out_time || "",
+          hrs: +r.hrs || 0,
+          ot: +r.ot || 0
+        };
+      });
+      setAttendance((prev) => {
+        const merged = { ...prev };
+        Object.keys(patch).forEach((eid) => {
+          merged[eid] = { ...prev[eid], ...patch[eid] };
+        });
+        return merged;
+      });
+    } catch (e) {
+      console.warn("reloadAttMonth:", e.message);
     }
   }
   async function apiSavePolicies2(newPol) {
