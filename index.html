@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v18.11 — SALARY CALCULATIONS FIXED -->
+<!-- PAYROLLA v18.12 -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.11...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.12...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -1344,7 +1344,7 @@ function Login({ onLogin, onRegister }) {
   }, style: { flex: 1, padding: "7px 4px", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer", background: role === r ? P : "transparent", color: role === r ? "#fff" : MT } }, l))), /* @__PURE__ */ React.createElement("div", { style: { background: "#e3f2fd", border: "1px solid #90caf9", borderRadius: 9, padding: "9px 13px", fontSize: 12, color: "#1565c0", marginBottom: 20 } }, /* @__PURE__ */ React.createElement("b", null, "Demo:"), " ", hints[role]), /* @__PURE__ */ React.createElement(Inp, { label: "Email", val: email, set: setEmail, ph: "Enter email" }), /* @__PURE__ */ React.createElement(Inp, { label: role === "emp" ? "Password (Code@DDMMYYYY of DOB)" : "Password", val: pw, set: setPw, type: "password", ph: "Enter password" }), err && /* @__PURE__ */ React.createElement("div", { style: { background: DX, border: `1px solid ${DG}44`, borderRadius: 8, padding: "9px 13px", fontSize: 13, color: DG, marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement(Btn, { onClick: go, sz: "lg", s: { width: "100%", marginTop: 4 } }, loggingIn ? "Signing in..." : "Sign In \u2192"), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: 16, fontSize: 13, color: "rgba(255,255,255,.7)" } }, "No account? ", /* @__PURE__ */ React.createElement("span", { onClick: onRegister, style: { color: "#90caf9", cursor: "pointer", fontWeight: 700, textDecoration: "underline" } }, "Start 30-day free trial \u2192"))));
 }
 function SalarySlip({ slip, emp: empProp, month: monthProp, year: yearProp, lopDays: lopPropInit = 0, emps, runs, co, pol, onClose }) {
-  var _a, _b, _c, _d;
+  var _a, _b, _c, _d, _e;
   const slipEmp = (slip == null ? void 0 : slip.emp) ?? empProp;
   const month = (slip == null ? void 0 : slip.month) ?? monthProp;
   const year = (slip == null ? void 0 : slip.year) ?? yearProp;
@@ -1353,10 +1353,12 @@ function SalarySlip({ slip, emp: empProp, month: monthProp, year: yearProp, lopD
   if (!emp || !month || !year) return null;
   const attData = (slip == null ? void 0 : slip.attendance) || {};
   const monthStr = `${year}-${String(month).padStart(2, "0")}`;
-  const summary = getMonthSummary(emp.id, monthStr, attData, []);
+  const summary = getMonthSummary(emp.id, monthStr, attData, (pol == null ? void 0 : pol.holidays) || [], ((_a = pol == null ? void 0 : pol.attendance) == null ? void 0 : _a.unmarkedDayStatus) || "P", emp.doj || null);
   const lopDays = summary.lop || lopDaysInit || 0;
   const p = calcPay(emp, lopDays, pol, month, year);
-  const actualPaidDays = p.joiningProration < 1 ? Math.round(p.joiningProration * (summary.total || 30)) : summary.netPaid || summary.working || 26;
+  const totalCalDays = summary.total || 30;
+  const calDaysFromJoining = p.joiningProration < 1 ? Math.round(p.joiningProration * totalCalDays) : totalCalDays;
+  const actualPaidDays = summary.working || 0;
   const perDay = summary.working > 0 ? p.g / summary.working : 0;
   const earned = p.g;
   const lopAmt = lopDays > 0 ? p.lopDeductionAmt : 0;
@@ -1454,8 +1456,8 @@ td.amount{text-align:right;font-weight:600}
   <div class="att-title">\u{1F4C5} Attendance Summary \u2014 ${MONTHS[month - 1]} ${year}</div>
   <div class="att-grid">
     <div class="att-cell" style="background:#e8eaf6">
-      <div class="att-num" style="color:#1a237e">${summary.total}</div>
-      <div class="att-lbl" style="color:#3949ab">Calendar Days</div>
+      <div class="att-num" style="color:#1a237e">${p.joiningProration < 1 ? calDaysFromJoining + "/" + totalCalDays : totalCalDays}</div>
+      <div class="att-lbl" style="color:#3949ab">${p.joiningProration < 1 ? "Cal Days (from DOJ)" : "Calendar Days"}</div>
     </div>
     <div class="att-cell" style="background:#e0f2f1">
       <div class="att-num" style="color:#00695c">${summary.working}</div>
@@ -1512,8 +1514,8 @@ td.amount{text-align:right;font-weight:600}
       ${p.pfE > 0 ? `
         <tr class="deduction pf-row">
           <td>
-            <b>Provident Fund (PF) \u2014 Employee (${((_a = pol == null ? void 0 : pol.pf) == null ? void 0 : _a.employeeRate) || 12}%)</b>
-            <span class="sub-note">On basic \u20B9${Math.min(+emp.basic || 0, 15e3).toLocaleString("en-IN")} (capped at \u20B915,000) \xB7 EPF Act 1952</span>
+            <b>Provident Fund (PF) \u2014 Employee (${((_b = pol == null ? void 0 : pol.pf) == null ? void 0 : _b.employeeRate) || 12}%)</b>
+            <span class="sub-note">On wages \u20B9${Math.round((p.pfE || 0) / 0.12).toLocaleString("en-IN")}${(p.pfE || 0) >= 1800 ? " (capped at \u20B915,000)" : ""} \xB7 EPF Act 1952</span>
           </td>
           <td class="amount">\u20B9${p.pfE.toLocaleString("en-IN")}</td>
         </tr>` : ""}
@@ -1528,15 +1530,15 @@ td.amount{text-align:right;font-weight:600}
       ${p.pt > 0 ? `
         <tr class="deduction pt-row">
           <td>
-            <b>Professional Tax \u2014 ${p.ptState || ((_b = pol == null ? void 0 : pol.pt) == null ? void 0 : _b.state) || "State"}</b>
-            <span class="sub-note">${month === 2 && (p.ptState || ((_c = pol == null ? void 0 : pol.pt) == null ? void 0 : _c.state) || "") == "Maharashtra" ? "February slab (\u20B9300/month)" : "Monthly slab per state schedule"}</span>
+            <b>Professional Tax \u2014 ${p.ptState || ((_c = pol == null ? void 0 : pol.pt) == null ? void 0 : _c.state) || "State"}</b>
+            <span class="sub-note">${month === 2 && (p.ptState || ((_d = pol == null ? void 0 : pol.pt) == null ? void 0 : _d.state) || "") == "Maharashtra" ? "February slab (\u20B9300/month)" : "Monthly slab per state schedule"}</span>
           </td>
           <td class="amount">\u20B9${p.pt.toLocaleString("en-IN")}</td>
         </tr>` : ""}
       ${p.tds > 0 ? `
         <tr class="deduction tds-row">
           <td>
-            <b>TDS \u2014 Income Tax (${((_d = pol == null ? void 0 : pol.tds) == null ? void 0 : _d.regime) || "new"} regime)</b>
+            <b>TDS \u2014 Income Tax (${((_e = pol == null ? void 0 : pol.tds) == null ? void 0 : _e.regime) || "new"} regime)</b>
             <span class="sub-note">Annual income: \u20B9${Math.round(p.ti || 0).toLocaleString("en-IN")} \xB7 Tax: \u20B9${Math.round(p.annTax || 0).toLocaleString("en-IN")}/yr${p.joiningProration < 1 ? " \xB7 <b>Joining month \u2014 excess TDS deferred to next month</b>" : ""} \xB7 Std. deduction \u20B975,000 applied</span>
           </td>
           <td class="amount">\u20B9${p.tds.toLocaleString("en-IN")}</td>
@@ -2202,13 +2204,18 @@ const ATT_STATUS = {
   LWP: { label: "Leave w/o Pay", short: "LWP", color: "#c62828", bg: "#ffcdd2", lop: 1, paid: false },
   CO: { label: "Comp Off", short: "CO", color: "#558b2f", bg: "#f1f8e9", lop: 0, paid: true }
 };
-function getMonthSummary(empId, monthStr, attendance, holidays = [], unmarkedStatus = "P") {
+function getMonthSummary(empId, monthStr, attendance, holidays = [], unmarkedStatus = "P", doj = null) {
   const [yr, mo] = monthStr.split("-").map(Number);
   const daysInMonth = new Date(yr, mo, 0).getDate();
   const recs = attendance[empId] || {};
   let total = 0, working = 0, present = 0, absent = 0, halfDays = 0, leaves = 0, wfh = 0, weekOffs = 0, publicHols = 0, lop = 0, ot = 0, lwp = 0;
+  const dojDate = doj ? new Date(doj) : null;
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${yr}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    if (dojDate && new Date(dateStr) < dojDate) {
+      total++;
+      continue;
+    }
     const dow = new Date(dateStr).getDay();
     const isWeekend = dow === 0 || dow === 6;
     const isHoliday = holidays.includes(dateStr);
@@ -2376,7 +2383,8 @@ function AttendanceModule({ emps, attendance, setAttendance, holidays = [], onMa
     if (onMark) onMark(eid, ds, rec);
   }
   function getSummary(empId) {
-    const s = getMonthSummary(empId, month, attendance, holidays);
+    const emp2 = emps.find((e) => e.id === empId);
+    const s = getMonthSummary(empId, month, attendance, holidays, "P", (emp2 == null ? void 0 : emp2.doj) || null);
     return s;
   }
   async function markFullMonthFn(target, ms, overwrite = false) {
@@ -6506,7 +6514,7 @@ Regards, HR`;
     const st = qaData.workState || ((_a2 = pol == null ? void 0 : pol.pt) == null ? void 0 : _a2.state) || "Maharashtra";
     const noPT = ["Delhi", "Rajasthan", "Uttar Pradesh", "Haryana", "Himachal Pradesh", "Uttarakhand", "Jammu & Kashmir"].includes(st);
     return /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, marginTop: 4, color: noPT ? "#1b5e20" : "#6a1b9a" } }, noPT ? `\u2713 No PT in ${st}` : `PT applicable in ${st}`);
-  })())), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, paddingTop: 14, borderTop: "1px solid #f0f0f0", marginTop: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQaStep(1), style: { flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: "pointer", fontSize: 13, color: "#666", fontWeight: 600 } }, "\u2190 Back"), /* @__PURE__ */ React.createElement("button", { onClick: () => setQaStep(3), style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Next: Salary \u2192"))), qaStep === 3 && /* @__PURE__ */ React.createElement("div", { style: { padding: "20px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", maxHeight: "calc(80vh - 120px)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", background: "#f0f0f0", borderRadius: 8, padding: 2, width: "fit-content" } }, [["ctc", "Enter CTC"], ["basic", "Component-wise"]].map(([m, l]) => /* @__PURE__ */ React.createElement(
+  })())), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, paddingTop: 14, borderTop: "1px solid #f0f0f0", marginTop: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQaStep(1), style: { flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: "pointer", fontSize: 13, color: "#666", fontWeight: 600 } }, "\u2190 Back"), /* @__PURE__ */ React.createElement("button", { onClick: () => setQaStep(3), style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Next: Salary \u2192"))), qaStep === 3 && /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12, overflowY: "auto", flex: 1, minHeight: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", background: "#f0f0f0", borderRadius: 8, padding: 2, width: "fit-content" } }, [["ctc", "Enter CTC"], ["basic", "Component-wise"]].map(([m, l]) => /* @__PURE__ */ React.createElement(
     "button",
     {
       key: m,
@@ -6610,7 +6618,7 @@ Regards, HR`;
       { k: "pt", icon: "\u{1F4CB}", label: "Prof. Tax", rec: rec.pt, detail: rec.pt.note },
       { k: "lwf", icon: "\u{1F4BC}", label: "LWF", rec: rec.lwf, detail: rec.lwf.note }
     ];
-    return /* @__PURE__ */ React.createElement("div", { style: { border: "1px solid #e8eaf6", borderRadius: 10, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "8px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 12, color: "#fff" } }, "\u{1F4CB} Statutory Deductions"), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { style: { border: "1px solid #e8eaf6", borderRadius: 10, overflow: "hidden", position: "relative", zIndex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "8px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 12, color: "#fff" } }, "\u{1F4CB} Statutory Deductions"), /* @__PURE__ */ React.createElement(
       "button",
       {
         onClick: () => setQaData((p) => {
@@ -6644,10 +6652,7 @@ Regards, HR`;
           type: "checkbox",
           checked,
           disabled: isNA,
-          onChange: (e) => {
-            if (isMand && !e.target.checked && !window.confirm(it.label + " is mandatory. Uncheck anyway?")) return;
-            setQaData((p) => ({ ...p, [it.k]: e.target.checked }));
-          },
+          onChange: (e) => setQaData((p) => ({ ...p, [it.k]: e.target.checked })),
           style: { width: 15, height: 15, cursor: isNA ? "not-allowed" : "pointer", accentColor: "#1a237e", flexShrink: 0 }
         }
       ), /* @__PURE__ */ React.createElement("span", null, it.icon), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 12 } }, it.label), /* @__PURE__ */ React.createElement("span", { style: {
