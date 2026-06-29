@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v17.8 — INPUT BUG FIXED + LEAVES COLUMN FIXED -->
+<!-- PAYROLLA v17.9 — ALL 3 BUGS FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v17.8...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v17.9...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -124,9 +124,12 @@ const db = {
     return data || [];
   },
   async addEmp(e) {
-    const { data, error } = await sb.from("employees").insert(toDbEmp(e)).select().single();
+    const row = toDbEmp(e);
+    const { data, error } = await sb.from("employees").insert(row).select().maybeSingle();
     if (error) throw new Error(error.message);
-    return data;
+    if (data) return data;
+    const { data: found } = await sb.from("employees").select("*").eq("code", e.code).maybeSingle();
+    return found || row;
   },
   async updateEmp(e) {
     const { data, error } = await sb.from("employees").update(toDbEmp(e)).eq("id", e.id).select().single();
@@ -351,11 +354,10 @@ function fromDbEmp(e) {
 }
 function toDbEmp(e) {
   return {
-    company_id: e.companyId || null,
     code: e.code,
     name: e.name,
     dob: e.dob || null,
-    doj: e.doj,
+    doj: e.doj || null,
     gender: e.gen,
     dept: e.dept,
     desig: e.desig,
@@ -6620,26 +6622,17 @@ Regards, HR`;
   }, style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2713 Save Changes")))), /* @__PURE__ */ React.createElement("style", null, `@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`));
 }
 const UI_C = "#1a237e", UI_G = "#1b5e20", UI_R = "#c62828";
-const EpCard = ({ children, s = {} }) => React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: "18px 20px", ...s } }, children);
-const EpLbl = ({ t, v, hint }) => React.createElement(
-  "div",
-  { style: { marginBottom: 14 } },
-  React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, t),
-  React.createElement("input", { value: v || "", readOnly: true, style: { width: "100%", padding: "9px 12px", border: "1.5px solid #e0e0e0", borderRadius: 8, fontSize: 13, background: "#f8f9ff", color: "#333" } }),
-  hint && React.createElement("div", { style: { fontSize: 10, color: "#aaa", marginTop: 2 } }, hint)
-);
-const EpInp = ({ label, val, set, type = "text", hint, required }) => React.createElement(
-  "div",
-  { style: { marginBottom: 14 } },
-  React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, label, required && React.createElement("span", { style: { color: UI_R } }, " *")),
-  React.createElement("input", {
+const EpCard = ({ children, s = {} }) => /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: "18px 20px", ...s } }, children);
+const EpLbl = ({ t, v, hint }) => /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, t), /* @__PURE__ */ React.createElement("input", { value: v || "", readOnly: true, style: { width: "100%", padding: "9px 12px", border: "1.5px solid #e0e0e0", borderRadius: 8, fontSize: 13, background: "#f8f9ff", color: "#333", boxSizing: "border-box" } }), hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#aaa", marginTop: 2 } }, hint));
+const EpInp = ({ label, val, set, type = "text", hint, required }) => /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, label, required && /* @__PURE__ */ React.createElement("span", { style: { color: "#c62828" } }, " *")), /* @__PURE__ */ React.createElement(
+  "input",
+  {
     type,
     value: val || "",
     onChange: (e) => set(e.target.value),
     style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }
-  }),
-  hint && React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, hint)
-);
+  }
+), hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, hint));
 function EmployeePortal({ user, onLogout }) {
   var _a, _b, _c, _d, _e, _f, _g, _h;
   const [tab, setTab] = useState("dashboard");
@@ -6862,17 +6855,6 @@ function EmployeePortal({ user, onLogout }) {
     ["profile", "\u{1F464}", "My Profile"]
   ];
   const C = "#1a237e", G2 = "#1b5e20", R = "#c62828", OR = "#e65100";
-  const _Card = ({ children, s = {} }) => /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: "18px 20px", ...s } }, children);
-  const _Lbl = ({ t, v, hint }) => /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, t), /* @__PURE__ */ React.createElement("input", { value: v, readOnly: true, style: { width: "100%", padding: "9px 12px", border: "1.5px solid #e0e0e0", borderRadius: 8, fontSize: 13, background: "#f8f9ff", color: "#333" } }), hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#aaa", marginTop: 2 } }, hint));
-  const _Inp = ({ label, val, set, type = "text", hint, required }) => /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, label, required && /* @__PURE__ */ React.createElement("span", { style: { color: R } }, " *")), /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      type,
-      value: val || "",
-      onChange: (e) => set(e.target.value),
-      style: { width: "100%", padding: "9px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box" }
-    }
-  ), hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, hint));
   if (loading) return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, background: "#f5f6fa" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 40, height: 40, border: `4px solid #e8eaf6`, borderTopColor: C, borderRadius: "50%", animation: "spin 1s linear infinite" } }), /* @__PURE__ */ React.createElement("div", { style: { color: "#888", fontSize: 13 } }, "Loading your profile..."));
   if (!emp) return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5f6fa" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, padding: 40, maxWidth: 460, textAlign: "center", boxShadow: "0 4px 24px rgba(0,0,0,.08)" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 40, marginBottom: 12 } }, "\u{1F50D}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 18, color: C, marginBottom: 8 } }, "Profile Not Linked"), /* @__PURE__ */ React.createElement("div", { style: { color: "#666", fontSize: 13, lineHeight: 1.7, marginBottom: 20 } }, "Login was successful but your employee profile could not be found.", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, "Your ID:"), " ", user.eid || user.id || "unknown", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("b", null, "Your email:"), " ", user.email || "unknown"), /* @__PURE__ */ React.createElement("div", { style: { background: "#f5f6fa", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#555", textAlign: "left", marginBottom: 20 } }, "Ask HR to verify your email/code matches what's in the system."), /* @__PURE__ */ React.createElement("button", { onClick: onLogout, style: { padding: "10px 24px", border: "none", borderRadius: 9, background: C, color: "#fff", fontWeight: 700, cursor: "pointer" } }, "Back to Login")));
   const [ay, am] = attMonth.split("-").map(Number);
