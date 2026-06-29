@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v18.3 — ATTENDANCE CRASH FIXED -->
+<!-- PAYROLLA v18.5 -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Payrolla.in — Indian Payroll & HRMS</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
+<title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.3...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.5...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -6465,7 +6464,7 @@ Regards, HR`;
     const st = qaData.workState || ((_a2 = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _a2.state) || "Maharashtra";
     const noPT = ["Delhi", "Rajasthan", "Uttar Pradesh", "Haryana", "Himachal Pradesh", "Uttarakhand", "Jammu & Kashmir"].includes(st);
     return /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, marginTop: 4, color: noPT ? "#1b5e20" : "#6a1b9a" } }, noPT ? `\u2713 No PT in ${st}` : `PT applicable in ${st}`);
-  })()))), qaStep === 3 && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", background: "#f0f0f0", borderRadius: 8, padding: 2, marginBottom: 14, width: "fit-content" } }, [["ctc", "Enter CTC"], ["basic", "Component-wise"]].map(([m, l]) => /* @__PURE__ */ React.createElement(
+  })()))), qaStep === 3 && /* @__PURE__ */ React.createElement("div", { style: { padding: "20px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", maxHeight: "calc(80vh - 120px)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", background: "#f0f0f0", borderRadius: 8, padding: 2, width: "fit-content" } }, [["ctc", "Enter CTC"], ["basic", "Component-wise"]].map(([m, l]) => /* @__PURE__ */ React.createElement(
     "button",
     {
       key: m,
@@ -6485,7 +6484,7 @@ Regards, HR`;
     l
   ))), (qaData._qaMode || "basic") === "ctc" && (() => {
     const struct = ((pol2 == null ? void 0 : pol2.salaryStructures) || DEFAULT_POLICIES.salaryStructures).find((s2) => s2.isDefault) || { basicPct: 50, hraPct: 40, conv: 1600, med: 1250 };
-    return /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Annual CTC (\u20B9) *"), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Annual CTC (\u20B9) *"), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "number",
@@ -6493,8 +6492,11 @@ Regards, HR`;
         min: "0",
         step: "10000",
         onChange: (e) => {
+          var _a2;
           const ctc = +e.target.value || 0;
           const c = calcSalaryFromCTC(ctc, struct);
+          const st = qaData.workState || ((_a2 = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _a2.state) || "Maharashtra";
+          const rec = getStatutoryRecommendation(c.basic, c.monthly, st);
           setQaData((p) => ({
             ...p,
             _ctcVal: String(ctc),
@@ -6502,276 +6504,189 @@ Regards, HR`;
             hra: String(c.hra),
             conv: String(c.conv),
             med: String(c.med),
-            spl: String(c.spl)
+            spl: String(c.spl),
+            pf: rec.pf.default,
+            esic: rec.esic.default,
+            pt: rec.pt.default,
+            lwf: rec.lwf.default
           }));
         },
         placeholder: "e.g. 6,00,000",
         style: { width: "100%", padding: "12px 14px", border: "1.5px solid #1a237e", borderRadius: 8, fontSize: 16, fontWeight: 700, outline: "none" }
       }
     ), +qaData.basic > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, background: "#e8eaf6", borderRadius: 8, padding: "10px 12px", display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, fontSize: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { color: "#888" } }, "Basic"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700 } }, "\u20B9", (+qaData.basic).toLocaleString("en-IN"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { color: "#888" } }, "HRA"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700 } }, "\u20B9", (+qaData.hra || 0).toLocaleString("en-IN"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { color: "#888" } }, "Special Allow."), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700 } }, "\u20B9", (+qaData.spl || 0).toLocaleString("en-IN")))));
-  })(), (qaData._qaMode || "basic") === "basic" && /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "span 2" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Basic Salary (\u20B9) *"), /* @__PURE__ */ React.createElement(
+  })(), (qaData._qaMode || "basic") === "basic" && /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "span 2" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, "Basic Salary (\u20B9) *"), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "number",
       value: qaData.basic || "",
       onChange: (e) => {
+        var _a2;
         const v = +e.target.value;
-        setQaData((p) => ({ ...p, basic: String(v), hra: String(Math.round(v * 0.4)) }));
+        if (!v) {
+          setQaData((p) => ({ ...p, basic: "" }));
+          return;
+        }
+        const st = qaData.workState || ((_a2 = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _a2.state) || "Maharashtra";
+        const hra2 = Math.round(v * 0.4);
+        const rec = getStatutoryRecommendation(v, Math.round(v * 1.6), st);
+        setQaData((p) => ({
+          ...p,
+          basic: String(v),
+          hra: String(hra2),
+          pf: rec.pf.default,
+          esic: rec.esic.default,
+          pt: rec.pt.default,
+          lwf: rec.lwf.default
+        }));
       },
       placeholder: "e.g. 25,000",
-      autoFocus: true,
-      style: { width: "100%", padding: "12px 14px", border: "1.5px solid #1a237e", borderRadius: 8, fontSize: 15, fontWeight: 700, outline: "none" }
+      style: { width: "100%", padding: "10px 12px", border: "1.5px solid #1a237e", borderRadius: 8, fontSize: 15, fontWeight: 700, outline: "none" }
     }
-  ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, "PF on basic (capped at \u20B915K). HRA auto-fills at 40%.")), [
-    { k: "hra", label: "HRA (\u20B9)", def: "", note: "40% of basic \u2014 auto-filled" },
-    { k: "conv", label: "Conveyance (\u20B9)", def: "1600", note: "\u20B91,600 tax-free" },
-    { k: "med", label: "Medical (\u20B9)", def: "1250", note: "\u20B91,250 tax-free" },
-    { k: "spl", label: "Special Allow. (\u20B9)", def: "0", note: "Balancing figure" }
-  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 10, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
+  )), [
+    { k: "hra", label: "HRA", note: "40% of basic (auto-filled)" },
+    { k: "conv", label: "Conveyance", note: "Max \u20B91,600 tax-free" },
+    { k: "med", label: "Medical Allow.", note: "Max \u20B91,250 tax-free" },
+    { k: "spl", label: "Special Allow.", note: "Balancing component" },
+    { k: "lta", label: "LTA", note: "Leave Travel Allowance" }
+  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 3, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
     "input",
     {
       type: "number",
-      value: qaData[f.k] !== void 0 ? qaData[f.k] : f.def,
+      value: qaData[f.k] || "",
       onChange: (e) => setQaData((p) => ({ ...p, [f.k]: e.target.value })),
-      placeholder: f.def,
-      style: { width: "100%", padding: "8px 10px", border: "1.5px solid #e0e0e0", borderRadius: 7, fontSize: 13, outline: "none" }
+      style: { width: "100%", padding: "8px 10px", border: "1px solid #ddd", borderRadius: 7, fontSize: 13, outline: "none" }
     }
-  ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#aaa", marginTop: 2 } }, f.note)))), +qaData.basic > 0 && (() => {
-    try {
-      const preview = calcPay({ ...BLANK_EMP, ...qaData, pf: !!qaData.pf, esic: !!qaData.esic, pt: !!qaData.pt }, 0, pol2, payMonth, payYear);
-      return /* @__PURE__ */ React.createElement("div", { style: { background: "#e8f5e9", border: "1px solid #c8e6c9", borderRadius: 8, padding: "10px 14px", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12 } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#888" } }, "Gross "), /* @__PURE__ */ React.createElement("b", { style: { color: "#1a237e" } }, INR(preview.g))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12 } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#888" } }, "Deductions "), /* @__PURE__ */ React.createElement("b", { style: { color: "#c62828" } }, "-", INR(preview.ded))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13 } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#888" } }, "Net Pay "), /* @__PURE__ */ React.createElement("b", { style: { color: "#1b5e20", fontSize: 15 } }, INR(preview.net))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#666", width: "100%" } }, "PF \u20B9", preview.pfE, " \xB7 PT \u20B9", preview.pt, " (", (qaData.workState || "MH").slice(0, 4), ") ", preview.esE > 0 ? `\xB7 ESIC \u20B9${preview.esE}` : "", " ", preview.tds > 0 ? `\xB7 TDS \u20B9${preview.tds}` : ""));
-    } catch (e) {
-      return null;
-    }
-  })(), +qaData.basic > 0 && (() => {
+  ), f.note && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: "#aaa", marginTop: 1 } }, f.note)))), +qaData.basic > 0 && (() => {
     var _a2;
-    const gross = +(qaData.basic || 0) + +(qaData.hra || 0) + +(qaData.conv || 1600) + +(qaData.med || 1250) + +(qaData.spl || 0);
-    const state = qaData.workState || ((_a2 = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _a2.state) || "Maharashtra";
-    const rec = getStatutoryRecommendation(qaData.basic, gross, state);
+    const gross = (+qaData.basic || 0) + (+qaData.hra || 0) + (+qaData.conv || 0) + (+qaData.med || 0) + (+qaData.spl || 0) + (+qaData.lta || 0);
+    const st = qaData.workState || ((_a2 = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _a2.state) || "Maharashtra";
+    const rec = getStatutoryRecommendation(qaData.basic, gross, st);
     const items = [
       { k: "pf", icon: "\u{1F3DB}\uFE0F", label: "PF / EPF", rec: rec.pf, detail: rec.pf.note },
       { k: "esic", icon: "\u{1F3E5}", label: "ESIC", rec: rec.esic, detail: rec.esic.note },
       { k: "pt", icon: "\u{1F4CB}", label: "Prof. Tax", rec: rec.pt, detail: rec.pt.note },
-      { k: "lwf", icon: "\u{1F4BC}", label: "Labour Welfare", rec: rec.lwf, detail: rec.lwf.note }
+      { k: "lwf", icon: "\u{1F4BC}", label: "LWF", rec: rec.lwf, detail: rec.lwf.note }
     ];
-    const allRec = items.every((it) => !qaData[it.k] && it.rec.rec !== "na");
-    return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, border: "1px solid #e8eaf6", borderRadius: 10, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#f4f5fa", padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#1a237e" } }, "\u{1F4CB} Statutory Deductions"), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { style: { border: "1px solid #e8eaf6", borderRadius: 10, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "8px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 12, color: "#fff" } }, "\u{1F4CB} Statutory Deductions"), /* @__PURE__ */ React.createElement(
       "button",
       {
         onClick: () => setQaData((p) => {
           const n = { ...p };
           items.forEach((it) => {
-            n[it.k] = it.rec.rec !== "na";
+            if (it.rec.rec !== "na") n[it.k] = true;
           });
           return n;
         }),
-        style: { padding: "4px 12px", background: "#1a237e", color: "#fff", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }
+        style: { fontSize: 10, padding: "3px 10px", border: "1px solid rgba(255,255,255,.5)", borderRadius: 6, background: "transparent", color: "#fff", cursor: "pointer" }
       },
-      "Apply Recommended"
-    )), /* @__PURE__ */ React.createElement("div", { style: { padding: "0 4px" } }, items.map((it) => {
-      const isRec = it.rec.rec === "mandatory";
+      "Apply All Mandatory"
+    )), items.map((it) => {
+      const isMand = it.rec.rec === "mandatory";
       const isVol = it.rec.rec === "voluntary";
       const isNA = it.rec.rec === "na" || it.rec.rec === "threshold";
-      return /* @__PURE__ */ React.createElement("div", { key: it.k, style: { display: "flex", alignItems: "center", gap: 10, padding: "10px 10px", borderBottom: "1px solid #f5f5f5", opacity: isNA ? 0.5 : 1 } }, /* @__PURE__ */ React.createElement(
+      const checked = !!qaData[it.k];
+      let amt = "";
+      if (it.k === "pf" && checked) amt = "\u20B9" + Math.min(Math.round((+qaData.basic || 0) * 0.12), 1800) + "/mo";
+      if (it.k === "esic" && checked) amt = "\u20B9" + Math.round(gross * 75e-4) + "/mo";
+      if (it.k === "pt" && checked && it.rec.amount > 0) amt = "\u20B9" + it.rec.amount + "/mo";
+      if (it.k === "lwf" && checked && it.rec.info) amt = it.rec.info.note || "";
+      return /* @__PURE__ */ React.createElement("div", { key: it.k, style: {
+        padding: "9px 14px",
+        borderBottom: "1px solid #f0f0f0",
+        background: isMand && !checked ? "#fff8e1" : checked && isMand ? "#e8f5e9" : checked ? "#f1f8e9" : "#fff",
+        opacity: isNA ? 0.45 : 1
+      } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement(
         "input",
         {
           type: "checkbox",
-          checked: !!qaData[it.k],
+          checked,
           disabled: isNA,
-          onChange: (e) => setQaData((p) => ({ ...p, [it.k]: e.target.checked })),
-          style: { width: 16, height: 16, cursor: isNA ? "not-allowed" : "pointer", accentColor: "#1a237e" }
+          onChange: (e) => {
+            if (isMand && !e.target.checked && !window.confirm(it.label + " is mandatory. Uncheck anyway?")) return;
+            setQaData((p) => ({ ...p, [it.k]: e.target.checked }));
+          },
+          style: { width: 15, height: 15, cursor: isNA ? "not-allowed" : "pointer", accentColor: "#1a237e", flexShrink: 0 }
         }
-      ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14, width: 20 } }, it.icon), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 13 } }, it.label), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#888", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, it.detail)), /* @__PURE__ */ React.createElement("span", { style: {
-        fontSize: 10,
-        fontWeight: 700,
-        padding: "2px 8px",
-        borderRadius: 8,
-        flexShrink: 0,
-        background: isRec ? "#e8f5e9" : isVol ? "#e3f2fd" : isNA ? "#f5f5f5" : "#fff3e0",
-        color: isRec ? "#1b5e20" : isVol ? "#1565c0" : isNA ? "#999" : "#e65100"
-      } }, isRec ? "Mandatory" : isVol ? "Voluntary" : isNA ? "Not applicable" : "Check threshold"));
-    })), /* @__PURE__ */ React.createElement("div", { style: { padding: "8px 14px", background: "#fffde7", borderTop: "1px solid #f5f5f5", fontSize: 11, color: "#888" } }, "\u{1F4A1} Recommended ones are pre-suggested based on salary & state \u2014 you control what's applied."));
-  })())), /* @__PURE__ */ React.createElement("div", { style: { padding: "14px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQuickAdd(false), style: { padding: "9px 18px", border: "1px solid #ddd", borderRadius: 9, background: "#fff", cursor: "pointer", fontSize: 13, color: "#666" } }, "Cancel"), qaStep > 1 && /* @__PURE__ */ React.createElement("button", { onClick: () => setQaStep((s2) => s2 - 1), style: { padding: "9px 18px", border: "1px solid #ddd", borderRadius: 9, background: "#fff", cursor: "pointer", fontSize: 13, color: "#1a237e" } }, "\u2190 Back")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#aaa" } }, "Step ", qaStep, " of 3"), /* @__PURE__ */ React.createElement("button", { onClick: async () => {
-    var _a2, _b2, _c2;
-    if (qaStep === 1) {
-      if (!((_a2 = qaData.name) == null ? void 0 : _a2.trim())) {
-        alert("Name is required");
-        return;
-      }
-      if (!((_b2 = qaData.code) == null ? void 0 : _b2.trim())) {
-        alert("Employee Code is required");
-        return;
-      }
-      if (!qaData.dob) {
-        alert("Date of Birth is required \u2014 it is used to generate the employee login password");
-        return;
-      }
-      if (!qaData.doj) {
-        alert("Date of Joining is required");
-        return;
-      }
-      setQaStep(2);
-    } else if (qaStep === 2) {
-      if (!((_c2 = qaData.desig) == null ? void 0 : _c2.trim())) {
-        alert("Designation is required");
-        return;
-      }
-      setQaStep(3);
-    } else {
-      if (!qaData.basic || +qaData.basic <= 0) {
-        alert("Basic salary is required");
-        return;
-      }
-      const newEmp = {
-        ...BLANK_EMP,
-        ...qaData,
-        id: "E" + uid(),
-        conv: qaData.conv || "1600",
-        med: qaData.med || "1250",
-        spl: qaData.spl || "0",
-        lta: "0",
-        pf: !!qaData.pf,
-        // Only true if HR explicitly checked it
-        esic: !!qaData.esic,
-        pt: !!qaData.pt,
-        lwf: !!qaData.lwf,
-        status: "Active"
-      };
-      setEmps((p) => [...p, newEmp]);
-      setQuickAdd(false);
-      let savedEmp = newEmp;
-      try {
-        const r = await db.addEmp(newEmp);
-        savedEmp = fromDbEmp(r);
-        setEmps((p) => p.map((e) => e.id === newEmp.id ? savedEmp : e));
-      } catch (e) {
-        const dbMsg = e.message || "unknown error";
-        showToast("DB save FAILED: " + dbMsg.slice(0, 80) + " \u2014 employee is in memory only, refresh will lose it", "warn");
-        console.error("Quick Add DB error:", dbMsg);
-      }
-      const invRes = await createEmployeeAccount(savedEmp, (co == null ? void 0 : co.name) || "Your Company");
-      setInviteResult({
-        name: savedEmp.name,
-        email: invRes.email || (savedEmp.email || null),
-        password: invRes.password,
-        authErr: invRes.authErr || null,
-        emailSent: invRes.emailSent,
-        needsConfirmation: invRes.needsConfirmation || false,
-        noEmail: invRes.noEmail
-      });
-      showToast(invRes.emailSent ? `${savedEmp.name} added + email sent \u2713` : `${savedEmp.name} added \u2713 \u2014 share login manually`);
-    }
-  }, style: { padding: "9px 22px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, qaStep < 3 ? "Continue \u2192" : "\u2713 Add Employee")))), quickEdit && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 500, display: "flex", justifyContent: "flex-end" }, onClick: () => setQuickEdit(null) }, /* @__PURE__ */ React.createElement("div", { style: { width: 420, background: "#fff", height: "100%", boxShadow: "-8px 0 40px rgba(0,0,0,.15)", display: "flex", flexDirection: "column", animation: "slideIn .2s ease" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 20px", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#1a237e", color: "#fff" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16 } }, "Quick Edit"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, opacity: 0.7, marginTop: 2 } }, quickEdit.name, " \xB7 ", quickEdit.code)), /* @__PURE__ */ React.createElement("button", { onClick: () => setQuickEdit(null), style: { background: "rgba(255,255,255,.15)", border: "none", borderRadius: 8, color: "#fff", width: 32, height: 32, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" } }, "\xD7")), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#f8fff8", border: "1px solid #c8e6c9", borderRadius: 10, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#1b5e20", marginBottom: 10 } }, "\u{1F4B0} Salary"), [
-    { k: "basic", label: "Basic (\u20B9)", note: "PF & PT calculated on this" },
-    { k: "hra", label: "HRA (\u20B9)", note: "Usually 40\u201350% of basic" },
-    { k: "conv", label: "Conveyance (\u20B9)", note: "Max \u20B91,600 tax-free" },
-    { k: "med", label: "Medical (\u20B9)", note: "Tax-free up to \u20B91,250" },
-    { k: "spl", label: "Special Allowance (\u20B9)", note: "Fully taxable" },
-    { k: "lta", label: "LTA (\u20B9)", note: "Tax-exempt with proof" }
-  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k, style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      type: "number",
-      value: qf[f.k] || "",
-      onChange: (e) => {
-        const v = e.target.value;
-        setQf((p) => ({ ...p, [f.k]: v, ...f.k === "basic" && !p._hraManual ? { hra: Math.round(+v * 0.4) } : {} }));
-      },
-      onFocus: (e) => {
-        if (f.k === "hra") setQf((p) => ({ ...p, _hraManual: true }));
-      },
-      style: { width: "100%", padding: "8px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
-    }
-  ), f.note && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#aaa", marginTop: 2 } }, f.note))), +qf.basic > 0 && (() => {
+      ), /* @__PURE__ */ React.createElement("span", null, it.icon), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 12 } }, it.label), /* @__PURE__ */ React.createElement("span", { style: {
+        fontSize: 9,
+        fontWeight: 800,
+        padding: "2px 7px",
+        borderRadius: 10,
+        background: isMand ? "#1b5e20" : isVol ? "#1565c0" : isNA ? "#9e9e9e" : "#e65100",
+        color: "#fff"
+      } }, isMand ? "MANDATORY" : isVol ? "OPTIONAL" : isNA ? "N/A" : "CHECK"), amt && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#555", background: "#f0f4ff", padding: "1px 7px", borderRadius: 6 } }, amt)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: isMand ? "#2e7d32" : isVol ? "#1565c0" : "#aaa", marginTop: 1 } }, it.detail))), isMand && !checked && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 4, fontSize: 10, color: "#b71c1c", fontWeight: 600 } }, "\u26A0 Legally required \u2014 non-compliance attracts penalties"));
+    }));
+  })(), +qaData.basic > 0 && (() => {
     try {
-      const preview = calcPay({ ...quickEdit, ...qf }, 0, pol2, payMonth, payYear);
-      return /* @__PURE__ */ React.createElement("div", { style: { background: "#e8f5e9", borderRadius: 8, padding: "8px 12px", fontSize: 12, display: "flex", gap: 12, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", null, "Gross: ", /* @__PURE__ */ React.createElement("b", { style: { color: "#1b5e20" } }, INR(preview.g))), /* @__PURE__ */ React.createElement("span", null, "PF: ", /* @__PURE__ */ React.createElement("b", null, INR(preview.pfE))), /* @__PURE__ */ React.createElement("span", null, "PT: ", /* @__PURE__ */ React.createElement("b", null, INR(preview.pt))), /* @__PURE__ */ React.createElement("span", null, "Net: ", /* @__PURE__ */ React.createElement("b", { style: { color: "#1b5e20" } }, INR(preview.net))));
+      const preview = calcPay(
+        {
+          ...BLANK_EMP,
+          ...qaData,
+          basic: +qaData.basic || 0,
+          hra: +qaData.hra || 0,
+          conv: +qaData.conv || 0,
+          med: +qaData.med || 0,
+          spl: +qaData.spl || 0,
+          lta: +qaData.lta || 0,
+          pf: !!qaData.pf,
+          esic: !!qaData.esic,
+          pt: !!qaData.pt,
+          lwf: !!qaData.lwf
+        },
+        0,
+        pol2,
+        payMonth,
+        payYear
+      );
+      if (preview.net < 0) return /* @__PURE__ */ React.createElement("div", { style: { background: "#ffebee", border: "1px solid #ef9a9a", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#c62828", fontWeight: 600 } }, "\u26A0 Deductions exceed gross. Please check the salary components.");
+      return /* @__PURE__ */ React.createElement("div", { style: { background: "#e8f5e9", border: "1px solid #a5d6a7", borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 14, flexWrap: "wrap", fontSize: 13 } }, /* @__PURE__ */ React.createElement("span", null, "Gross ", /* @__PURE__ */ React.createElement("b", { style: { color: "#1b5e20", fontSize: 14 } }, "\u20B9", preview.g.toLocaleString("en-IN"))), /* @__PURE__ */ React.createElement("span", null, "Ded ", /* @__PURE__ */ React.createElement("b", { style: { color: "#c62828" } }, "-\u20B9", preview.ded.toLocaleString("en-IN"))), /* @__PURE__ */ React.createElement("span", null, "Net Pay ", /* @__PURE__ */ React.createElement("b", { style: { color: "#1b5e20", fontSize: 15 } }, "\u20B9", preview.net.toLocaleString("en-IN")))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#555", marginTop: 3 } }, qaData.pf && `PF \u20B9${Math.min(Math.round((+qaData.basic || 0) * 0.12), 1800)}`, qaData.pt && preview.pt > 0 && ` \xB7 PT \u20B9${preview.pt}`, qaData.esic && preview.esE > 0 && ` \xB7 ESIC \u20B9${preview.esE}`, preview.tds > 0 && ` \xB7 TDS \u20B9${Math.round(preview.tds)} (est)`));
     } catch (e) {
       return null;
     }
-  })()), /* @__PURE__ */ React.createElement("div", { style: { background: "#f8f9ff", border: "1px solid #c5cae9", borderRadius: 10, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#1a237e", marginBottom: 10 } }, "\u{1F464} Role & Status"), [
-    { k: "desig", label: "Designation", type: "text", ph: "Software Engineer" },
-    { k: "dept", label: "Department", type: "select", opts: ["Engineering", "Finance", "HR", "Marketing", "Operations", "Admin", "Sales", "Legal", "Other"] },
-    { k: "status", label: "Status", type: "select", opts: ["Active", "Inactive", "Resigned", "Terminated", "On Leave"] },
-    { k: "cat", label: "Category", type: "select", opts: ["Permanent", "Contractual", "Probation", "Intern", "Part-time"] }
-  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k, style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), f.type === "select" ? /* @__PURE__ */ React.createElement(
+  })(), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff8f0", border: "1px solid #ffcc80", borderRadius: 8, padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 5, textTransform: "uppercase" } }, "Work State (for PT & LWF)"), /* @__PURE__ */ React.createElement(
     "select",
     {
-      value: qf[f.k] || "",
-      onChange: (e) => setQf((p) => ({ ...p, [f.k]: e.target.value })),
-      style: { width: "100%", padding: "8px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", background: "#fff" }
-    },
-    f.opts.map((o) => /* @__PURE__ */ React.createElement("option", { key: o, value: o }, o))
-  ) : /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      type: "text",
-      value: qf[f.k] || "",
-      onChange: (e) => setQf((p) => ({ ...p, [f.k]: e.target.value })),
-      placeholder: f.ph || "",
-      style: { width: "100%", padding: "8px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
-    }
-  )))), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff8f0", border: "1px solid #ffcc80", borderRadius: 10, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#e65100", marginBottom: 10 } }, "\u{1F4CD} Work State & Statutory"), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, "Work State (drives PT & LWF)"), /* @__PURE__ */ React.createElement(
-    "select",
-    {
-      value: qf.workState || "",
-      onChange: (e) => setQf((p) => ({ ...p, workState: e.target.value })),
-      style: { width: "100%", padding: "8px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none", background: "#fff" }
-    },
-    /* @__PURE__ */ React.createElement("option", { value: "" }, "\u2014 Company default (", ((_ca = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _ca.state) || "Maharashtra", ") \u2014"),
-    ["Andhra Pradesh", "Assam", "Bihar", "Chhattisgarh", "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu & Kashmir", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"].map((s2) => /* @__PURE__ */ React.createElement("option", { key: s2, value: s2 }, s2))
-  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: !!qf.pf, onChange: (e) => setQf((p) => ({ ...p, pf: e.target.checked })), style: { width: 15, height: 15 } }), /* @__PURE__ */ React.createElement("span", null, "PF Enrolled")), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: !!qf.esic, onChange: (e) => setQf((p) => ({ ...p, esic: e.target.checked })), style: { width: 15, height: 15 } }), /* @__PURE__ */ React.createElement("span", null, "ESIC Enrolled")), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: !!qf.pt, onChange: (e) => setQf((p) => ({ ...p, pt: e.target.checked })), style: { width: 15, height: 15 } }), /* @__PURE__ */ React.createElement("span", null, "PT Applicable")))), /* @__PURE__ */ React.createElement("div", { style: { background: "#f5f5f5", border: "1px solid #e0e0e0", borderRadius: 10, padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#555", marginBottom: 10 } }, "\u{1F4DE} Contact"), [
-    { k: "phone", label: "Mobile", ph: "9876543210" },
-    { k: "email", label: "Work Email", ph: "name@company.com" }
-  ].map((f) => /* @__PURE__ */ React.createElement("div", { key: f.k, style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 4, textTransform: "uppercase" } }, f.label), /* @__PURE__ */ React.createElement(
-    "input",
-    {
-      value: qf[f.k] || "",
-      onChange: (e) => setQf((p) => ({ ...p, [f.k]: e.target.value })),
-      placeholder: f.ph,
-      style: { width: "100%", padding: "8px 12px", border: "1.5px solid #ddd", borderRadius: 8, fontSize: 13, outline: "none" }
-    }
-  )))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "4px 0" } }, /* @__PURE__ */ React.createElement(
-    "button",
-    {
-      onClick: () => {
-        setQuickEdit(null);
-        setEditEmp(quickEdit);
-        setShowEmpForm(true);
+      value: qaData.workState || ((_ca = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _ca.state) || "Maharashtra",
+      onChange: (e) => {
+        const st = e.target.value;
+        const g = (+qaData.basic || 0) * 1.6;
+        const rec = getStatutoryRecommendation(qaData.basic || 0, g, st);
+        setQaData((p) => ({ ...p, workState: st, pt: rec.pt.default, lwf: rec.lwf.default }));
       },
-      style: { background: "none", border: "none", color: "#1a237e", fontSize: 12, cursor: "pointer", textDecoration: "underline" }
+      style: { width: "100%", padding: "8px 12px", border: "1px solid #ffcc80", borderRadius: 7, fontSize: 13, outline: "none" }
     },
-    "Open full employee form \u2192"
-  ))), /* @__PURE__ */ React.createElement("div", { style: { padding: "14px 20px", borderTop: "1px solid #f0f0f0", display: "flex", gap: 10, background: "#f8f9ff" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQuickEdit(null), style: { flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: "pointer", fontSize: 13, color: "#666" } }, "Cancel"), /* @__PURE__ */ React.createElement("button", { onClick: async () => {
-    var _a2;
-    if (!quickEdit.email) {
-      showToast("Add employee email first, then create login", "warn");
+    ["Andhra Pradesh", "Assam", "Bihar", "Chhattisgarh", "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu & Kashmir", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal"].map((s2) => /* @__PURE__ */ React.createElement("option", { key: s2, value: s2 }, s2))
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, paddingTop: 4 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setQaStep(2), style: { flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", cursor: "pointer", fontSize: 13, color: "#666", fontWeight: 600 } }, "\u2190 Back"), /* @__PURE__ */ React.createElement("button", { onClick: async () => {
+    var _a2, _b2;
+    if (!qaData.basic && !qaData._ctcVal) {
+      alert("Please enter salary details first");
       return;
     }
-    const r = await createEmployeeAccount(quickEdit, (co == null ? void 0 : co.name) || "Your Company");
-    if (r.success || ((_a2 = r.authErr) == null ? void 0 : _a2.includes("already registered"))) {
-      setInviteResult({ name: quickEdit.name, email: r.email, password: r.password, emailSent: r.emailSent, needsConfirmation: true });
-      showToast("Login account created for " + quickEdit.name + " \u2713");
-    } else {
-      showToast("Error: " + (r.authErr || "Could not create account"), "warn");
-    }
-  }, style: { padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 10, background: "#e8eaf6", color: "#1a237e", fontWeight: 600, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" } }, "\u{1F511} Create Login"), /* @__PURE__ */ React.createElement("button", { onClick: async () => {
-    const updated = { ...quickEdit, ...qf };
-    delete updated._hraManual;
-    setEmps((p) => p.map((e) => e.id === updated.id ? updated : e));
-    setQuickEdit(null);
+    const newEmp = {
+      ...BLANK_EMP,
+      ...qaData,
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+      doj: qaData.doj || TODAY,
+      status: qaData.status || "Active",
+      cat: qaData.cat || "Permanent",
+      pf: !!qaData.pf,
+      esic: !!qaData.esic,
+      pt: !!qaData.pt,
+      lwf: !!qaData.lwf,
+      workState: qaData.workState || ((_a2 = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _a2.state) || "Maharashtra"
+    };
+    setEmps((p) => [...p, newEmp]);
+    setQuickAdd(false);
+    setQaStep(1);
+    setQaData({ doj: TODAY, status: "Active", cat: "Permanent", pt: true, pf: true, esic: false, workState: ((_b2 = pol2 == null ? void 0 : pol2.pt) == null ? void 0 : _b2.state) || "Maharashtra" });
+    showToast("Employee " + newEmp.name + " added \u2713");
     try {
-      await db.updateEmp(updated);
-      showToast("Employee updated \u2713");
+      await db.addEmp(newEmp);
     } catch (e) {
-      const msg = e.message || "";
-      if (msg.includes("column")) {
-        showToast("DB column missing \u2014 run Supabase setup SQL \u2192 ALTER TABLE", "warn");
-      } else {
-        showToast("DB save failed: " + msg.slice(0, 60), "warn");
-      }
+      console.warn("DB save:", e.message);
     }
-  }, style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2713 Save Changes")))), /* @__PURE__ */ React.createElement("style", null, `@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`));
+  }, style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2713 Save Employee"))), /* @__PURE__ */ React.createElement("style", null, `@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`)))));
 }
 const UI_C = "#1a237e", UI_G = "#1b5e20", UI_R = "#c62828";
 const EpCard = ({ children, s = {} }) => /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: "18px 20px", ...s } }, children);
@@ -7401,12 +7316,16 @@ function calcSalaryFromCTC(annualCTC, structure) {
   const s = structure || {};
   const basicPct = (s.basicPct != null ? s.basicPct : 50) / 100;
   const hraPct = (s.hraPct != null ? s.hraPct : 40) / 100;
-  const conv = s.conv || 0;
-  const med = s.med || 0;
-  const lta = s.lta || 0;
   const monthly = Math.round(annualCTC / 12);
   const basic = Math.round(monthly * basicPct);
   const hra = Math.round(basic * hraPct);
+  const remaining = Math.max(0, monthly - basic - hra);
+  const rawConv = s.conv || 0, rawMed = s.med || 0, rawLta = s.lta || 0;
+  const fixedTotal = rawConv + rawMed + rawLta;
+  const scale = fixedTotal > 0 && fixedTotal > remaining ? remaining / fixedTotal : 1;
+  const conv = Math.round(rawConv * scale);
+  const med = Math.round(rawMed * scale);
+  const lta = Math.round(rawLta * scale);
   const spl = Math.max(0, monthly - basic - hra - conv - med - lta);
   return {
     monthly,
