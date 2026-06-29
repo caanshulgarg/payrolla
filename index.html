@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v18.9 -->
+<!-- PAYROLLA v18.10 — FULL AUDIT FIXES -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.9...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.10...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -353,6 +353,7 @@ function fromDbEmp(e) {
 }
 function toDbEmp(e) {
   return {
+    ...e.id ? { id: e.id } : {},
     code: e.code,
     name: e.name,
     dob: e.dob || null,
@@ -5535,7 +5536,27 @@ Run payroll anyway?`
           /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 5 } }, /* @__PURE__ */ React.createElement(Btn, { sz: "sm", onClick: () => {
             setQuickEdit(e);
             setQf({ basic: e.basic, hra: e.hra, conv: e.conv, med: e.med, spl: e.spl, lta: e.lta || 0, desig: e.desig, dept: e.dept, status: e.status, cat: e.cat, workState: e.workState, pf: e.pf, esic: e.esic, pt: e.pt, lwf: e.lwf || false, phone: e.phone, email: e.email });
-          }, s: { background: "#1a237e", color: "#fff" } }, "\u270F Quick Edit"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "ghost", onClick: () => setSlip({ emp: e, month: payMonth, year: payYear }) }, "Slip"))
+          }, s: { background: "#1a237e", color: "#fff" } }, "\u270F Quick Edit"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "ghost", onClick: () => setSlip({ emp: e, month: payMonth, year: payYear }) }, "Slip"), /* @__PURE__ */ React.createElement(
+            Btn,
+            {
+              sz: "sm",
+              v: "ghost",
+              s: { color: e.status === "Active" ? "#c62828" : "#1b5e20" },
+              onClick: async () => {
+                const action = e.status === "Active" ? "Deactivate" : "Re-activate";
+                if (!confirm(`${action} ${e.name}?`)) return;
+                const newStatus = e.status === "Active" ? "Inactive" : "Active";
+                setEmps((p2) => p2.map((x) => x.id === e.id ? { ...x, status: newStatus } : x));
+                showToast(`${e.name} ${action.toLowerCase()}d`);
+                try {
+                  await db.updateEmp({ ...e, status: newStatus });
+                } catch (err) {
+                  console.warn(err);
+                }
+              }
+            },
+            e.status === "Active" ? "Deactivate" : "Activate"
+          ))
         ];
       })
     }
