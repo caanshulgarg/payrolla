@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v16.5 — LOGIN + POLICY FULLY FIXED -->
+<!-- PAYROLLA v16.7 — LOGIN 422 FIXED + POLICY LOCALSTORAGE -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in — Indian Payroll & HRMS</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>"/>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v16.5...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v16.7...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -22,11 +22,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
 });
 async function sbLogin(email, password) {
-  const { data, error } = await sb.auth.signInWithPassword({
-    email,
-    password,
-    options: { persistSession: true }
-  });
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
   if (error) {
     if (error.message.toLowerCase().includes("email not confirmed") || error.message.toLowerCase().includes("confirm")) {
       throw new Error("Please confirm your email first \u2014 check your inbox for a confirmation link from Supabase. Or ask HR to disable email confirmation in Supabase settings.");
@@ -142,24 +138,55 @@ const db = {
   },
   // Policies (whole JSON blob per company)
   async getPolicies() {
-    const { data } = await sb.from("company_policies").select("policies").order("updated_at", { ascending: false }).limit(1).maybeSingle();
-    return (data == null ? void 0 : data.policies) || {};
+    try {
+      const { data: d1 } = await sb.from("company_policies").select("policies").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+      if (d1 == null ? void 0 : d1.policies) {
+        try {
+          localStorage.setItem("payrolla_pol", JSON.stringify(d1.policies));
+        } catch (e) {
+        }
+        return d1.policies;
+      }
+    } catch (e) {
+    }
+    try {
+      const { data: d2 } = await sb.from("company_policies").select("policies").limit(1).maybeSingle();
+      if (d2 == null ? void 0 : d2.policies) {
+        try {
+          localStorage.setItem("payrolla_pol", JSON.stringify(d2.policies));
+        } catch (e) {
+        }
+        return d2.policies;
+      }
+    } catch (e) {
+    }
+    try {
+      const cached = localStorage.getItem("payrolla_pol");
+      if (cached) return JSON.parse(cached);
+    } catch (e) {
+    }
+    return {};
   },
   async savePolicies(pol2) {
-    const { data: existing } = await sb.from("company_policies").select("id,company_id").order("updated_at", { ascending: false }).limit(1).maybeSingle();
-    if (existing == null ? void 0 : existing.id) {
-      await sb.from("company_policies").update({ policies: pol2, updated_at: /* @__PURE__ */ new Date() }).eq("id", existing.id);
-    } else {
-      try {
-        const { data: co } = await sb.from("companies").select("id").limit(1).maybeSingle();
-        if (co == null ? void 0 : co.id) {
-          await sb.from("company_policies").insert({ company_id: co.id, policies: pol2, updated_at: /* @__PURE__ */ new Date() });
-        } else {
-          await sb.from("company_policies").insert({ policies: pol2, updated_at: /* @__PURE__ */ new Date() });
+    try {
+      localStorage.setItem("payrolla_pol", JSON.stringify(pol2));
+    } catch (e) {
+    }
+    try {
+      const { data: existing } = await sb.from("company_policies").select("id").limit(1).maybeSingle();
+      if (existing == null ? void 0 : existing.id) {
+        await sb.from("company_policies").update({ policies: pol2 }).eq("id", existing.id);
+      } else {
+        try {
+          const { data: co } = await sb.from("companies").select("id").limit(1).maybeSingle();
+          if (co == null ? void 0 : co.id) await sb.from("company_policies").insert({ company_id: co.id, policies: pol2 });
+          else await sb.from("company_policies").insert({ policies: pol2 });
+        } catch (e) {
+          await sb.from("company_policies").insert({ policies: pol2 });
         }
-      } catch (e) {
-        await sb.from("company_policies").insert({ policies: pol2, updated_at: /* @__PURE__ */ new Date() });
       }
+    } catch (e) {
+      console.warn("savePolicies DB:", e.message);
     }
   },
   // Attendance
@@ -4895,7 +4922,19 @@ function HRAdmin({ user, onLogout }) {
         if (lnList.length) setLoans(lnList.map(fromDbLoan));
         if (reList.length) setReimb(reList.map(fromDbReimb));
         if (runList.length) setRuns(runList.map(fromDbRun));
+        const lsPol = (() => {
+          try {
+            const s2 = localStorage.getItem("payrolla_pol");
+            return s2 ? JSON.parse(s2) : null;
+          } catch (e) {
+            return null;
+          }
+        })();
         if (polData && Object.keys(polData).length) setPol2((p) => ({ ...p, ...polData }));
+        else if (lsPol && Object.keys(lsPol).length) {
+          setPol2((p) => ({ ...p, ...lsPol }));
+          console.log("Policies loaded from browser cache");
+        }
         if (coData) setCo({ ...coData, pf: coData.pf_reg, esic: coData.esic_reg, pt: coData.pt_reg, addr: coData.addr, pin: coData.pin });
         setDbReady(true);
         showToast("Connected to Payrolla Database \u2713");
