@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v18.10 — FULL AUDIT FIXES -->
+<!-- PAYROLLA v18.11 — SALARY CALCULATIONS FIXED -->
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.10...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:32px;font-weight:900;margin-bottom:8px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.6">Loading v18.11...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -799,7 +799,12 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   const mwCategory = e.mwCategory || "unskilled";
   const mwCheck = typeof checkMinWages !== "undefined" ? checkMinWages(g, mwCategory) : { violation: false, shortfall: 0, minWage: 0 };
   const regime = e.itRegime || ((_r = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _r.regime) || "new";
-  const annualGross = (basic + hra + conv + med + spl + lta) * 12;
+  const grossFull12 = (basic + hra + conv + med + spl + lta) * 12;
+  const pm0 = runMonth || (/* @__PURE__ */ new Date()).getMonth() + 1;
+  const remM0 = pm0 >= 4 ? 16 - pm0 : 4 - pm0;
+  const safeRemM0 = Math.max(1, Math.min(remM0, 12));
+  const fullMonthsAfter = Math.max(0, safeRemM0 - 1);
+  const annualGross = joiningProration < 1 ? g + fullMonthsAfter * grossFull : grossFull12;
   const stdDed = regime === "new" ? 75e3 : 5e4;
   let hraExemption = 0;
   if (regime === "old") {
@@ -854,11 +859,12 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   if (regime === "new") surcharge = Math.min(surcharge, taxAfterRebate * 0.25);
   const cessRate = (((_s = P_pol == null ? void 0 : P_pol.tds) == null ? void 0 : _s.cess) || 4) / 100;
   const annTax = Math.round((taxAfterRebate + surcharge) * (1 + cessRate));
-  const pm = runMonth || (/* @__PURE__ */ new Date()).getMonth() + 1;
-  const remainingMonths = pm >= 4 ? 16 - pm : 4 - pm;
-  const safeMonths = Math.max(1, Math.min(remainingMonths, 12));
+  const pm = pm0;
+  const remainingMonths = remM0;
+  const safeMonths = safeRemM0;
   const tdsSuggested = Math.round(annTax / safeMonths);
-  const tds = e.tdsOverride && +e.tdsOverride > 0 ? +e.tdsOverride : tdsSuggested;
+  const tdsUncapped = e.tdsOverride && +e.tdsOverride > 0 ? +e.tdsOverride : tdsSuggested;
+  const tds = Math.min(tdsUncapped, Math.max(0, g - pfE - esE - pt - lwfE));
   const tdsDetail = {
     ti,
     slabTax,
@@ -1350,9 +1356,10 @@ function SalarySlip({ slip, emp: empProp, month: monthProp, year: yearProp, lopD
   const summary = getMonthSummary(emp.id, monthStr, attData, []);
   const lopDays = summary.lop || lopDaysInit || 0;
   const p = calcPay(emp, lopDays, pol, month, year);
+  const actualPaidDays = p.joiningProration < 1 ? Math.round(p.joiningProration * (summary.total || 30)) : summary.netPaid || summary.working || 26;
   const perDay = summary.working > 0 ? p.g / summary.working : 0;
-  const earned = summary.working > 0 ? Math.round(perDay * summary.netPaid) : p.g;
-  const lopAmt = p.g - earned;
+  const earned = p.g;
+  const lopAmt = lopDays > 0 ? p.lopDeductionAmt : 0;
   const ac = (co == null ? void 0 : co.accentColor) || "#1a237e";
   const compName = (co == null ? void 0 : co.name) || "Company Name";
   const html = `<!DOCTYPE html>
@@ -1493,7 +1500,8 @@ td.amount{text-align:right;font-weight:600}
   <div>
     <table>
       <tr><th colspan="2">Earnings</th></tr>
-      ${[["Basic Salary", +emp.basic || 0], ["House Rent Allowance (HRA)", +emp.hra || 0], ["Conveyance Allowance", +emp.conv || 0], ["Medical Allowance", +emp.med || 0], ["Special Allowance", +emp.spl || 0], ["LTA", +emp.lta || 0]].filter(([, v]) => v > 0).map(([l, v]) => `<tr><td>${l}</td><td class="amount">\u20B9${v.toLocaleString("en-IN")}</td></tr>`).join("")}
+      ${[["Basic Salary", p.basic], ["House Rent Allowance (HRA)", p.hra], ["Conveyance Allowance", p.conv], ["Medical Allowance", p.med], ["Special Allowance", p.spl], ["LTA", p.lta]].filter(([, v]) => v > 0).map(([l, v]) => v > 0 ? `<tr><td>${l}</td><td class="amount">\u20B9${Math.round(v).toLocaleString("en-IN")}</td></tr>` : "").join("")}
+      ${p.joiningProration < 1 && p.joiningNote ? `<tr style="background:#fff8e1"><td colspan="2" style="font-size:10px;color:#e65100;padding:5px 10px">\u2139 Joining Month: ${p.joiningNote} \u2014 salary prorated accordingly</td></tr>` : ""}
       ${lopDays > 0 ? `<tr><td style="color:#c62828">LOP Deduction (${lopDays} days)</td><td class="amount" style="color:#c62828">- \u20B9${Math.round(lopAmt).toLocaleString("en-IN")}</td></tr>` : ""}
       <tr class="subtotal"><td>Gross Earned Salary</td><td class="amount">\u20B9${earned.toLocaleString("en-IN")}</td></tr>
     </table>
@@ -1529,7 +1537,7 @@ td.amount{text-align:right;font-weight:600}
         <tr class="deduction tds-row">
           <td>
             <b>TDS \u2014 Income Tax (${((_d = pol == null ? void 0 : pol.tds) == null ? void 0 : _d.regime) || "new"} regime)</b>
-            <span class="sub-note">Annual income: \u20B9${Math.round(p.ti || 0).toLocaleString("en-IN")} \xB7 Tax: \u20B9${Math.round(p.annTax || 0).toLocaleString("en-IN")}/yr \xB7 Std. deduction \u20B975,000 applied</span>
+            <span class="sub-note">Annual income: \u20B9${Math.round(p.ti || 0).toLocaleString("en-IN")} \xB7 Tax: \u20B9${Math.round(p.annTax || 0).toLocaleString("en-IN")}/yr${p.joiningProration < 1 ? " \xB7 <b>Joining month \u2014 excess TDS deferred to next month</b>" : ""} \xB7 Std. deduction \u20B975,000 applied</span>
           </td>
           <td class="amount">\u20B9${p.tds.toLocaleString("en-IN")}</td>
         </tr>` : ""}
