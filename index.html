@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v18.15 FINAL -->
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Payrolla.in — Indian Payroll</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3;transform:scale(.8)}to{opacity:1;transform:scale(1)}}</style>
+<!-- PAYROLLA v19.0 — MULTI-TENANCY -->
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Payrolla.in</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:8px;letter-spacing:-1px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:13px;opacity:.5;margin-bottom:24px">Indian Payroll SaaS</div><div style="display:flex;gap:6px"><div style="width:8px;height:8px;border-radius:4px;background:#64b5f6;animation:pulse .6s ease-in-out infinite alternate"></div><div style="width:8px;height:8px;border-radius:4px;background:#64b5f6;animation:pulse .6s ease-in-out .2s infinite alternate"></div><div style="width:8px;height:8px;border-radius:4px;background:#64b5f6;animation:pulse .6s ease-in-out .4s infinite alternate"></div></div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.0 — Loading...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -15,17 +16,17 @@
 <script>const{useState,useEffect,useCallback,useRef,useMemo}=React;const{createClient}=supabase;</script>
 <script>
 class ErrorBoundary extends React.Component{
-  constructor(p){super(p);this.state={error:null,info:null};}
+  constructor(p){super(p);this.state={error:null};}
   static getDerivedStateFromError(e){return{error:e};}
-  componentDidCatch(e,i){console.error('Payrolla Error:',e,i);this.setState({info:i});}
+  componentDidCatch(e,i){console.error('Payrolla:',e,i);}
   render(){
     if(this.state.error){
       const e=this.state.error;
       return React.createElement('div',{style:{padding:40,fontFamily:'monospace',background:'#fff',minHeight:'100vh'}},
-        React.createElement('h2',{style:{color:'#c62828',marginBottom:12}},'⚠️ App Error — Please Screenshot & Share'),
+        React.createElement('h2',{style:{color:'#c62828',marginBottom:12}},'Error — Screenshot & Share'),
         React.createElement('div',{style:{background:'#ffebee',padding:16,borderRadius:8,marginBottom:12,fontWeight:'bold',fontSize:14}},e.message),
-        React.createElement('pre',{style:{background:'#f5f5f5',padding:16,fontSize:11,overflow:'auto',borderRadius:8,maxHeight:400}},e.stack),
-        React.createElement('button',{onClick:()=>window.location.reload(),style:{marginTop:16,padding:'10px 20px',background:'#1a237e',color:'#fff',border:'none',borderRadius:8,cursor:'pointer',fontSize:14}},'🔄 Reload App')
+        React.createElement('pre',{style:{background:'#f5f5f5',padding:16,fontSize:11,overflow:'auto',borderRadius:8,maxHeight:300}},e.stack),
+        React.createElement('button',{onClick:()=>window.location.reload(),style:{marginTop:16,padding:'10px 20px',background:'#1a237e',color:'#fff',border:'none',borderRadius:8,cursor:'pointer'}},'Reload')
       );
     }
     return this.props.children;
@@ -134,31 +135,32 @@ async function sbLogout() {
 }
 const db = {
   // Employees
-  async getEmps() {
-    const { data } = await sb.from("employees").select("*").order("code");
+  async getEmps(companyId) {
+    const { data } = await sb.from("employees").select("*").eq("company_id", companyId).order("code");
     return data || [];
   },
-  async addEmp(e) {
-    const row = toDbEmp(e);
+  async addEmp(e, companyId) {
+    const row = { ...toDbEmp(e), company_id: companyId };
     const { data, error } = await sb.from("employees").insert(row).select().maybeSingle();
     if (error) throw new Error(error.message);
     if (data) return data;
-    const { data: found } = await sb.from("employees").select("*").eq("code", e.code).maybeSingle();
+    const { data: found } = await sb.from("employees").select("*").eq("code", e.code).eq("company_id", companyId).maybeSingle();
     return found || row;
   },
-  async updateEmp(e) {
-    const { data, error } = await sb.from("employees").update(toDbEmp(e)).eq("id", e.id).select().single();
+  async updateEmp(e, companyId) {
+    const { data, error } = await sb.from("employees").update(toDbEmp(e)).eq("id", e.id).eq("company_id", companyId).select().single();
     if (error) throw new Error(error.message);
     return data;
   },
-  async deactivateEmp(id) {
-    await sb.from("employees").update({ status: "Inactive", dol: TODAY }).eq("id", id);
+  async deactivateEmp(id, companyId) {
+    await sb.from("employees").update({ status: "Inactive", dol: TODAY }).eq("id", id).eq("company_id", companyId);
   },
   // Policies (whole JSON blob per company)
-  async getPolicies() {
+  async getPolicies(companyId) {
     const ok = (p) => p && typeof p === "object" && Object.keys(p).length > 0;
+    const cacheKey = "payrolla_pol_" + (companyId || "default");
     try {
-      const s = localStorage.getItem("payrolla_pol");
+      const s = localStorage.getItem(cacheKey);
       if (s) {
         const p = JSON.parse(s);
         if (ok(p)) return p;
@@ -166,85 +168,70 @@ const db = {
     } catch (e) {
     }
     try {
-      const { data } = await sb.from("company_policies").select("policies").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+      const { data } = await sb.from("company_policies").select("policies").eq("company_id", companyId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
       if (ok(data == null ? void 0 : data.policies)) {
         try {
-          localStorage.setItem("payrolla_pol", JSON.stringify(data.policies));
+          localStorage.setItem(cacheKey, JSON.stringify(data.policies));
         } catch (e) {
         }
         return data.policies;
       }
     } catch (e) {
-      try {
-        const { data } = await sb.from("company_policies").select("policies").limit(1).maybeSingle();
-        if (ok(data == null ? void 0 : data.policies)) {
-          try {
-            localStorage.setItem("payrolla_pol", JSON.stringify(data.policies));
-          } catch (e2) {
-          }
-          return data.policies;
-        }
-      } catch (e2) {
-      }
     }
     return {};
   },
-  async savePolicies(pol) {
+  async savePolicies(pol, companyId) {
+    const cacheKey = "payrolla_pol_" + (companyId || "default");
     try {
-      localStorage.setItem("payrolla_pol", JSON.stringify(pol));
+      localStorage.setItem(cacheKey, JSON.stringify(pol));
     } catch (e) {
     }
     try {
-      const { data: existing } = await sb.from("company_policies").select("id").limit(1).maybeSingle();
+      const { data: existing } = await sb.from("company_policies").select("id").eq("company_id", companyId).limit(1).maybeSingle();
       if (existing == null ? void 0 : existing.id) {
-        await sb.from("company_policies").update({ policies: pol }).eq("id", existing.id);
+        await sb.from("company_policies").update({ policies: pol }).eq("id", existing.id).eq("company_id", companyId);
       } else {
-        try {
-          const { data: co } = await sb.from("companies").select("id").limit(1).maybeSingle();
-          if (co == null ? void 0 : co.id) await sb.from("company_policies").insert({ company_id: co.id, policies: pol });
-          else await sb.from("company_policies").insert({ policies: pol });
-        } catch (e) {
-          await sb.from("company_policies").insert({ policies: pol });
-        }
+        await sb.from("company_policies").insert({ company_id: companyId, policies: pol });
       }
     } catch (e) {
       console.warn("savePolicies DB:", e.message);
     }
   },
   // Attendance
-  async getAtt(date) {
-    const { data } = await sb.from("attendance").select("*").eq("date", date);
+  async getAtt(date, companyId) {
+    const { data } = await sb.from("attendance").select("*").eq("date", date).eq("company_id", companyId);
     return data || [];
   },
-  async getMonthAtt(m, y) {
-    const { data } = await sb.from("attendance").select("*").gte("date", `${y}-${String(m).padStart(2, "0")}-01`).lte("date", `${y}-${String(m).padStart(2, "0")}-31`);
+  async getMonthAtt(m, y, companyId) {
+    const { data } = await sb.from("attendance").select("*").eq("company_id", companyId).gte("date", `${y}-${String(m).padStart(2, "0")}-01`).lte("date", `${y}-${String(m).padStart(2, "0")}-31`);
     return data || [];
   },
-  async markAtt(employeeId, date, status, inTime, outTime, hrs, ot) {
-    await sb.from("attendance").upsert({ employee_id: employeeId, date, status, in_time: inTime || null, out_time: outTime || null, hrs: hrs || 0, ot: ot || 0 }, { onConflict: "employee_id,date" });
+  async markAtt(employeeId, date, status, inTime, outTime, hrs, ot, companyId) {
+    await sb.from("attendance").upsert({ employee_id: employeeId, company_id: companyId, date, status, in_time: inTime || null, out_time: outTime || null, hrs: hrs || 0, ot: ot || 0 }, { onConflict: "employee_id,date" });
   },
-  async bulkAtt(empIds, date, status) {
+  async bulkAtt(empIds, date, status, companyId) {
     const inT = status === "P" || status === "WFH" ? "09:00" : null;
     const outT = status === "P" || status === "WFH" ? "18:00" : null;
     const hrs = status === "P" || status === "WFH" ? 9 : status === "HD" ? 4.5 : 0;
     await sb.from("attendance").upsert(
-      empIds.map((id) => ({ employee_id: id, date, status, in_time: inT, out_time: outT, hrs, ot: 0 })),
+      empIds.map((id) => ({ employee_id: id, company_id: companyId, date, status, in_time: inT, out_time: outT, hrs, ot: 0 })),
       { onConflict: "employee_id,date" }
     );
   },
   // Payroll
-  async getRuns() {
-    const { data } = await sb.from("payroll_runs").select("*").order("year", { ascending: false }).order("month", { ascending: false });
+  async getRuns(companyId) {
+    const { data } = await sb.from("payroll_runs").select("*").eq("company_id", companyId).order("year", { ascending: false }).order("month", { ascending: false });
     return data || [];
   },
-  async saveRun(month, year, results) {
+  async saveRun(month, year, results, companyId) {
     const total = results.reduce((s, e) => s + (e.netFinal || e.net || 0), 0);
     const gross = results.reduce((s, e) => s + (e.g || 0), 0);
-    const { data: run } = await sb.from("payroll_runs").upsert({ month, year, total, gross, emp_count: results.length }, { onConflict: "company_id,month,year" }).select().single();
+    const { data: run } = await sb.from("payroll_runs").upsert({ company_id: companyId, month, year, total, gross, emp_count: results.length }, { onConflict: "company_id,month,year" }).select().single();
     if (run == null ? void 0 : run.id) {
       await sb.from("payroll_details").delete().eq("run_id", run.id);
       await sb.from("payroll_details").insert(results.map((e) => ({
         run_id: run.id,
+        company_id: companyId,
         employee_id: e.id,
         month,
         year,
@@ -274,47 +261,47 @@ const db = {
     return run;
   },
   // Leaves
-  async getLeaves() {
-    const { data } = await sb.from("leaves").select("*").order("created_at", { ascending: false });
+  async getLeaves(companyId) {
+    const { data } = await sb.from("leaves").select("*").eq("company_id", companyId).order("created_at", { ascending: false });
     return data || [];
   },
-  async addLeave(l) {
-    const { data } = await sb.from("leaves").insert({ employee_id: l.eid, ename: l.ename, type: l.type, from_date: l.from, to_date: l.to, days: l.days, reason: l.reason }).select().single();
+  async addLeave(l, companyId) {
+    const { data } = await sb.from("leaves").insert({ employee_id: l.eid, company_id: companyId, ename: l.ename, type: l.type, from_date: l.from, to_date: l.to, days: l.days, reason: l.reason }).select().single();
     return data;
   },
-  async actionLeave(id, status) {
-    await sb.from("leaves").update({ status, actioned_on: /* @__PURE__ */ new Date() }).eq("id", id);
+  async actionLeave(id, status, companyId) {
+    await sb.from("leaves").update({ status, actioned_on: /* @__PURE__ */ new Date() }).eq("id", id).eq("company_id", companyId);
   },
   // Loans
-  async getLoans() {
-    const { data } = await sb.from("loans").select("*").order("created_at", { ascending: false });
+  async getLoans(companyId) {
+    const { data } = await sb.from("loans").select("*").eq("company_id", companyId).order("created_at", { ascending: false });
     return data || [];
   },
-  async addLoan(l) {
-    const { data } = await sb.from("loans").insert({ employee_id: l.eid, ename: l.ename, type: l.type, amount: l.amount, emi: l.emi, tenure: l.tenure, remaining: l.tenure, reason: l.reason }).select().single();
+  async addLoan(l, companyId) {
+    const { data } = await sb.from("loans").insert({ employee_id: l.eid, company_id: companyId, ename: l.ename, type: l.type, amount: l.amount, emi: l.emi, tenure: l.tenure, remaining: l.tenure, reason: l.reason }).select().single();
     return data;
   },
-  async actionLoan(id, status) {
-    await sb.from("loans").update({ status }).eq("id", id);
+  async actionLoan(id, status, companyId) {
+    await sb.from("loans").update({ status }).eq("id", id).eq("company_id", companyId);
   },
   // Reimbursements
-  async getReimb() {
-    const { data } = await sb.from("reimbursements").select("*").order("applied_on", { ascending: false });
+  async getReimb(companyId) {
+    const { data } = await sb.from("reimbursements").select("*").eq("company_id", companyId).order("applied_on", { ascending: false });
     return data || [];
   },
-  async addReimb(r) {
-    await sb.from("reimbursements").insert({ employee_id: r.eid, ename: r.ename, type: r.type, amount: r.amount, expense_date: r.date, description: r.desc });
+  async addReimb(r, companyId) {
+    await sb.from("reimbursements").insert({ employee_id: r.eid, company_id: companyId, ename: r.ename, type: r.type, amount: r.amount, expense_date: r.date, description: r.desc });
   },
-  async actionReimb(id, status) {
-    await sb.from("reimbursements").update({ status }).eq("id", id);
+  async actionReimb(id, status, companyId) {
+    await sb.from("reimbursements").update({ status }).eq("id", id).eq("company_id", companyId);
   },
   // Company
-  async getCompany() {
-    const { data } = await sb.from("companies").select("*").single();
+  async getCompany(companyId) {
+    const { data } = await sb.from("companies").select("*").eq("id", companyId).single();
     return data;
   },
-  async saveCompany(co) {
-    await sb.from("companies").update({ ...co, updated_at: /* @__PURE__ */ new Date() }).eq("id", co.id);
+  async saveCompany(co, companyId) {
+    await sb.from("companies").update({ ...co, updated_at: /* @__PURE__ */ new Date() }).eq("id", companyId);
   }
 };
 function fromDbEmp(e) {
@@ -998,11 +985,6 @@ const LOANS0 = [
   { id: "LN1", eid: "E1", ename: "Rajesh Kumar", type: "Personal Loan", amount: 5e4, emi: 5e3, tenure: 10, remaining: 8, reason: "Home renovation", status: "Approved", on: "2025-05-01" },
   { id: "LN2", eid: "E4", ename: "Sunita Patel", type: "Salary Advance", amount: 15e3, emi: 5e3, tenure: 3, remaining: 3, reason: "Medical", status: "Pending", on: "2025-06-20" }
 ];
-const CREDS = [
-  { role: "sa", email: "admin@payrolla.in", password: "Admin@123", name: "Super Admin" },
-  { role: "hr", email: "hr@techcorp.in", password: "Hr@123", name: "HR Admin" },
-  { role: "emp", email: "rajesh.kumar@techcorp.in", password: "Emp@123", name: "Rajesh Kumar", eid: "E1" }
-];
 const P = "#1a237e", PL = "#3949ab", PX = "#e8eaf6", AC = "#00897b", AX = "#e0f2f1", DG = "#c62828", DX = "#ffebee", WN = "#e65100", WX = "#fff3e0", OK = "#2e7d32", OX = "#e8f5e9", MT = "#546e7a", BD = "#e0e0e0", BG = "#f5f6fa", SB = "#0d1b4b";
 const STATUS_COLOR = { P: OK, A: DG, HD: WN, L: "#7b1fa2", WO: MT, H: "#0277bd", OD: "#4e342e" };
 const STATUS_LABEL = { P: "Present", A: "Absent", HD: "Half Day", L: "Late", WO: "Week Off", H: "Holiday", OD: "On Duty" };
@@ -1255,7 +1237,7 @@ function Login({ onLogin, onRegister }) {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
-  const hints = { sa: "admin@payrolla.in / Admin@123", hr: "hr@techcorp.in / Hr@123", emp: "Employee Code & Password (Code@DDMMYYYY)" };
+  const hints = { sa: "Sign in with your Super Admin account", hr: "Sign in with your company email & password", emp: "Use the email HR registered you with" };
   const [loggingIn, setLoggingIn] = useState(false);
   async function go() {
     setErr("");
@@ -1264,53 +1246,21 @@ function Login({ onLogin, onRegister }) {
       try {
         const input = email.trim();
         const inputLower = input.toLowerCase();
-        let empRow = null;
-        let allEmps = null, empErr = null;
-        try {
-          const r1 = await sb.from("employees").select("id,code,name,email,dob,doj,basic,hra,conv,med,spl,lta,pf,esic,pt,lwf,it_regime,work_state,status,dept,desig,cat,shift,pan,phone,acc,ifsc,bank,uan");
-          if (r1.data && r1.data.length > 0) {
-            allEmps = r1.data;
-          }
-          if (r1.error) empErr = r1.error;
-        } catch (e1) {
-          empErr = { message: e1.message };
-        }
-        if (!allEmps || allEmps.length === 0) {
-          try {
-            const r2a = await sb.from("employees").select("*").eq("email", inputLower).maybeSingle();
-            if (r2a.data) {
-              allEmps = [r2a.data];
-            } else {
-              const r2b = await sb.from("employees").select("*").eq("code", input).maybeSingle();
-              if (r2b.data) {
-                allEmps = [r2b.data];
-              } else {
-                const r2c = await sb.from("employees").select("*").eq("code", input.toUpperCase()).maybeSingle();
-                if (r2c.data) {
-                  allEmps = [r2c.data];
-                }
-              }
-            }
-          } catch (e2) {
-          }
-        }
-        if (!allEmps || allEmps.length === 0) {
-          const errDetail = empErr ? " (DB error: " + empErr.message + ")" : " (0 rows returned \u2014 check Supabase RLS: employees table needs anon SELECT policy)";
-          setErr("Could not load employee list" + errDetail + ". Contact HR to check Supabase RLS policy on employees table.");
+        // Look up by email ONLY — scoped, not a blanket select(*) of every
+        // employee across every company. Email is the unique login key.
+        const { data: empRow, error: empErr } = await sb.from("employees").select("*").eq("email", inputLower).maybeSingle();
+        if (empErr) {
+          setErr("Login error: " + empErr.message + ". Contact HR if this persists.");
           setLoggingIn(false);
           return;
         }
-        const active = allEmps.filter((e) => e.status === "Active" || e.status == null || e.status === "");
-        empRow = active.find((e) => e.email && e.email.toLowerCase() === inputLower) || null;
-        if (!empRow) empRow = active.find((e) => e.code && e.code.toLowerCase() === inputLower) || null;
-        if (!empRow) empRow = active.find((e) => e.code && e.code.toUpperCase() === input.toUpperCase()) || null;
-        if (!empRow) empRow = active.find((e) => e.name && e.name.toLowerCase() === inputLower) || null;
         if (!empRow) {
-          empRow = allEmps.find((e) => e.email && e.email.toLowerCase() === inputLower) || allEmps.find((e) => e.code && e.code.toUpperCase() === input.toUpperCase()) || null;
+          setErr("No employee account found for '" + input + "'. Enter the email HR registered you with, or contact HR.");
+          setLoggingIn(false);
+          return;
         }
-        if (!empRow) {
-          const codes = allEmps.slice(0, 5).map((e) => e.code || "?").join(", ");
-          setErr("Employee '" + input + "' not found. Available codes: " + codes + ". Try entering your exact employee code or email.");
+        if (empRow.status && empRow.status !== "Active" && empRow.status !== "") {
+          setErr("This account is not active. Contact HR.");
           setLoggingIn(false);
           return;
         }
@@ -1327,6 +1277,7 @@ function Login({ onLogin, onRegister }) {
           name: empRow.name,
           role: "emp",
           eid: empRow.id,
+          companyId: empRow.company_id,
           _empRow: empRow
         });
         setLoggingIn(false);
@@ -1339,16 +1290,15 @@ function Login({ onLogin, onRegister }) {
     }
     try {
       const user = await sbLogin(email.trim(), pw);
+      if (!user.companyId) {
+        setErr("Your account isn't linked to a company yet. Contact support to fix this before continuing.");
+        setLoggingIn(false);
+        return;
+      }
       onLogin(user);
       setLoggingIn(false);
       return;
     } catch (authErr) {
-      const c = CREDS.find((x) => x.role === role && x.email === email.trim() && x.password === pw);
-      if (c) {
-        onLogin(c);
-        setLoggingIn(false);
-        return;
-      }
       setErr(authErr.message.includes("Invalid login") ? "Incorrect email or password." : authErr.message);
     }
     setLoggingIn(false);
@@ -5156,17 +5106,17 @@ function HRAdmin({ user, onLogout }) {
       setLoading(true);
       try {
         const [empList, lvList, lnList, reList, runList, polData, coData] = await Promise.all([
-          db.getEmps(),
-          db.getLeaves(),
-          db.getLoans(),
-          db.getReimb(),
-          db.getRuns(),
-          db.getPolicies(),
-          db.getCompany()
+          db.getEmps(user.companyId),
+          db.getLeaves(user.companyId),
+          db.getLoans(user.companyId),
+          db.getReimb(user.companyId),
+          db.getRuns(user.companyId),
+          db.getPolicies(user.companyId),
+          db.getCompany(user.companyId)
         ]);
         try {
           const now = /* @__PURE__ */ new Date();
-          const attData = await db.getMonthAtt(now.getMonth() + 1, now.getFullYear());
+          const attData = await db.getMonthAtt(now.getMonth() + 1, now.getFullYear(), user.companyId);
           if (attData.length) {
             const patch = {};
             attData.forEach((r) => {
@@ -5223,7 +5173,7 @@ function HRAdmin({ user, onLogout }) {
     if (!dbReady) return;
     const loadMonthAtt = async () => {
       try {
-        const data = await db.getMonthAtt(payMonth, payYear);
+        const data = await db.getMonthAtt(payMonth, payYear, user.companyId);
         if (data.length) {
           setAttendance((p) => {
             const np = { ...p };
@@ -5263,9 +5213,9 @@ function HRAdmin({ user, onLogout }) {
     setEmps((p) => editEmp ? p.map((e) => e.id === data.id ? data : e) : [...p, data]);
     setShowEmpForm(false);
     try {
-      if (editEmp) await db.updateEmp(data);
+      if (editEmp) await db.updateEmp(data, user.companyId);
       else {
-        const r = await db.addEmp(data);
+        const r = await db.addEmp(data, user.companyId);
         setEmps((p) => p.map((e) => e.id === data.id ? fromDbEmp(r) : e));
       }
       showToast("Employee saved \u2713");
@@ -5281,7 +5231,7 @@ function HRAdmin({ user, onLogout }) {
   async function apiActionLeave(id, status) {
     setLeaves((p) => p.map((x) => x.id === id ? { ...x, status } : x));
     try {
-      await db.actionLeave(id, status);
+      await db.actionLeave(id, status, user.companyId);
       showToast("Leave " + status + " \u2713");
     } catch (e) {
       showToast("Updated locally", "warn");
@@ -5291,7 +5241,7 @@ function HRAdmin({ user, onLogout }) {
     setLeaves((p) => [...p, data]);
     setLvForm(null);
     try {
-      await db.addLeave(data);
+      await db.addLeave(data, user.companyId);
       showToast("Leave applied \u2713");
     } catch (e) {
       showToast("Saved locally", "warn");
@@ -5300,7 +5250,7 @@ function HRAdmin({ user, onLogout }) {
   async function apiActionLoan(id, status) {
     setLoans((p) => p.map((x) => x.id === id ? { ...x, status } : x));
     try {
-      await db.actionLoan(id, status);
+      await db.actionLoan(id, status, user.companyId);
       showToast("Loan " + status + " \u2713");
     } catch (e) {
       showToast("Updated locally", "warn");
@@ -5310,7 +5260,7 @@ function HRAdmin({ user, onLogout }) {
     setLoans((p) => [...p, data]);
     setLnForm(null);
     try {
-      await db.addLoan(data);
+      await db.addLoan(data, user.companyId);
       showToast("Loan applied \u2713");
     } catch (e) {
       showToast("Saved locally", "warn");
@@ -5319,7 +5269,7 @@ function HRAdmin({ user, onLogout }) {
   async function apiActionReimb(id, status) {
     setReimb((p) => p.map((x) => x.id === id ? { ...x, status } : x));
     try {
-      await db.actionReimb(id, status);
+      await db.actionReimb(id, status, user.companyId);
       showToast("Reimbursement " + status + " \u2713");
     } catch (e) {
       showToast("Updated locally", "warn");
@@ -5329,7 +5279,7 @@ function HRAdmin({ user, onLogout }) {
     setReimb((p) => [...p, data]);
     setReimbForm(null);
     try {
-      await db.addReimb(data);
+      await db.addReimb(data, user.companyId);
       showToast("Claim submitted \u2713");
     } catch (e) {
       showToast("Saved locally", "warn");
@@ -5351,7 +5301,7 @@ function HRAdmin({ user, onLogout }) {
       return np;
     });
     try {
-      await db.markAtt(eid, date, normRec.status, normRec.in, normRec.out, normRec.hrs, normRec.ot);
+      await db.markAtt(eid, date, normRec.status, normRec.in, normRec.out, normRec.hrs, normRec.ot, user.companyId);
     } catch (e) {
       console.warn("markAtt:", e.message);
     }
@@ -5366,7 +5316,7 @@ function HRAdmin({ user, onLogout }) {
       return np;
     });
     try {
-      await db.bulkAtt(active.map((e) => e.id), date, status);
+      await db.bulkAtt(active.map((e) => e.id), date, status, user.companyId);
       showToast("All marked " + status + " \u2713");
     } catch (e) {
       showToast("Marked locally", "warn");
@@ -5376,7 +5326,7 @@ function HRAdmin({ user, onLogout }) {
     if (!dbReady) return;
     try {
       const [y, m] = yearMonth.split("-").map(Number);
-      const rows = await db.getMonthAtt(m, y);
+      const rows = await db.getMonthAtt(m, y, user.companyId);
       if (!rows.length) return;
       const patch = {};
       rows.forEach((r) => {
@@ -5402,14 +5352,14 @@ function HRAdmin({ user, onLogout }) {
   }
   async function apiSavePolicies(newPol) {
     setPol(newPol);
-    await db.savePolicies(newPol);
+    await db.savePolicies(newPol, user.companyId);
     showToast("Policies saved \u2713");
   }
   async function apiSaveCo(newCo) {
     setCo(newCo);
     setEditCo(false);
     try {
-      await db.saveCompany(newCo);
+      await db.saveCompany(newCo, user.companyId);
       showToast("Company updated \u2713");
     } catch (e) {
       showToast("Saved locally", "warn");
@@ -5481,7 +5431,7 @@ Run payroll anyway?`
     setActiveRun(run);
     setLoans((ls) => ls.map((l) => l.status === "Approved" && l.remaining > 0 ? { ...l, remaining: l.remaining - 1 } : l));
     try {
-      await db.saveRun(payMonth, payYear, results);
+      await db.saveRun(payMonth, payYear, results, user.companyId);
       showToast(`Payroll saved \u2713 \u2014 ${results.length} employees`);
     } catch (e) {
       showToast("Payroll saved locally (DB: " + e.message + ")", "warn");
@@ -5593,7 +5543,7 @@ Run payroll anyway?`
                 setEmps((p2) => p2.map((x) => x.id === e.id ? { ...x, status: newStatus } : x));
                 showToast(`${e.name} ${action.toLowerCase()}d`);
                 try {
-                  await db.updateEmp({ ...e, status: newStatus });
+                  await db.updateEmp({ ...e, status: newStatus }, user.companyId);
                 } catch (err) {
                   console.warn(err);
                 }
@@ -5818,7 +5768,7 @@ Run payroll anyway?`
     });
     setOnboarding((p) => p.filter((x) => x.id !== o.id));
     try {
-      const r = await db.addEmp(newEmp);
+      const r = await db.addEmp(newEmp, user.companyId);
       const saved = fromDbEmp(r);
       setEmps((p) => p.map((e) => e.id === newEmp.id ? saved : e));
       showToast(o.name + " saved to database \u2713");
@@ -6460,7 +6410,7 @@ Powered by Payrolla.in`);
     let saved = 0;
     for (const u of updates) {
       try {
-        await db.updateEmp(u);
+        await db.updateEmp(u, user.companyId);
         saved++;
       } catch (err) {
         console.warn(err.message);
@@ -6846,7 +6796,7 @@ Regards, HR`;
     setQaData({ doj: TODAY, status: "Active", cat: "Permanent", pt: true, pf: true, esic: false, workState: ((_b2 = pol == null ? void 0 : pol.pt) == null ? void 0 : _b2.state) || "Maharashtra" });
     showToast("Employee " + newEmp.name + " added \u2713");
     try {
-      await db.addEmp(newEmp);
+      await db.addEmp(newEmp, user.companyId);
     } catch (e) {
       console.warn("DB save:", e.message);
     }
@@ -6937,7 +6887,7 @@ Regards, HR`;
     setQf({});
     showToast("Employee updated \u2713");
     try {
-      await db.updateEmp(updated);
+      await db.updateEmp(updated, user.companyId);
     } catch (e) {
       showToast("DB error: " + e.message, "warn");
     }
@@ -7000,7 +6950,7 @@ function EmployeePortal({ user, onLogout }) {
           if (data) setEmp(fromDbEmp(data));
         }
         try {
-          const { data } = await sb.from("company_policies").select("policies").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+          const { data } = await sb.from("company_policies").select("policies").eq("company_id", user.companyId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
           if ((data == null ? void 0 : data.policies) && Object.keys(data.policies).length > 0) setPol((p) => ({ ...p, ...data.policies }));
           else {
             try {
@@ -7511,6 +7461,96 @@ function EmployeePortal({ user, onLogout }) {
     o
   ))))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(EpLbl, { t: "80C Investments", v: emp.decl80c ? INR(+emp.decl80c) : "Not declared" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "80D Health Insurance", v: emp.decl80d ? INR(+emp.decl80d) : "Not declared" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "NPS 80CCD(1B)", v: emp.declNps ? INR(+emp.declNps) : "Not declared" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "Other Deductions", v: emp.declOther ? INR(+emp.declOther) : "Not declared" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "Monthly Rent Paid", v: emp.rentPaid ? INR(+emp.rentPaid) : "Not declared" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "Metro City", v: emp.isMetro ? "Yes" : "No" }))), profileEdit && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, padding: "10px 14px", background: "#e8f5e9", borderRadius: 8, fontSize: 12, color: "#1b5e20" } }, "\u2713 Declarations saved here are automatically used for TDS computation in payroll. HR will see updates immediately.")), /* @__PURE__ */ React.createElement(EpCard, { s: { marginTop: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: C, marginBottom: 12 } }, "\u{1FAAA} KYC Documents"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } }, profileEdit ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(EpInp, { label: "PAN Number", val: pf.pan, set: (v) => setPf((p) => ({ ...p, pan: v.toUpperCase() })), hint: "ABCDE1234F format" }), /* @__PURE__ */ React.createElement(EpInp, { label: "Aadhaar Number", val: pf.aadhaar, set: (v) => setPf((p) => ({ ...p, aadhaar: v })), hint: "12-digit Aadhaar" })) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(EpLbl, { t: "PAN Number", v: emp.pan || "\u2014", hint: "Required for TDS computation" }), /* @__PURE__ */ React.createElement(EpLbl, { t: "Aadhaar Number", v: emp.aadhaar ? "XXXX-XXXX-" + emp.aadhaar.slice(-4) : "\u2014" }))))))));
 }
+function Register({ onBack, onSuccess }) {
+  const [companyName, setCompanyName] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function go() {
+    setErr("");
+    if (!companyName.trim()) { setErr("Enter your company name."); return; }
+    if (!name.trim()) { setErr("Enter your name."); return; }
+    if (!email.trim()) { setErr("Enter your email."); return; }
+    if (pw.length < 6) { setErr("Password must be at least 6 characters."); return; }
+    if (pw !== pw2) { setErr("Passwords do not match."); return; }
+    setBusy(true);
+    try {
+      // 1. Create the company row first — this id becomes the tenant boundary
+      // for every employee, payroll run, and policy this account will ever touch.
+      const { data: co, error: coErr } = await sb.from("companies").insert({ name: companyName.trim() }).select().single();
+      if (coErr) throw new Error("Could not create company: " + coErr.message);
+
+      // 2. Create the HR admin's real Supabase Auth account, with company_id
+      // baked into user_metadata from the very first moment — this is what
+      // RLS policies check on every request this user ever makes.
+      const { data: authData, error: authErr } = await sb.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password: pw,
+        options: { data: { role: "hr", name: name.trim(), company_id: co.id } }
+      });
+      if (authErr) {
+        // Roll back the company row if auth signup failed, so we don't leave
+        // an orphaned company with no admin attached to it.
+        await sb.from("companies").delete().eq("id", co.id);
+        throw new Error(authErr.message);
+      }
+
+      // 3. Create the hr_users row for this admin within their company
+      try {
+        await sb.from("hr_users").insert({
+          id: authData.user ? authData.user.id : void 0,
+          company_id: co.id,
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          role: "Admin",
+          status: "Active"
+        });
+      } catch (e) {
+        console.warn("hr_users row creation:", e.message);
+      }
+
+      // 4. Try immediate login (works if email confirmation is disabled in
+      // Supabase settings; otherwise the user confirms via email first).
+      try {
+        const user = await sbLogin(email.trim(), pw);
+        onSuccess(user);
+        return;
+      } catch (loginErr) {
+        setErr("Account created! Please check your email to confirm, then sign in.");
+        setBusy(false);
+        setTimeout(onBack, 2500);
+        return;
+      }
+    } catch (e) {
+      setErr(e.message);
+      setBusy(false);
+    }
+  }
+
+  return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", background: `linear-gradient(135deg,${SB} 0%,${PL} 100%)`, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, fontFamily: "'Segoe UI',system-ui,sans-serif" } },
+    /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 20, padding: 40, width: "100%", maxWidth: 420, boxShadow: "0 24px 80px rgba(0,0,0,.3)" } },
+      /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginBottom: 24 } },
+        /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 900, fontSize: 24, color: P } }, "Payrolla", /* @__PURE__ */ React.createElement("span", { style: { color: AC } }, ".in")),
+        /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: MT, marginTop: 4 } }, "Start your 30-day free trial")
+      ),
+      /* @__PURE__ */ React.createElement(Inp, { label: "Company Name", val: companyName, set: setCompanyName, ph: "Acme Pvt Ltd" }),
+      /* @__PURE__ */ React.createElement(Inp, { label: "Your Name", val: name, set: setName, ph: "Full name" }),
+      /* @__PURE__ */ React.createElement(Inp, { label: "Work Email", val: email, set: setEmail, ph: "you@company.com" }),
+      /* @__PURE__ */ React.createElement(Inp, { label: "Password", val: pw, set: setPw, type: "password", ph: "At least 6 characters" }),
+      /* @__PURE__ */ React.createElement(Inp, { label: "Confirm Password", val: pw2, set: setPw2, type: "password", ph: "Re-enter password" }),
+      err && /* @__PURE__ */ React.createElement("div", { style: { background: DX, border: `1px solid ${DG}44`, borderRadius: 8, padding: "9px 13px", fontSize: 13, color: DG, marginBottom: 14 } }, err),
+      /* @__PURE__ */ React.createElement(Btn, { onClick: go, sz: "lg", s: { width: "100%", marginTop: 4 }, disabled: busy }, busy ? "Creating account..." : "Create Company & Start Trial \u2192"),
+      /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: 16, fontSize: 13, color: MT } },
+        "Already have an account? ",
+        /* @__PURE__ */ React.createElement("span", { onClick: onBack, style: { color: P, cursor: "pointer", fontWeight: 700, textDecoration: "underline" } }, "Sign in")
+      )
+    )
+  );
+}
 function App() {
   const [session, setSession] = useState(() => {
     try {
@@ -7564,7 +7604,7 @@ function App() {
   if (!session) return /* @__PURE__ */ React.createElement(Login, { onLogin: handleLogin, onRegister: () => setShowRegister(true) });
   if (session.role === "sa") return /* @__PURE__ */ React.createElement(SuperAdmin, { user: { name: session.name || "Super Admin", role: "Super Admin" }, onLogout: handleLogout });
   if (session.role === "hr") return /* @__PURE__ */ React.createElement(HRAdmin, { user: { ...session, name: session.name || "HR Admin", role: "HR Admin", aiEnabled: session.aiEnabled }, onLogout: handleLogout });
-  if (session.role === "emp") return /* @__PURE__ */ React.createElement(EmployeePortal, { user: { name: session.name, role: "Employee", email: session.email, eid: session.eid || session.employee_id, id: session.id, _empRow: session._empRow }, onLogout: handleLogout });
+  if (session.role === "emp") return /* @__PURE__ */ React.createElement(EmployeePortal, { user: { name: session.name, role: "Employee", email: session.email, eid: session.eid || session.employee_id, id: session.id, companyId: session.companyId, _empRow: session._empRow }, onLogout: handleLogout });
   return null;
 }
 function calcSalaryFromCTC(annualCTC, structure) {
@@ -7598,7 +7638,7 @@ function calcSalaryFromCTC(annualCTC, structure) {
   };
 }
 
-try{ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(ErrorBoundary,null,React.createElement(App)));}catch(e){document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace;background:#fff"><h2 style="color:#c62828">Load Error: '+e.message+'</h2><pre>'+e.stack+'</pre><button onclick="location.reload()" style="margin-top:16px;padding:10px 20px;background:#1a237e;color:#fff;border:none;border-radius:8px;cursor:pointer">Reload</button></div>'; }
+try{ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(ErrorBoundary,null,React.createElement(App)));}catch(e){document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace;background:#fff"><h2 style="color:red">Load Error: '+e.message+'</h2><pre>'+e.stack+'</pre></div>';}
 </script>
 </body>
 </html>
