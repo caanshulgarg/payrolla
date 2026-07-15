@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v19.1 -->
+<!-- PAYROLLA v19.2 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.1 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.2 — Loading...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -730,7 +730,10 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
       const daysWorked = totalDaysInMonth - doj.getDate() + 1;
       joiningProration = Math.max(0, daysWorked / totalDaysInMonth);
       joiningNote = `Joined ${e.doj} \u2014 ${daysWorked}/${totalDaysInMonth} days`;
-      lopDays = 0;
+      // Keep LOP in the joining month — an employee can join mid-month AND
+      // take unpaid leave. Cap it at days actually available since joining so
+      // it can never exceed what they were present for.
+      lopDays = Math.min(lopDays || 0, daysWorked);
     } else if (dojYear > runYear || dojYear === runYear && dojMonth > runMonth) {
       joiningProration = 0;
     }
