@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v19.0 — MULTI-TENANCY -->
+<!-- PAYROLLA v19.1 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.0 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.1 — Loading...</div></div></div>
 <script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
@@ -20,18 +20,13 @@ class ErrorBoundary extends React.Component{
   static getDerivedStateFromError(e){return{error:e};}
   componentDidCatch(e,i){console.error('Payrolla:',e,i);}
   render(){
-    if(this.state.error){
-      const e=this.state.error;
+    if(this.state.error){const e=this.state.error;
       return React.createElement('div',{style:{padding:40,fontFamily:'monospace',background:'#fff',minHeight:'100vh'}},
         React.createElement('h2',{style:{color:'#c62828',marginBottom:12}},'Error — Screenshot & Share'),
         React.createElement('div',{style:{background:'#ffebee',padding:16,borderRadius:8,marginBottom:12,fontWeight:'bold',fontSize:14}},e.message),
         React.createElement('pre',{style:{background:'#f5f5f5',padding:16,fontSize:11,overflow:'auto',borderRadius:8,maxHeight:300}},e.stack),
-        React.createElement('button',{onClick:()=>window.location.reload(),style:{marginTop:16,padding:'10px 20px',background:'#1a237e',color:'#fff',border:'none',borderRadius:8,cursor:'pointer'}},'Reload')
-      );
-    }
-    return this.props.children;
-  }
-}
+        React.createElement('button',{onClick:()=>window.location.reload(),style:{marginTop:16,padding:'10px 20px',background:'#1a237e',color:'#fff',border:'none',borderRadius:8,cursor:'pointer'}},'Reload'));}
+    return this.props.children;}}
 const SUPABASE_URL = "https://ughybjrpggoutpoutkpz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnaHlianJwZ2dvdXRwb3V0a3B6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NTI2NTAsImV4cCI6MjA5ODAyODY1MH0.EjNOd3euAs_fEyDL_aE93L-r9aosMLqyamnyDk1AY7c";
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -1239,6 +1234,20 @@ function Login({ onLogin, onRegister }) {
   const [err, setErr] = useState("");
   const hints = { sa: "Sign in with your Super Admin account", hr: "Sign in with your company email & password", emp: "Use the email HR registered you with" };
   const [loggingIn, setLoggingIn] = useState(false);
+  const [resetMsg, setResetMsg] = useState("");
+  async function sendReset() {
+    setErr(""); setResetMsg("");
+    if (!email.trim()) { setErr("Enter your email address first, then click Forgot password."); return; }
+    try {
+      const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: window.location.origin + window.location.pathname
+      });
+      if (error) throw new Error(error.message);
+      setResetMsg("Password reset link sent to " + email.trim() + ". Check your inbox (and spam folder).");
+    } catch (e) {
+      setErr("Could not send reset email: " + e.message);
+    }
+  }
   async function go() {
     setErr("");
     setLoggingIn(true);
@@ -1308,7 +1317,7 @@ function Login({ onLogin, onRegister }) {
     setEmail("");
     setPw("");
     setErr("");
-  }, style: { flex: 1, padding: "7px 4px", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer", background: role === r ? P : "transparent", color: role === r ? "#fff" : MT } }, l))), /* @__PURE__ */ React.createElement("div", { style: { background: "#e3f2fd", border: "1px solid #90caf9", borderRadius: 9, padding: "9px 13px", fontSize: 12, color: "#1565c0", marginBottom: 20 } }, /* @__PURE__ */ React.createElement("b", null, "Demo:"), " ", hints[role]), /* @__PURE__ */ React.createElement(Inp, { label: "Email", val: email, set: setEmail, ph: "Enter email" }), /* @__PURE__ */ React.createElement(Inp, { label: role === "emp" ? "Password (Code@DDMMYYYY of DOB)" : "Password", val: pw, set: setPw, type: "password", ph: "Enter password" }), err && /* @__PURE__ */ React.createElement("div", { style: { background: DX, border: `1px solid ${DG}44`, borderRadius: 8, padding: "9px 13px", fontSize: 13, color: DG, marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement(Btn, { onClick: go, sz: "lg", s: { width: "100%", marginTop: 4 } }, loggingIn ? "Signing in..." : "Sign In \u2192"), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: 16, fontSize: 13, color: "rgba(255,255,255,.7)" } }, "No account? ", /* @__PURE__ */ React.createElement("span", { onClick: onRegister, style: { color: "#90caf9", cursor: "pointer", fontWeight: 700, textDecoration: "underline" } }, "Start 30-day free trial \u2192"))));
+  }, style: { flex: 1, padding: "7px 4px", border: "none", borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: "pointer", background: role === r ? P : "transparent", color: role === r ? "#fff" : MT } }, l))), /* @__PURE__ */ React.createElement("div", { style: { background: "#e3f2fd", border: "1px solid #90caf9", borderRadius: 9, padding: "9px 13px", fontSize: 12, color: "#1565c0", marginBottom: 20 } }, /* @__PURE__ */ React.createElement("b", null, "Demo:"), " ", hints[role]), /* @__PURE__ */ React.createElement(Inp, { label: "Email", val: email, set: setEmail, ph: "Enter email" }), /* @__PURE__ */ React.createElement(Inp, { label: role === "emp" ? "Password (Code@DDMMYYYY of DOB)" : "Password", val: pw, set: setPw, type: "password", ph: "Enter password" }), err && /* @__PURE__ */ React.createElement("div", { style: { background: DX, border: `1px solid ${DG}44`, borderRadius: 8, padding: "9px 13px", fontSize: 13, color: DG, marginBottom: 14 } }, err), /* @__PURE__ */ React.createElement(Btn, { onClick: go, sz: "lg", s: { width: "100%", marginTop: 4 } }, loggingIn ? "Signing in..." : "Sign In \u2192"), resetMsg && /* @__PURE__ */ React.createElement("div", { style: { background: "#e8f5e9", border: "1px solid #a5d6a7", borderRadius: 8, padding: "9px 13px", fontSize: 12, color: "#1b5e20", marginTop: 12 } }, resetMsg), role !== "emp" && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: 12 } }, /* @__PURE__ */ React.createElement("span", { onClick: sendReset, style: { fontSize: 12, color: MT, cursor: "pointer", textDecoration: "underline" } }, "Forgot password?")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: 16, fontSize: 13, color: "rgba(255,255,255,.7)" } }, "No account? ", /* @__PURE__ */ React.createElement("span", { onClick: onRegister, style: { color: "#90caf9", cursor: "pointer", fontWeight: 700, textDecoration: "underline" } }, "Start 30-day free trial \u2192"))));
 }
 function SalarySlip({ slip, emp: empProp, month: monthProp, year: yearProp, lopDays: lopPropInit = 0, emps, runs, co, pol, onClose }) {
   var _a, _b, _c, _d, _e;
@@ -2282,7 +2291,7 @@ const StatusCell = React.memo(function StatusCell2({ empId, day, yr, mo, attenda
     } }, st ? st.short : isWknd ? "\u2014" : "?")
   );
 });
-function AttendanceModule({ emps, attendance, setAttendance, holidays = [], onMark, onBulkMark, pol = DEFAULT_POLICIES, setPol, onSavePol }) {
+function AttendanceModule({ emps, attendance, setAttendance, holidays = [], onMark, onBulkMark, pol = DEFAULT_POLICIES, setPol, onSavePol, companyId }) {
   var _a, _b, _c;
   const [month, setMonth] = useState(TODAY.slice(0, 7));
   const [popup, setPopup] = useState(null);
@@ -2387,6 +2396,7 @@ function AttendanceModule({ emps, attendance, setAttendance, holidays = [], onMa
         for (let i = 0; i < records.length; i += CHUNK) {
           await sb.from("attendance").upsert(records.slice(i, i + CHUNK).map((r) => ({
             employee_id: r.employee_id,
+            company_id: companyId,
             date: r.date,
             status: r.status,
             in_time: r.in || null,
@@ -2487,6 +2497,7 @@ function AttendanceModule({ emps, attendance, setAttendance, holidays = [], onMa
         var _a2, _b2, _c2;
         return {
           employee_id: r.empId,
+          company_id: companyId,
           date: r.date,
           status: r.status,
           in_time: ((_a2 = ATT_STATUS[r.status]) == null ? void 0 : _a2.paid) ? "09:00" : null,
@@ -4659,7 +4670,7 @@ function Settings({
     async function loadUsers() {
       setLoadingU(true);
       try {
-        const { data } = await sb.from("hr_users").select("*").order("created_at", { ascending: false });
+        const { data } = await sb.from("hr_users").select("*").eq("company_id", user.companyId).order("created_at", { ascending: false });
         if (data) setUsers(data);
       } catch (e) {
         setUsers([{
@@ -4695,6 +4706,7 @@ function Settings({
       if (error) throw new Error(error.message);
       try {
         await sb.from("hr_users").insert({
+          company_id: user.companyId,
           id: ((_a = data.user) == null ? void 0 : _a.id) || "hr_" + Date.now(),
           name: newUser.name.trim(),
           email: newUser.email.trim().toLowerCase(),
@@ -4726,7 +4738,7 @@ function Settings({
   async function deactivateUser(u) {
     if (!confirm("Deactivate " + u.name + "? They won't be able to log in.")) return;
     try {
-      await sb.from("hr_users").update({ status: "Inactive" }).eq("id", u.id);
+      await sb.from("hr_users").update({ status: "Inactive" }).eq("id", u.id).eq("company_id", user.companyId);
       setUsers((p) => p.map((x) => x.id === u.id ? { ...x, status: "Inactive" } : x));
       showToast(u.name + " deactivated");
     } catch (e) {
@@ -5554,7 +5566,7 @@ Run payroll anyway?`
         ];
       })
     }
-  )), showEmpForm && /* @__PURE__ */ React.createElement(EmpForm, { emp: editEmp, pol, onClose: () => setShowEmpForm(false), onSave: apiSaveEmp }), slip && /* @__PURE__ */ React.createElement(SalarySlip, { emp: slip.emp, co: co || CO0, month: slip.month, year: slip.year, pol: pol || DEFAULT_POLICIES, onClose: () => setSlip(null) })), tab === "attendance" && /* @__PURE__ */ React.createElement(Sec, { title: "Attendance" }, /* @__PURE__ */ React.createElement(AttendanceModule, { emps: active, attendance, setAttendance, holidays: (pol == null ? void 0 : pol.holidays) || [], onMark: apiMarkAtt, onBulkMark: apiMarkBulkAtt, unmarkedStatus: ((_a = pol == null ? void 0 : pol.attendance) == null ? void 0 : _a.unmarkedDayStatus) || "P", onMonthChange: reloadAttMonth, pol, setPol, onSavePol: apiSavePolicies })), tab === "payroll" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Sec, { title: "Payroll Processing" }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "flex-end", gap: 16, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: MT, marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement("select", { value: payMonth, onChange: (e) => setPayMonth(+e.target.value), style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }, MONTHS.map((m, i) => /* @__PURE__ */ React.createElement("option", { key: m, value: i + 1 }, m)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: MT, marginBottom: 5, textTransform: "uppercase" } }, "Year"), /* @__PURE__ */ React.createElement("select", { value: payYear, onChange: (e) => setPayYear(+e.target.value), style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }, [2024, 2025, 2026].map((y) => /* @__PURE__ */ React.createElement("option", { key: y }, y)))), /* @__PURE__ */ React.createElement(Btn, { sz: "lg", v: "ok", onClick: runPayroll }, "\u25B6 Run Payroll"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => {
+  )), showEmpForm && /* @__PURE__ */ React.createElement(EmpForm, { emp: editEmp, pol, onClose: () => setShowEmpForm(false), onSave: apiSaveEmp }), slip && /* @__PURE__ */ React.createElement(SalarySlip, { emp: slip.emp, co: co || CO0, month: slip.month, year: slip.year, pol: pol || DEFAULT_POLICIES, onClose: () => setSlip(null) })), tab === "attendance" && /* @__PURE__ */ React.createElement(Sec, { title: "Attendance" }, /* @__PURE__ */ React.createElement(AttendanceModule, { emps: active, attendance, setAttendance, holidays: (pol == null ? void 0 : pol.holidays) || [], onMark: apiMarkAtt, onBulkMark: apiMarkBulkAtt, unmarkedStatus: ((_a = pol == null ? void 0 : pol.attendance) == null ? void 0 : _a.unmarkedDayStatus) || "P", onMonthChange: reloadAttMonth, pol, setPol, onSavePol: apiSavePolicies, companyId: user.companyId })), tab === "payroll" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Sec, { title: "Payroll Processing" }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "flex-end", gap: 16, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: MT, marginBottom: 5, textTransform: "uppercase" } }, "Month"), /* @__PURE__ */ React.createElement("select", { value: payMonth, onChange: (e) => setPayMonth(+e.target.value), style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }, MONTHS.map((m, i) => /* @__PURE__ */ React.createElement("option", { key: m, value: i + 1 }, m)))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: MT, marginBottom: 5, textTransform: "uppercase" } }, "Year"), /* @__PURE__ */ React.createElement("select", { value: payYear, onChange: (e) => setPayYear(+e.target.value), style: { padding: "9px 14px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none" } }, [2024, 2025, 2026].map((y) => /* @__PURE__ */ React.createElement("option", { key: y }, y)))), /* @__PURE__ */ React.createElement(Btn, { sz: "lg", v: "ok", onClick: runPayroll }, "\u25B6 Run Payroll"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", v: "sec", onClick: () => {
     const month = payMonth, year = payYear;
     const mwViolations = active.filter((e) => {
       const p = calcP(e);
@@ -6468,7 +6480,7 @@ Powered by Payrolla.in`);
       return np;
     });
     try {
-      await sb.from("attendance").upsert(bulkEmpIds.map((id) => ({ employee_id: id, date: bulkDate, status: bulkStatusVal, in_time: rec.in || null, out_time: rec.out || null, hrs: rec.hrs, ot: 0 })), { onConflict: "employee_id,date" });
+      await sb.from("attendance").upsert(bulkEmpIds.map((id) => ({ employee_id: id, company_id: user.companyId, date: bulkDate, status: bulkStatusVal, in_time: rec.in || null, out_time: rec.out || null, hrs: rec.hrs, ot: 0 })), { onConflict: "employee_id,date" });
       showToast(`${bulkStatusVal} marked for ${bulkEmpIds.length} employees on ${bulkDate} \u2713`);
     } catch (e) {
       showToast("Saved locally (" + e.message + ")", "warn");
@@ -6999,7 +7011,7 @@ function EmployeePortal({ user, onLogout }) {
         } catch (e) {
         }
         try {
-          const { data } = await sb.from("payroll_runs").select("*").order("year", { ascending: false }).order("month", { ascending: false }).limit(24);
+          const { data } = await sb.from("payroll_runs").select("*").eq("company_id", user.companyId).order("year", { ascending: false }).order("month", { ascending: false }).limit(24);
           if (data) setMyRuns(data.map(fromDbRun));
         } catch (e) {
         }
@@ -7638,7 +7650,8 @@ function calcSalaryFromCTC(annualCTC, structure) {
   };
 }
 
-try{ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(ErrorBoundary,null,React.createElement(App)));}catch(e){document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace;background:#fff"><h2 style="color:red">Load Error: '+e.message+'</h2><pre>'+e.stack+'</pre></div>';}
+
+try{ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(ErrorBoundary,null,React.createElement(App)));}catch(e){document.getElementById("root").innerHTML='<div style="padding:40px;font-family:monospace"><h2 style="color:red">Load Error: '+e.message+'</h2><pre>'+e.stack+'</pre></div>';}
 </script>
 </body>
 </html>
