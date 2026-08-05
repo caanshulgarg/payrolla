@@ -1,15 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v19.2 -->
+<!-- PAYROLLA v19.3 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.2 — Loading...</div></div></div>
-<script>if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()));}</script>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.3 — Loading...</div></div></div>
+<script>
+(function(){
+  var BUILD="19.3";
+  try{
+    var prev=null, reloaded=null;
+    try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
+    var hadSW=false;
+    function unregSW(){
+      if("serviceWorker" in navigator){
+        return navigator.serviceWorker.getRegistrations().then(function(rs){
+          rs.forEach(function(r){ hadSW=true; try{ r.unregister(); }catch(e){} });
+        }).catch(function(){});
+      }
+      return Promise.resolve();
+    }
+    function clearCaches(){
+      if(window.caches && caches.keys){
+        return caches.keys().then(function(keys){
+          return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+        }).catch(function(){});
+      }
+      return Promise.resolve();
+    }
+    Promise.all([unregSW(), clearCaches()]).then(function(){
+      try{ localStorage.setItem("payrolla_build", BUILD); }catch(e){}
+      // Force exactly one clean reload if a stale service worker was found,
+      // or if the stored build differs from this one — guarded so it never loops.
+      if(!reloaded && (hadSW || (prev && prev!==BUILD))){
+        try{ sessionStorage.setItem("payrolla_cache_cleared","1"); }catch(e){}
+        location.reload();
+      }
+    });
+  }catch(e){}
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -717,7 +751,7 @@ const DEFAULT_POLICIES = {
   ]
 };
 function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, extras = {}) {
-  var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
+  var _a, _b, _b2, _c, _d, _d2, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
   const P_pol = POL || (typeof DEFAULT_POLICIES !== "undefined" ? DEFAULT_POLICIES : null);
   let joiningProration = 1;
   let joiningNote = "";
