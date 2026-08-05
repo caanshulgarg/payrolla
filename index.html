@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v19.4 -->
+<!-- PAYROLLA v19.5 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.4 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.5 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="19.4";
+  var BUILD="19.5";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -5011,6 +5011,66 @@ CREATE POLICY "anon_all" ON hr_users FOR ALL TO anon USING (true) WITH CHECK (tr
     ["Storage", "Supabase PostgreSQL"]
   ].map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, style: { display: "flex", padding: "8px 0", borderBottom: "1px solid #f5f5f5", fontSize: 13 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 140, color: "#888", fontWeight: 500 } }, l), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, color: "#1a237e" } }, v))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, fontSize: 11, color: "#888" } }, "All data is stored in your own Supabase project. Payrolla never stores your payroll data on its own servers."))));
 }
+function BulkImport({ onClose, onImport, existingCodes = [], defaultState = "Maharashtra" }) {
+  const h = React.createElement;
+  const [rows, setRows] = useState([]);
+  const [raw, setRaw] = useState("");
+  const [err, setErr] = useState("");
+  const FIELD_MAP = { code: "code", "employee code": "code", "emp code": "code", empcode: "code", name: "name", "full name": "name", "employee name": "name", dob: "dob", "date of birth": "dob", birthdate: "dob", doj: "doj", "date of joining": "doj", "joining date": "doj", email: "email", "work email": "email", phone: "phone", mobile: "phone", "phone number": "phone", designation: "desig", desig: "desig", title: "desig", department: "dept", dept: "dept", category: "cat", cat: "cat", basic: "basic", "basic salary": "basic", hra: "hra", conveyance: "conv", conv: "conv", medical: "med", med: "med", special: "spl", "special allowance": "spl", spl: "spl", lta: "lta", pan: "pan", workstate: "workState", "work state": "workState", state: "workState", pf: "pf", esic: "esic", esi: "esic", pt: "pt", lwf: "lwf", gender: "gen", gen: "gen", aadhaar: "aadhaar", aadhar: "aadhaar", bank: "bank", account: "acc", acc: "acc", ifsc: "ifsc", uan: "uan" };
+  const TEMPLATE_COLS = ["Code", "Name", "DOB", "DOJ", "Email", "Phone", "Designation", "Department", "Category", "Basic", "HRA", "Conveyance", "Medical", "Special", "LTA", "PAN", "WorkState"];
+  function bool(v, def) { if (v == null || v === "") return def; const s = String(v).trim().toLowerCase(); if (["y", "yes", "true", "1"].includes(s)) return true; if (["n", "no", "false", "0"].includes(s)) return false; return def; }
+  function splitLine(line) { const out = []; let cur = "", q = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (c === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; } else if (c === "," && !q) { out.push(cur); cur = ""; } else cur += c; } out.push(cur); return out.map((s) => s.trim()); }
+  function parse(text) {
+    setErr("");
+    const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
+    if (lines.length < 2) { setErr("Need a header row plus at least one employee row."); setRows([]); return; }
+    const rawHeaders = splitLine(lines[0]).map((x) => x.toLowerCase().replace(/"/g, ""));
+    const headers = rawHeaders.map((x) => FIELD_MAP[x] || null);
+    if (!headers.includes("code") || !headers.includes("name")) { setErr("CSV must include at least Code and Name columns."); setRows([]); return; }
+    const seen = {}, out = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = splitLine(lines[i]); const o = {};
+      headers.forEach((hk, idx) => { if (hk) o[hk] = (vals[idx] || "").trim(); });
+      const errors = [];
+      if (!o.code) errors.push("Code missing");
+      if (!o.name) errors.push("Name missing");
+      if (!o.dob) errors.push("DOB missing"); else if (!/^\d{4}-\d{2}-\d{2}$/.test(o.dob)) errors.push("DOB must be YYYY-MM-DD");
+      if (!o.doj) errors.push("DOJ missing"); else if (!/^\d{4}-\d{2}-\d{2}$/.test(o.doj)) errors.push("DOJ must be YYYY-MM-DD");
+      if (!o.basic || isNaN(+o.basic)) errors.push("Basic missing/invalid");
+      if (o.code) { const lc = o.code.toLowerCase(); if (seen[lc]) errors.push("Duplicate code in file"); if (existingCodes.map((c) => String(c).toLowerCase()).includes(lc)) errors.push("Code already exists"); seen[lc] = 1; }
+      const gross = (+o.basic || 0) + (+o.hra || 0) + (+o.conv || 0) + (+o.med || 0) + (+o.spl || 0) + (+o.lta || 0);
+      const emp = { ...BLANK_EMP, ...o, id: Date.now().toString(36) + i + Math.random().toString(36).slice(2, 6), cat: o.cat || "Permanent", status: "Active", workState: o.workState || defaultState, pf: bool(o.pf, true), pt: bool(o.pt, true), lwf: bool(o.lwf, true), esic: o.esic != null && o.esic !== "" ? bool(o.esic, false) : gross > 0 && gross <= 21e3 };
+      out.push({ emp, errors, gross });
+    }
+    setRows(out);
+  }
+  function onFile(e) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { setRaw(String(r.result)); parse(String(r.result)); }; r.readAsText(f); }
+  function downloadTemplate() { const csv = TEMPLATE_COLS.join(",") + "\n" + "EMP001,Rahul Kumar,1990-05-14,2024-06-01,rahul@company.com,9876543210,Engineer,Engineering,Permanent,30000,12000,1600,1250,5000,0,ABCDE1234F,Maharashtra\n"; const blob = new Blob([csv], { type: "text/csv" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "payrolla_employee_template.csv"; a.click(); }
+  const valid = rows.filter((r) => r.errors.length === 0);
+  const invalid = rows.filter((r) => r.errors.length > 0);
+  return h(Modal, { title: "\u{1F4E5} Bulk Import Employees", onClose, w: 760 },
+    h("div", { style: { fontSize: 13, color: "#555", lineHeight: 1.6, marginBottom: 14 } }, "Upload a CSV (or paste below). Required: ", h("b", null, "Code, Name, DOB, DOJ, Basic"), ". Dates as YYYY-MM-DD. Each employee's login password becomes ", h("b", null, "Code@DDMMYYYY"), " (from DOB)."),
+    h("div", { style: { display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" } },
+      h("label", { style: { padding: "10px 16px", background: "#f4f5fa", border: "2px dashed #1a237e", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#1a237e" } }, "\u{1F4C2} Choose CSV File", h("input", { type: "file", accept: ".csv,.txt", style: { display: "none" }, onChange: onFile })),
+      h(Btn, { v: "sec", onClick: downloadTemplate }, "\u2B07 Download Template")),
+    h("textarea", { value: raw, onChange: (e) => { setRaw(e.target.value); parse(e.target.value); }, placeholder: "...or paste CSV rows here (including the header row)", style: { width: "100%", minHeight: 88, padding: 10, border: "1px solid #ddd", borderRadius: 8, fontSize: 12, fontFamily: "monospace", outline: "none", boxSizing: "border-box", marginBottom: 12 } }),
+    err && h("div", { style: { background: "#ffebee", border: "1px solid #ef9a9a", borderRadius: 8, padding: "9px 13px", fontSize: 13, color: "#c62828", marginBottom: 12 } }, "\u26A0 " + err),
+    rows.length > 0 && h("div", null,
+      h("div", { style: { fontSize: 13, marginBottom: 8 } }, h("b", { style: { color: "#1b5e20" } }, valid.length + " ready to import"), invalid.length > 0 ? h("b", { style: { color: "#c62828", marginLeft: 12 } }, invalid.length + " with errors (will be skipped)") : null),
+      h("div", { style: { maxHeight: 260, overflowY: "auto", border: "1px solid #eee", borderRadius: 8 } },
+        h("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } },
+          h("thead", null, h("tr", { style: { background: "#f5f6fa" } }, ["Code", "Name", "DOB", "DOJ", "Gross", "Status"].map((c) => h("th", { key: c, style: { textAlign: "left", padding: "7px 10px", fontSize: 11, color: "#1a237e" } }, c)))),
+          h("tbody", null, rows.map((r, i) => h("tr", { key: i, style: { borderTop: "1px solid #f0f0f0", background: r.errors.length ? "#fff5f5" : "#fff" } },
+            h("td", { style: { padding: "6px 10px" } }, r.emp.code || "\u2014"),
+            h("td", { style: { padding: "6px 10px" } }, r.emp.name || "\u2014"),
+            h("td", { style: { padding: "6px 10px" } }, r.emp.dob || "\u2014"),
+            h("td", { style: { padding: "6px 10px" } }, r.emp.doj || "\u2014"),
+            h("td", { style: { padding: "6px 10px" } }, "\u20B9" + (r.gross || 0).toLocaleString("en-IN")),
+            h("td", { style: { padding: "6px 10px" } }, r.errors.length ? h("span", { style: { color: "#c62828" }, title: r.errors.join(", ") }, "\u26A0 " + r.errors[0]) : h("span", { style: { color: "#1b5e20" } }, "\u2713 OK")))))))),
+    h("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 } },
+      h(Btn, { v: "ghost", onClick: onClose }, "Cancel"),
+      h(Btn, { disabled: valid.length === 0, onClick: () => onImport(valid.map((r) => r.emp)) }, valid.length > 0 ? "Import " + valid.length + " Employee" + (valid.length > 1 ? "s" : "") : "Import")));
+}
 function HRAdmin({ user, onLogout }) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, __, _$, _aa, _ba, _ca, _da;
   const [tab, setTab] = useState(() => {
@@ -5030,6 +5090,7 @@ function HRAdmin({ user, onLogout }) {
   const calcP = (e, lop = 0) => calcPay(e, lop, pol, payMonth, payYear);
   const [quickEdit, setQuickEdit] = useState(null);
   const [quickAdd, setQuickAdd] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
   const [inviteResult, setInviteResult] = useState(null);
   const [qaStep, setQaStep] = useState(1);
   const [qaData, setQaData] = useState({});
@@ -5552,10 +5613,7 @@ Run payroll anyway?`
   }, s: { background: "#1b5e20", color: "#fff" } }, "\u26A1 Quick Add"), /* @__PURE__ */ React.createElement(Btn, { v: "sec", onClick: () => {
     setEditEmp(null);
     setShowEmpForm(true);
-  } }, "Full Form"), /* @__PURE__ */ React.createElement(Btn, { v: "ghost", onClick: () => {
-    setQaData({});
-    setQuickAdd(false);
-  }, style: { display: "none" } }, "Bulk CSV")) }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("input", { value: search, onChange: (e) => setSearch(e.target.value), placeholder: "Search by name, code or department...", style: { width: "100%", padding: "9px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box" } })), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement(
+  } }, "Full Form"), /* @__PURE__ */ React.createElement(Btn, { v: "sec", onClick: () => setShowBulk(true) }, "\u{1F4E5} Import CSV")) }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("input", { value: search, onChange: (e) => setSearch(e.target.value), placeholder: "Search by name, code or department...", style: { width: "100%", padding: "9px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box" } })), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement(
     Tbl,
     {
       cols: ["Code", "Name", "State", "Gross", "Net", "PF", "PT", "Status", "Actions"],
@@ -6558,7 +6616,7 @@ Please fill your PAN, Aadhaar and bank details after login.
 
 Regards, HR`;
     window.open(`mailto:${inviteResult.email}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`);
-  }, style: { flex: 1, padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 9, background: "#fff", color: "#1a237e", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2709\uFE0F Send Email"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { padding: "9px 28px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "92vh", boxShadow: "0 20px 60px rgba(0,0,0,.25)", display: "flex", flexDirection: "column", overflow: "hidden", isolation: "isolate" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
+  }, style: { flex: 1, padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 9, background: "#fff", color: "#1a237e", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2709\uFE0F Send Email"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { padding: "9px 28px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), showBulk && /* @__PURE__ */ React.createElement(BulkImport, { onClose: () => setShowBulk(false), existingCodes: emps.map((e) => e.code), defaultState: (pol && pol.pt && pol.pt.state) || "Maharashtra", onImport: (list) => { list.forEach((r) => { setEmps((p) => [...p, r]); try { db.addEmp(r, user.companyId).catch(() => {}); } catch (e) {} }); setShowBulk(false); showToast(list.length + " employee" + (list.length > 1 ? "s" : "") + " imported \u2713"); } }), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "92vh", boxShadow: "0 20px 60px rgba(0,0,0,.25)", display: "flex", flexDirection: "column", overflow: "hidden", isolation: "isolate" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
     const done = qaStep > +n;
     const active2 = qaStep === +n;
     return /* @__PURE__ */ React.createElement("div", { key: n, style: { display: "flex", alignItems: "center", flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: 12, background: done ? "#69f0ae" : active2 ? "#fff" : "rgba(255,255,255,.2)", color: done ? "#1b5e20" : active2 ? "#1a237e" : "rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0 } }, done ? "\u2713" : n), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: active2 ? "#fff" : done ? "#69f0ae" : "rgba(255,255,255,.4)", fontWeight: active2 ? 700 : 400 } }, l)), i < 2 && /* @__PURE__ */ React.createElement("div", { style: { flex: 1, height: 1, background: "rgba(255,255,255,.2)", margin: "0 8px" } }));
