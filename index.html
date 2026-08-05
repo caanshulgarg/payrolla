@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v19.6 -->
+<!-- PAYROLLA v19.7 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.6 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.7 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="19.6";
+  var BUILD="19.7";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -6623,7 +6623,7 @@ Please fill your PAN, Aadhaar and bank details after login.
 
 Regards, HR`;
     window.open(`mailto:${inviteResult.email}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`);
-  }, style: { flex: 1, padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 9, background: "#fff", color: "#1a237e", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2709\uFE0F Send Email"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { padding: "9px 28px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), showBulk && /* @__PURE__ */ React.createElement(BulkImport, { onClose: () => setShowBulk(false), existingCodes: emps.map((e) => e.code), defaultState: (pol && pol.pt && pol.pt.state) || "Maharashtra", onImport: (list) => { list.forEach((r) => { setEmps((p) => [...p, r]); try { db.addEmp(r, user.companyId).catch(() => {}); } catch (e) {} }); setShowBulk(false); showToast(list.length + " employee" + (list.length > 1 ? "s" : "") + " imported \u2713"); } }), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "92vh", boxShadow: "0 20px 60px rgba(0,0,0,.25)", display: "flex", flexDirection: "column", overflow: "hidden", isolation: "isolate" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
+  }, style: { flex: 1, padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 9, background: "#fff", color: "#1a237e", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2709\uFE0F Send Email"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { padding: "9px 28px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), showBulk && /* @__PURE__ */ React.createElement(BulkImport, { onClose: () => setShowBulk(false), existingCodes: emps.map((e) => e.code), defaultState: (pol && pol.pt && pol.pt.state) || "Maharashtra", onImport: async (list) => { setShowBulk(false); let _ok = 0, _fail = 0; for (const r of list) { try { await db.addEmp(r, user.companyId); setEmps((p) => [...p, r]); _ok++; } catch (e) { _fail++; } } showToast(_ok + " employee" + (_ok !== 1 ? "s" : "") + " imported" + (_fail ? ", " + _fail + " failed to save" : "") + " \u2713", _fail ? "warn" : void 0); } }), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "92vh", boxShadow: "0 20px 60px rgba(0,0,0,.25)", display: "flex", flexDirection: "column", overflow: "hidden", isolation: "isolate" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
     const done = qaStep > +n;
     const active2 = qaStep === +n;
     return /* @__PURE__ */ React.createElement("div", { key: n, style: { display: "flex", alignItems: "center", flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: 12, background: done ? "#69f0ae" : active2 ? "#fff" : "rgba(255,255,255,.2)", color: done ? "#1b5e20" : active2 ? "#1a237e" : "rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0 } }, done ? "\u2713" : n), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: active2 ? "#fff" : done ? "#69f0ae" : "rgba(255,255,255,.4)", fontWeight: active2 ? 700 : 400 } }, l)), i < 2 && /* @__PURE__ */ React.createElement("div", { style: { flex: 1, height: 1, background: "rgba(255,255,255,.2)", margin: "0 8px" } }));
@@ -6904,15 +6904,15 @@ Regards, HR`;
       lwf: !!qaData.lwf,
       workState: qaData.workState || ((_a2 = pol == null ? void 0 : pol.pt) == null ? void 0 : _a2.state) || "Maharashtra"
     };
-    setEmps((p) => [...p, newEmp]);
     setQuickAdd(false);
     setQaStep(1);
     setQaData({ doj: TODAY, status: "Active", cat: "Permanent", pt: true, pf: true, esic: false, workState: ((_b2 = pol == null ? void 0 : pol.pt) == null ? void 0 : _b2.state) || "Maharashtra" });
-    showToast("Employee " + newEmp.name + " added \u2713");
     try {
       await db.addEmp(newEmp, user.companyId);
+      setEmps((p) => [...p, newEmp]);
+      showToast("Employee " + newEmp.name + " added \u2713");
     } catch (e) {
-      console.warn("DB save:", e.message);
+      showToast("Could not save " + newEmp.name + " to database: " + (e.message || "").slice(0, 70), "warn");
     }
   }, style: { flex: 2, padding: "10px", border: "none", borderRadius: 10, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2713 Save Employee"))), /* @__PURE__ */ React.createElement("style", null, `@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`)))), quickEdit && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 700, display: "flex", alignItems: "center", justifyContent: "center" }, onClick: () => setQuickEdit(null) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "90vh", boxShadow: "0 20px 60px rgba(0,0,0,.25)", display: "flex", flexDirection: "column", overflow: "hidden" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: "#fff" } }, "\u270F\uFE0F Edit Employee"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,.7)", marginTop: 2 } }, quickEdit.name, " \xB7 ", quickEdit.code)), /* @__PURE__ */ React.createElement("button", { onClick: () => setQuickEdit(null), style: { background: "rgba(255,255,255,.15)", border: "none", color: "#fff", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 13 } }, "\u2715 Close")), /* @__PURE__ */ React.createElement("div", { style: { padding: 20, overflowY: "auto", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } }, [
     { k: "name", label: "Full Name", span: 2 },
