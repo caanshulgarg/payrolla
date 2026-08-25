@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v19.7 -->
+<!-- PAYROLLA v19.8 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.7 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.8 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="19.7";
+  var BUILD="19.8";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -5999,7 +5999,26 @@ Run payroll anyway?`
       leaves.forEach((l) => rows.push([l.ename, l.type, l.from, l.to, l.days, l.status]));
       downloadExcel("Leave_Register", [{ name: "Leaves", headers: ["Employee", "Type", "From", "To", "Days", "Status"], rows }]);
     } else if (b === "Wage Register" && activeRun) {
-      downloadExcel("Wage_Register", [{ name: "Wages", headers: ["Code", "Name", "Basic", "Gross", "Deductions", "Net"], rows: activeRun.results.map((e) => [e.code, e.name, e.basic, e.g, e.ded, e.net]) }]);
+      const _num = (x) => Math.round(+x || 0);
+      const _mLabel = activeRun.month || (MONTHS[NOW.getMonth()] + "-" + NOW.getFullYear());
+      const _idRows = activeRun.results.map((r, _i) => {
+        const _e = emps.find((x) => x.code === r.code) || r;
+        const _fg = (+_e.basic || 0) + (+_e.hra || 0) + (+_e.conv || 0) + (+_e.med || 0) + (+_e.spl || 0) + (+_e.lta || 0);
+        const _td = r.monthDays || 31;
+        const _wd = +(_td - (r.lopDays || 0)).toFixed(1);
+        const _f = _td > 0 ? _wd / _td : 1;
+        const _p = (v) => _num((+v || 0) * _f);
+        const _ded = _num((r.pfE || 0) + (r.esE || 0) + (r.pt || 0) + (r.tds || 0) + (r.lwfE || 0) + (r.advance || 0));
+        return [_i + 1, _e.code || "", _e.name || "", _e.fatherName || "", _e.desig || "", _e.pfNo || "", _e.uan || "", _e.esicNo || "", _e.doj || "", _num(_fg), _wd, r.lopDays || 0, _td, _p(_e.basic), 0, _p(_e.hra), _p(_e.conv), _p(_e.med), 0, _p(_e.spl), 0, 0, _num(r.bonus), _num(r.g), _num(r.pfE), _num(r.esE), _num(r.pt), _num(r.advance), _num(r.tds), _ded, _num(r.net), _num(r.ctc)];
+      });
+      const _sum = (idx) => _idRows.reduce((a, row) => a + (+row[idx] || 0), 0);
+      const _tot = ["", "", "GRAND TOTAL", "", "", "", "", "", "", _sum(9), "", "", "", _sum(13), 0, _sum(15), _sum(16), _sum(17), 0, _sum(19), 0, 0, _sum(22), _sum(23), _sum(24), _sum(25), _sum(26), _sum(27), _sum(28), _sum(29), _sum(30), _sum(31)];
+      const _heads = ["Sr", "Emp Code", "Name", "Father's/Husband's Name", "Designation", "PF No", "UAN", "ESI No", "DOJ", "Rate of Wages", "Work Days", "LOP", "Total Days", "Basic", "DA/DP", "HRA", "Conv", "Medical", "Washing", "Special", "Other", "OT", "Bonus", "Gross", "PF", "ESI", "PT", "Advance", "TDS", "Total Ded", "Net Payable", "CTC"];
+      const _pf = activeRun.results.filter((r) => r.pf);
+      const _esi = activeRun.results.filter((r) => r.esic);
+      const _s2 = (arr, k) => arr.reduce((a, r) => a + (+r[k] || 0), 0);
+      const _summary = { name: "PF & ESI Summary", headers: ["Head", "Count / Establishment", "Wages", "Employee Share", "Employer / Pension", "Total"], rows: [["PF Subscribers", _pf.length, _s2(_pf, "pfBase") || _s2(_pf, "basic"), _s2(_pf, "pfE"), _s2(_pf, "pfR"), _s2(_pf, "pfE") + _s2(_pf, "pfR")], ["ESI Insured", _esi.length, _s2(_esi, "g"), _s2(_esi, "esE"), _s2(_esi, "esR"), _s2(_esi, "esE") + _s2(_esi, "esR")], [], ["Establishment", (co && co.name) || "", "", "PF Code", (co && (co.pf_reg || co.pfCode)) || "", ""], ["Month", _mLabel, "", "ESI Code", (co && (co.esic_reg || co.esicCode)) || "", ""], ["Total Employees", activeRun.results.length, "", "Grand Total Net", _sum(30), ""]] };
+      downloadExcel("Salary_Register_FormIV_" + _mLabel, [{ name: "Form IV - Register of Wages", headers: _heads, rows: [..._idRows, _tot] }, _summary]);
     } else if (b === "Generate ECR" && activeRun) {
       downloadExcel("PF_ECR", [{ name: "ECR", headers: ["UAN", "Name", "Gross", "EPF Wages", "EPS Wages", "EE Contrib", "EPS", "ER Contrib", "NCP Days"], rows: activeRun.results.filter((e) => e.pf).map((e, i) => [`UAN${1001 + i}`, e.name, e.g, e.pfBase || +e.basic, e.pfBase || +e.basic, e.pfE, Math.round((e.pfBase || +e.basic) * 0.0833), e.pfR, e.lopDays || 0]) }]);
     } else if (b === "Gratuity Report") {
