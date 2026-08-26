@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v20.0 -->
+<!-- PAYROLLA v20.1 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v20.0 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v20.1 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="20.0";
+  var BUILD="20.1";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -169,15 +169,30 @@ const db = {
     return data || [];
   },
   async addEmp(e, companyId) {
-    const row = { ...toDbEmp(e), company_id: companyId };
-    const { data, error } = await sb.from("employees").insert(row).select().maybeSingle();
+    let row = { ...toDbEmp(e), company_id: companyId };
+    let { data, error } = await sb.from("employees").insert(row).select().maybeSingle();
+    let _guard = 0;
+    while (error && _guard++ < 8) {
+      const stripped = _stripUnknownCol(row, error.message);
+      if (!stripped) break;
+      row = stripped;
+      ({ data, error } = await sb.from("employees").insert(row).select().maybeSingle());
+    }
     if (error) throw new Error(error.message);
     if (data) return data;
     const { data: found } = await sb.from("employees").select("*").eq("code", e.code).eq("company_id", companyId).maybeSingle();
     return found || row;
   },
   async updateEmp(e, companyId) {
-    const { data, error } = await sb.from("employees").update(toDbEmp(e)).eq("id", e.id).eq("company_id", companyId).select().single();
+    let row = toDbEmp(e);
+    let { data, error } = await sb.from("employees").update(row).eq("id", e.id).eq("company_id", companyId).select().single();
+    let _guard = 0;
+    while (error && _guard++ < 8) {
+      const stripped = _stripUnknownCol(row, error.message);
+      if (!stripped) break;
+      row = stripped;
+      ({ data, error } = await sb.from("employees").update(row).eq("id", e.id).eq("company_id", companyId).select().single());
+    }
     if (error) throw new Error(error.message);
     return data;
   },
@@ -390,6 +405,14 @@ function fromDbEmp(e) {
     shift: e.shift || "General",
     note: e.note || ""
   };
+}
+function _stripUnknownCol(row, msg) {
+  const m = /column "?([a-z_0-9]+)"? of relation|Could not find the '([a-z_0-9]+)' column|column ([a-z_0-9]+) does not exist/i.exec(msg || "");
+  const col = m && (m[1] || m[2] || m[3]);
+  if (!col || !(col in row)) return null;
+  const copy = { ...row };
+  delete copy[col];
+  return copy;
 }
 function toDbEmp(e) {
   return {
