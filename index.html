@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v19.9 -->
+<!-- PAYROLLA v20.0 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.9 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v20.0 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="19.9";
+  var BUILD="20.0";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -356,6 +356,10 @@ function fromDbEmp(e) {
     ifsc: e.ifsc || "",
     bankBranch: e.bank_branch || "",
     workState: e.work_state || "",
+    pfMode: e.pf_mode || "capped",
+    pfCustomAmt: e.pf_custom_amt || 0,
+    vpfRate: e.vpf_rate || 0,
+    pfOnAllowances: e.pf_on_allowances === void 0 ? null : e.pf_on_allowances,
     pfNo: e.pf_no || "",
     uan: e.uan || "",
     esicNo: e.esic_no || "",
@@ -407,6 +411,10 @@ function toDbEmp(e) {
     bank_branch: e.bankBranch || null,
     work_state: e.workState || null,
     // ← was missing!
+    pf_mode: e.pfMode || "capped",
+    pf_custom_amt: +e.pfCustomAmt || 0,
+    vpf_rate: +e.vpfRate || 0,
+    pf_on_allowances: e.pfOnAllowances === void 0 ? null : e.pfOnAllowances,
     pf_no: e.pfNo || null,
     uan: e.uan || null,
     // ← was missing!
@@ -798,17 +806,23 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
   const pfBase = Math.round(basic * f);
   const grossMonthlyFull = basic + hra + conv + med + spl + lta;
   const halfCTC = Math.round(grossMonthlyFull * f * 0.5);
-  const pfBaseAdj = Math.max(pfBase, halfCTC);
   const pfPol = P_pol && P_pol.pf ? P_pol.pf : {};
+  const pfIncAllow = e.pfOnAllowances != null ? !!e.pfOnAllowances : !!pfPol.includeAllowances;
+  const pfAllowBase = Math.round((basic + (pfIncAllow ? (conv + med + spl) : 0)) * f);
+  const pfBaseAdj = Math.max(pfAllowBase, halfCTC);
   const pfCeil = pfPol.maxPfWage || 15e3;
-  const pfFull = e.pfMode === "full";
+  const pfMode = e.pfMode || "capped";
+  const pfFull = pfMode === "full";
+  const pfCustom = pfMode === "custom" && +e.pfCustomAmt > 0;
   const pfWageCapped = Math.min(pfBaseAdj, pfCeil);
   const pfWage = pfFull ? pfBaseAdj : pfWageCapped;
   const pfRate = pfPol.employeeRate || 12;
   const pfOn = e.pf && pfPol.enabled !== false;
-  const pfE = pfOn ? (pfFull ? Math.round(pfWage * pfRate / 100) : Math.min(Math.round(pfWage * pfRate / 100), 1800)) : 0;
+  const pfEBase = pfCustom ? Math.round(+e.pfCustomAmt * f) : pfFull ? Math.round(pfWage * pfRate / 100) : Math.min(Math.round(pfWage * pfRate / 100), 1800);
+  const vpfE = pfOn && +e.vpfRate > 0 ? Math.round(pfBaseAdj * Math.min(+e.vpfRate, 88) / 100) : 0;
+  const pfE = pfOn ? pfEBase + vpfE : 0;
   const pfEPS = pfOn ? Math.min(Math.round(pfWageCapped * 8.33 / 100), 1250) : 0;
-  const pfEPF_er = pfOn ? Math.max(0, Math.round(pfWage * 12 / 100) - pfEPS) : 0;
+  const pfEPF_er = pfOn ? Math.max(0, (pfCustom ? Math.round(+e.pfCustomAmt * f) : Math.round(pfWage * 12 / 100)) - pfEPS) : 0;
   const pfR = pfEPS + pfEPF_er;
   const esicCeil = ((_g = P_pol == null ? void 0 : P_pol.esic) == null ? void 0 : _g.wageLimit) || 21e3;
   const esicWagesAdj = Math.max(pfBase, halfCTC);
@@ -934,6 +948,8 @@ function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, ex
     g,
     pfBase,
     pfE,
+    vpfE,
+    pfWage,
     pfR,
     pfEPS,
     pfEPF_er,
@@ -1766,6 +1782,9 @@ const BLANK_EMP = {
   lta: "",
   pf: false,
   pfMode: "capped",
+  pfCustomAmt: 0,
+  vpfRate: 0,
+  pfOnAllowances: null,
   pfNo: "",
   esic: false,
   esicNo: "",
@@ -1860,7 +1879,7 @@ function EmpForm({ emp, onSave, onClose, pol = DEFAULT_POLICIES }) {
       return calcPay(f, 0, pol);
     } catch (e) {
       console.warn("calcPay error in EmpForm:", e.message);
-      return { g: 0, net: 0, ded: 0, ctc: 0, pfE: 0, pfR: 0, esE: 0, esR: 0, pt: 0, tds: 0, lwfE: 0, lwfR: 0 };
+      return { g: 0, net: 0, ded: 0, ctc: 0, pfE: 0, pfR: 0, vpfE: 0, esE: 0, esR: 0, pt: 0, tds: 0, lwfE: 0, lwfR: 0 };
     }
   })();
   const ageAtJoin = (() => {
@@ -2136,7 +2155,7 @@ function EmpForm({ emp, onSave, onClose, pol = DEFAULT_POLICIES }) {
       console.warn("Statutory section error:", err.message);
       return /* @__PURE__ */ React.createElement("div", { style: { color: "#c62828", fontSize: 12 } }, "Unable to load statutory recommendations.");
     }
-  })(), !!f.pf && /* @__PURE__ */ React.createElement("div", { style: { background: "#f8f9ff", border: "1px solid #e8eaf6", borderRadius: 10, padding: 14, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: "#1a237e", marginBottom: 8 } }, "PF Contribution Base"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } }, [{ v: "capped", l: "On \u20B915,000 ceiling", d: "Statutory minimum \u00b7 PF capped at \u20B91,800" }, { v: "full", l: "On full Basic", d: "Higher PF \u00b7 no \u20B915k cap" }].map((o) => /* @__PURE__ */ React.createElement("button", { key: o.v, type: "button", onClick: () => set("pfMode", o.v), style: { textAlign: "left", padding: "10px 12px", border: (f.pfMode || "capped") === o.v ? "2px solid #1a237e" : "1.5px solid #e0e0e0", background: (f.pfMode || "capped") === o.v ? "#e8eaf6" : "#fff", borderRadius: 8, cursor: "pointer" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: "#1a237e" } }, o.l), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, o.d))))), /* @__PURE__ */ React.createElement(Divider, { t: "Income Tax / TDS" }), /* @__PURE__ */ React.createElement("div", { style: { background: "#f8f9ff", border: "1px solid #e8eaf6", borderRadius: 10, padding: 14, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#1a237e", marginBottom: 12 } }, "IT Declaration (Form 12BB)"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 6, textTransform: "uppercase" } }, "Tax Regime *"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 } }, [
+  })(), !!f.pf && /* @__PURE__ */ React.createElement("div", { style: { background: "#f8f9ff", border: "1px solid #e8eaf6", borderRadius: 10, padding: 14, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: "#1a237e", marginBottom: 8 } }, "PF Contribution Base"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } }, [{ v: "capped", l: "On \u20B915,000 ceiling", d: "Statutory minimum \u00b7 PF capped at \u20B91,800" }, { v: "full", l: "On full Basic", d: "Higher PF \u00b7 no \u20B915k cap" }, { v: "custom", l: "Custom amount", d: "Fixed PF amount you specify" }].map((o) => /* @__PURE__ */ React.createElement("button", { key: o.v, type: "button", onClick: () => set("pfMode", o.v), style: { textAlign: "left", padding: "10px 12px", border: (f.pfMode || "capped") === o.v ? "2px solid #1a237e" : "1.5px solid #e0e0e0", background: (f.pfMode || "capped") === o.v ? "#e8eaf6" : "#fff", borderRadius: 8, cursor: "pointer" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: "#1a237e" } }, o.l), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, o.d)))), (f.pfMode === "custom") && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10 } }, /* @__PURE__ */ React.createElement(NumInp, { label: "Custom PF Amount (\u20B9/month)", val: f.pfCustomAmt || 0, set: (v) => set("pfCustomAmt", v), note: "Employee & employer PF both use this fixed amount" })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 } }, /* @__PURE__ */ React.createElement(NumInp, { label: "VPF Rate (% of PF wage)", val: f.vpfRate || 0, set: (v) => set("vpfRate", v), note: "Voluntary PF \u2014 extra employee contribution, over and above PF" }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 6 } }, "PF on Allowances"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, [{ v: null, l: "Company default" }, { v: true, l: "Yes" }, { v: false, l: "No" }].map((o, _oi) => /* @__PURE__ */ React.createElement("button", { key: _oi, type: "button", onClick: () => set("pfOnAllowances", o.v), style: { flex: 1, padding: "8px 6px", fontSize: 11, fontWeight: 700, border: (f.pfOnAllowances === void 0 ? null : f.pfOnAllowances) === o.v ? "2px solid #1a237e" : "1.5px solid #e0e0e0", background: (f.pfOnAllowances === void 0 ? null : f.pfOnAllowances) === o.v ? "#e8eaf6" : "#fff", borderRadius: 8, cursor: "pointer", color: "#1a237e" } }, o.l))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#888", marginTop: 4 } }, "Include Conv + Medical + Special in PF wage")))), /* @__PURE__ */ React.createElement(Divider, { t: "Income Tax / TDS" }), /* @__PURE__ */ React.createElement("div", { style: { background: "#f8f9ff", border: "1px solid #e8eaf6", borderRadius: 10, padding: 14, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#1a237e", marginBottom: 12 } }, "IT Declaration (Form 12BB)"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { fontSize: 11, fontWeight: 700, color: "#888", display: "block", marginBottom: 6, textTransform: "uppercase" } }, "Tax Regime *"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 } }, [
     { val: "new", title: "\u{1F195} New Regime", sub: "Default \xB7 \u20B912.75L gross = zero tax in FY 2026-27" },
     { val: "old", title: "\u{1F4CB} Old Regime", sub: "Claim 80C \u20B91.5L + 80D + HRA exemption" }
   ].map(({ val, title, sub }) => /* @__PURE__ */ React.createElement(
@@ -2350,6 +2369,80 @@ function AttendanceModule({ emps, attendance, setAttendance, holidays = [], onMa
   const [showImport, setShowImport] = useState(false);
   const [importPreview, setImportPreview] = useState([]);
   const [importErrors, setImportErrors] = useState([]);
+  function _monthlySummaryRows() {
+    const [_y, _m] = month.split("-").map(Number);
+    const _dim = new Date(_y, _m, 0).getDate();
+    const _hol = (holidays || []).filter((h) => (h.date || "").slice(0, 7) === month).length;
+    return (emps || []).filter((e) => e.status !== "Inactive").map((e) => {
+      let wd = 0, wo = 0, el = 0, cl = 0, sl = 0;
+      for (let d = 1; d <= _dim; d++) {
+        const ds = month + "-" + String(d).padStart(2, "0");
+        const dow = new Date(_y, _m - 1, d).getDay();
+        const rec = (attendance || {})[ds] && (attendance || {})[ds][e.code];
+        const st = rec && (rec.status || rec);
+        if (st === "EL") el++;
+        else if (st === "CL") cl++;
+        else if (st === "SL") sl++;
+        else if (dow === 0) wo++;
+        else if (st === "A" || st === "Absent") ;
+        else wd++;
+      }
+      const pay = +(wd + wo + _hol + el + cl + sl).toFixed(1);
+      return [month.slice(5) + "/" + month.slice(2, 4), e.code || "", e.name || "", e.fatherName || "", wd, wo, _hol, el, cl, sl, pay];
+    });
+  }
+  const _attHeaders = ["Month", "E. Code", "Name", "Father's Name", "W. Day", "W. Off", "Holiday", "EL", "CL", "SL", "Total Pay Days"];
+  function _exportMonthly() {
+    downloadExcel("Attendance_" + month, [{ name: "Attendance", headers: _attHeaders, rows: _monthlySummaryRows() }]);
+  }
+  function _importMonthly(file) {
+    const rd = new FileReader();
+    rd.onload = () => {
+      const lines = String(rd.result).split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) { setBulkMsg("File is empty or has no data rows."); return; }
+      const split = (l) => { const o = []; let c = "", q = false; for (let i = 0; i < l.length; i++) { const ch = l[i]; if (ch === '"') { if (q && l[i + 1] === '"') { c += '"'; i++; } else q = !q; } else if (ch === "," && !q) { o.push(c); c = ""; } else c += ch; } o.push(c); return o.map((x) => x.trim().replace(/^"|"$/g, "")); };
+      const hd = split(lines[0]).map((x) => x.toLowerCase().replace(/[^a-z]/g, ""));
+      const ci = (n) => hd.indexOf(n);
+      const iC = ci("ecode") >= 0 ? ci("ecode") : ci("code"), iEL = ci("el"), iCL = ci("cl"), iSL = ci("sl"), iWD = ci("wday") >= 0 ? ci("wday") : ci("workday");
+      if (iC < 0) { setBulkMsg("CSV must have an 'E. Code' column."); return; }
+      const [_y, _m] = month.split("-").map(Number);
+      const _dim = new Date(_y, _m, 0).getDate();
+      const next = { ...(attendance || {}) };
+      let done = 0, skipped = 0;
+      for (let li = 1; li < lines.length; li++) {
+        const v = split(lines[li]);
+        const code = v[iC];
+        if (!code || !(emps || []).some((e) => e.code === code)) { skipped++; continue; }
+        let el = iEL >= 0 ? +v[iEL] || 0 : 0, cl = iCL >= 0 ? +v[iCL] || 0 : 0, sl = iSL >= 0 ? +v[iSL] || 0 : 0;
+        const wd = iWD >= 0 ? +v[iWD] || 0 : null;
+        let placed = 0;
+        for (let d = 1; d <= _dim && (el + cl + sl) > 0; d++) {
+          const dow = new Date(_y, _m - 1, d).getDay();
+          if (dow === 0) continue;
+          const ds = month + "-" + String(d).padStart(2, "0");
+          let mark = null;
+          if (el > 0) { mark = "EL"; el--; } else if (cl > 0) { mark = "CL"; cl--; } else if (sl > 0) { mark = "SL"; sl--; }
+          if (mark) { next[ds] = { ...(next[ds] || {}) }; next[ds][code] = { status: mark }; placed++; }
+        }
+        if (wd != null) {
+          let working = 0;
+          for (let d = 1; d <= _dim; d++) { if (new Date(_y, _m - 1, d).getDay() !== 0) working++; }
+          let absent = Math.max(0, working - wd - placed);
+          for (let d = _dim; d >= 1 && absent > 0; d--) {
+            const dow = new Date(_y, _m - 1, d).getDay();
+            if (dow === 0) continue;
+            const ds = month + "-" + String(d).padStart(2, "0");
+            if (next[ds] && next[ds][code]) continue;
+            next[ds] = { ...(next[ds] || {}) }; next[ds][code] = { status: "A" }; absent--;
+          }
+        }
+        done++;
+      }
+      setAttendance(next);
+      setBulkMsg(done + " employee" + (done !== 1 ? "s" : "") + " updated" + (skipped ? ", " + skipped + " skipped (code not found)" : "") + ". Review, then it saves with the month.");
+    };
+    rd.readAsText(file);
+  }
   const [fullMonthModal, setFullMonthModal] = useState(false);
   const [fmTarget, setFmTarget] = useState("all");
   const [fmMonth, setFmMonth] = useState(TODAY.slice(0, 7));
@@ -2586,7 +2679,7 @@ ${e.code},${e.name},${month}-02,A`).join("\n");
     const nm = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     setMonth(nm);
     onMonthChange && onMonthChange(nm);
-  }, style: { border: "none", background: "none", cursor: "pointer", fontSize: 16, color: "#666", padding: "0 4px" } }, "\u203A")), /* @__PURE__ */ React.createElement("input", { value: filter, onChange: (e) => setFilter(e.target.value), placeholder: "\u{1F50D} Search employee...", style: { padding: "8px 14px", border: "1px solid #e0e0e0", borderRadius: 10, fontSize: 13, outline: "none", width: 200 } }), /* @__PURE__ */ React.createElement("div", { style: { marginLeft: "auto", display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setFullMonthModal(true), style: { padding: "8px 16px", background: "#1a237e", color: "#fff", border: "none", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u{1F4C5} Full Month"), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowImport(true), style: { padding: "8px 16px", background: "#fff", color: "#1a237e", border: "1px solid #1a237e", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer" } }, "\u{1F4E5} Import CSV"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, background: "#f5f5f5", borderRadius: 10, padding: 3, marginBottom: 14, width: "fit-content" } }, [
+  }, style: { border: "none", background: "none", cursor: "pointer", fontSize: 16, color: "#666", padding: "0 4px" } }, "\u203A")), /* @__PURE__ */ React.createElement("input", { value: filter, onChange: (e) => setFilter(e.target.value), placeholder: "\u{1F50D} Search employee...", style: { padding: "8px 14px", border: "1px solid #e0e0e0", borderRadius: 10, fontSize: 13, outline: "none", width: 200 } }), /* @__PURE__ */ React.createElement("div", { style: { marginLeft: "auto", display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: _exportMonthly, style: { padding: "8px 16px", background: "#00695c", color: "#fff", border: "none", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u2B07 Export Month"), /* @__PURE__ */ React.createElement("label", { style: { padding: "8px 16px", background: "#fff", color: "#00695c", border: "1px solid #00695c", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u{1F4E5} Upload Month", /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".csv,.txt", style: { display: "none" }, onChange: (ev) => { if (ev.target.files[0]) _importMonthly(ev.target.files[0]); ev.target.value = ""; } })), /* @__PURE__ */ React.createElement("button", { onClick: () => setFullMonthModal(true), style: { padding: "8px 16px", background: "#1a237e", color: "#fff", border: "none", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "\u{1F4C5} Full Month"), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowImport(true), style: { padding: "8px 16px", background: "#fff", color: "#1a237e", border: "1px solid #1a237e", borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: "pointer" } }, "\u{1F4E5} Import CSV"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, background: "#f5f5f5", borderRadius: 10, padding: 3, marginBottom: 14, width: "fit-content" } }, [
     { id: "manual", icon: "\u270F\uFE0F", label: "HR Manual Grid" },
     { id: "webpunch", icon: "\u{1F310}", label: "Web Punch-in" },
     { id: "csv", icon: "\u{1F4CA}", label: "Import CSV / Biometric" },
