@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v19.8 -->
+<!-- PAYROLLA v19.9 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.8 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v19.9 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="19.8";
+  var BUILD="19.9";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -216,14 +216,14 @@ const db = {
     } catch (e) {
     }
     try {
-      const { data: existing } = await sb.from("company_policies").select("id").eq("company_id", companyId).limit(1).maybeSingle();
-      if (existing == null ? void 0 : existing.id) {
-        await sb.from("company_policies").update({ policies: pol }).eq("id", existing.id).eq("company_id", companyId);
-      } else {
-        await sb.from("company_policies").insert({ company_id: companyId, policies: pol });
-      }
+      if (!companyId) throw new Error("No company linked to this login");
+      const { data: existing, error: selErr } = await sb.from("company_policies").select("id").eq("company_id", companyId).limit(1).maybeSingle();
+      if (selErr) throw new Error(selErr.message);
+      const res = (existing == null ? void 0 : existing.id) ? await sb.from("company_policies").update({ policies: pol }).eq("id", existing.id).eq("company_id", companyId).select("id") : await sb.from("company_policies").insert({ company_id: companyId, policies: pol }).select("id");
+      if (res.error) throw new Error(res.error.message);
+      if (!res.data || !res.data.length) throw new Error("Save blocked by database permissions (RLS)");
     } catch (e) {
-      console.warn("savePolicies DB:", e.message);
+      throw new Error(e.message || "Could not save settings");
     }
   },
   // Attendance
@@ -330,7 +330,11 @@ const db = {
     return data;
   },
   async saveCompany(co, companyId) {
-    await sb.from("companies").update({ ...co, updated_at: /* @__PURE__ */ new Date() }).eq("id", companyId);
+    if (!companyId) throw new Error("No company linked to this login");
+    const { data, error } = await sb.from("companies").update({ ...co, updated_at: /* @__PURE__ */ new Date() }).eq("id", companyId).select("id");
+    if (error) throw new Error(error.message);
+    if (!data || !data.length) throw new Error("Save blocked by database permissions (RLS)");
+    return data;
   }
 };
 function fromDbEmp(e) {
@@ -5469,8 +5473,12 @@ function HRAdmin({ user, onLogout }) {
   }
   async function apiSavePolicies(newPol) {
     setPol(newPol);
-    await db.savePolicies(newPol, user.companyId);
-    showToast("Policies saved \u2713");
+    try {
+      await db.savePolicies(newPol, user.companyId);
+      showToast("Policies saved \u2713");
+    } catch (e) {
+      showToast("NOT SAVED to database: " + (e.message || "unknown error"), "warn");
+    }
   }
   async function apiSaveCo(newCo) {
     setCo(newCo);
@@ -5479,7 +5487,7 @@ function HRAdmin({ user, onLogout }) {
       await db.saveCompany(newCo, user.companyId);
       showToast("Company updated \u2713");
     } catch (e) {
-      showToast("Saved locally", "warn");
+      showToast("NOT SAVED to database: " + (e.message || "unknown error"), "warn");
     }
   }
   const active = emps.filter((e) => e.status === "Active");
