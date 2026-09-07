@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v21.4 -->
+<!-- PAYROLLA v21.5 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.4 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.5 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="21.4";
+  var BUILD="21.5";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -5554,6 +5554,190 @@ function DashboardView({ user, emps, active, runs, activeRun, leaves, loans, pol
           h("div", { style: { fontSize: 17, fontWeight: 800, color: "#12143a", margin: "4px 0 2px", letterSpacing: -.3 } }, short(r.total)),
           h("div", { style: { fontSize: 11, color: "#8a8fa3" } }, r.count + " employees \u00b7 " + (r.on || "")))))));
 }
+function _rptCSS(accent, land) {
+  return `<style>@page{size:A4 ${land ? "landscape" : "portrait"};margin:10mm}
+body{padding:0!important;font-family:Arial,sans-serif}
+.doc{width:100%}.hd{text-align:center;border:2px solid #000;padding:8px}
+.t1{font-size:14px;font-weight:800;letter-spacing:.3px}.t2{font-size:10px;margin-top:3px}
+table.meta{width:100%;border-collapse:collapse;margin-bottom:6px}
+table.meta td{border:1px solid #000;padding:5px 7px;font-size:10.5px}
+.warn{border:1px solid #c62828;background:#fff4f4;color:#8e0000;padding:7px 10px;font-size:10.5px;margin-bottom:6px}
+table.grid{width:100%;border-collapse:collapse}
+table.grid th{border:1px solid #000;background:${accent};font-size:9px;padding:5px 3px;text-align:center;color:#000}
+table.grid td{border:1px solid #777;font-size:9.5px;padding:4px 6px;vertical-align:top}
+.c{text-align:center}.r{text-align:right}.bad{color:#c62828;font-weight:700}
+.sub{display:block;font-size:8px;color:#666}
+tr.gt td{background:${accent}!important;border-top:2px solid #000;font-weight:700}
+.chal{margin-top:12px;width:65%;border:1px solid #000;page-break-inside:avoid}
+.chal h3{font-size:11px;background:${accent};padding:5px 8px;border-bottom:1px solid #000;margin:0}
+table.s{width:100%;border-collapse:collapse}
+table.s td{border-bottom:1px solid #ddd;padding:5px 8px;font-size:10px}
+table.s tr.tr td{background:#f5f5f5;border-top:1px solid #000;font-size:11.5px;font-weight:700}
+.sign{display:flex;justify-content:space-between;margin-top:28px;padding:0 15px}
+.sign div{border-top:1px solid #000;padding-top:4px;font-size:9.5px;width:150px;text-align:center}
+.ft{margin-top:10px;font-size:8px;color:#666;text-align:center}
+.note{font-size:9px;color:#444;margin-top:8px;line-height:1.5}
+thead{display:table-header-group}tbody tr{page-break-inside:avoid}
+h2.sec{font-size:11px;margin:12px 0 4px;padding-bottom:2px;border-bottom:1px solid #000}</style>`;
+}
+function _rptHead(t1, t2, co, rows) {
+  const e = (x) => String(x == null ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return `<div class="hd"><div class="t1">${t1}</div><div class="t2">${t2}</div></div>
+<table class="meta">${rows.map((r) => `<tr><td><b>${e(r[0])}</b> ${e(r[1])}</td><td><b>${e(r[2])}</b> ${e(r[3])}</td></tr>`).join("")}</table>`;
+}
+function buildStatutoryReport(kind, ctx) {
+  const { run, emps, co, pol, runs, fy } = ctx;
+  const R = (run && run.results) || [];
+  const n = (x) => Math.round(+x || 0);
+  const f = (x) => Math.round(+x || 0).toLocaleString("en-IN");
+  const esc = (t) => String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const MN = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const mL = run ? MN[run.month] + " " + run.year : "";
+  const emp = (c) => (emps || []).find((x) => x.code === c) || {};
+  const sign = `<div class="sign"><div>Prepared by</div><div>Verified by</div><div>Authorised Signatory</div></div>`;
+
+  if (kind === "PF Challan") {
+    const P = R.filter((e) => e.pf);
+    if (!P.length) return { err: "No PF-eligible employees in this payroll run." };
+    let T = { w: 0, ee: 0, eps: 0, er: 0 };
+    P.forEach((e) => { const raw = n(e.pfBase != null ? e.pfBase : e.basic); const w = e.pfMode === "full" ? raw : Math.min(raw, (pol && pol.pf && pol.pf.maxPfWage) || 15e3); const eps = Math.min(Math.round(Math.min(w, 15e3) * .0833), 1250); T.w += w; T.ee += n(e.pfE) - n(e.vpfE); T.eps += eps; T.er += Math.max(0, n(e.pfR) - eps); });
+    const admin = Math.max(500, Math.round(T.w * .005)), edli = Math.round(Math.min(T.w, 15e3 * P.length) * .005);
+    const total = T.ee + T.eps + T.er + admin + edli;
+    return { title: "PF Challan \u2014 " + mL, html: `<div class="doc">
+${_rptHead("PROVIDENT FUND REMITTANCE CHALLAN", "Employees' Provident Fund Organisation &middot; EPF &amp; MP Act, 1952", co, [["Establishment:", (co && co.name) || "", "Wage Month:", mL], ["EPF Code:", (co && (co.pf || co.pfCode)) || "\u2014", "Members:", P.length + "   Due: 15th of following month"]])}
+<div class="chal" style="width:80%"><h3>Statement of Contributions</h3><table class="s">
+<tr><td>Total EPF Wages</td><td class="r">${f(T.w)}</td></tr>
+<tr><td>A/c No. 1 &mdash; Employee's share of EPF @ 12%</td><td class="r">${f(T.ee)}</td></tr>
+<tr><td>A/c No. 1 &mdash; Employer's share of EPF @ 3.67%</td><td class="r">${f(T.er)}</td></tr>
+<tr><td>A/c No. 10 &mdash; Pension Fund (EPS) @ 8.33%</td><td class="r">${f(T.eps)}</td></tr>
+<tr><td>A/c No. 2 &mdash; Administrative charges @ 0.50% (min &#8377;500)</td><td class="r">${f(admin)}</td></tr>
+<tr><td>A/c No. 21 &mdash; EDLI contribution @ 0.50%</td><td class="r">${f(edli)}</td></tr>
+<tr class="tr"><td>Total Amount Payable</td><td class="r">&#8377; ${f(total)}</td></tr></table></div>
+<div class="note"><b>Amount in words:</b> ${esc(numToWords(total))} only.<br/>Payment due on or before the 15th of the following month. Delay attracts interest under section 7Q and damages under section 14B.</div>
+${sign}<div class="ft">Payrolla &middot; PF Challan for ${esc(mL)}</div></div>${_rptCSS("#e8eaf6")}` };
+  }
+
+  if (kind === "PT Challan" || kind === "PT Return") {
+    const P = R.filter((e) => (+e.pt || 0) > 0);
+    if (!P.length) return { err: "No professional tax deducted in this payroll run." };
+    const byState = {};
+    P.forEach((e) => { const st = (emp(e.code).workState) || (pol && pol.pt && pol.pt.state) || "\u2014"; if (!byState[st]) byState[st] = { n: 0, amt: 0 }; byState[st].n++; byState[st].amt += n(e.pt); });
+    const tot = P.reduce((s, e) => s + n(e.pt), 0);
+    const rows = P.map((e, i) => `<tr><td class="c">${i + 1}</td><td>${esc(e.code)}</td><td>${esc(e.name)}</td><td>${esc(emp(e.code).desig || "\u2014")}</td><td>${esc(emp(e.code).workState || "\u2014")}</td><td class="r">${f(e.g)}</td><td class="r"><b>${f(e.pt)}</b></td></tr>`).join("");
+    const stRows = Object.entries(byState).map(([st, v]) => `<tr><td>${esc(st)}</td><td class="r">${v.n}</td><td class="r">${f(v.amt)}</td></tr>`).join("");
+    return { title: "Professional Tax " + (kind === "PT Return" ? "Return" : "Challan") + " \u2014 " + mL, html: `<div class="doc">
+${_rptHead("PROFESSIONAL TAX &mdash; " + (kind === "PT Return" ? "MONTHLY RETURN" : "REMITTANCE CHALLAN"), "Tax on Professions, Trades, Callings and Employments", co, [["Employer:", (co && co.name) || "", "Month:", mL], ["PT Registration:", (co && co.pt) || "\u2014", "Employees liable:", String(P.length)]])}
+<h2 class="sec">State-wise Summary</h2>
+<table class="grid"><thead><tr><th style="width:50%">State</th><th>No. of Employees</th><th>Tax Deducted</th></tr></thead><tbody>${stRows}
+<tr class="gt"><td class="r">TOTAL</td><td class="r">${P.length}</td><td class="r">${f(tot)}</td></tr></tbody></table>
+<h2 class="sec">Employee-wise Detail</h2>
+<table class="grid"><thead><tr><th>Sr</th><th>Code</th><th>Name</th><th>Designation</th><th>State</th><th>Gross Wages</th><th>PT Deducted</th></tr></thead>
+<tbody>${rows}<tr class="gt"><td colspan="5" class="r">TOTAL</td><td class="r">${f(P.reduce((s, e) => s + n(e.g), 0))}</td><td class="r">${f(tot)}</td></tr></tbody></table>
+<div class="note"><b>Total payable:</b> &#8377;${f(tot)} (${esc(numToWords(tot))} only). Remit to the respective State authority by the due date notified for your State.</div>
+${sign}<div class="ft">Payrolla &middot; Professional Tax for ${esc(mL)}</div></div>${_rptCSS("#fff3e0")}` };
+  }
+
+  if (kind === "LWF Return") {
+    const P = R.filter((e) => (+e.lwfE || 0) > 0 || (+e.lwfR || 0) > 0);
+    if (!P.length) return { err: "No Labour Welfare Fund contribution in this month. LWF is deducted only in the months notified by each State." };
+    const ee = P.reduce((s, e) => s + n(e.lwfE), 0), er = P.reduce((s, e) => s + n(e.lwfR), 0);
+    const rows = P.map((e, i) => `<tr><td class="c">${i + 1}</td><td>${esc(e.code)}</td><td>${esc(e.name)}</td><td>${esc(emp(e.code).workState || "\u2014")}</td><td class="r">${f(e.g)}</td><td class="r">${f(e.lwfE)}</td><td class="r">${f(e.lwfR)}</td><td class="r"><b>${f(n(e.lwfE) + n(e.lwfR))}</b></td></tr>`).join("");
+    return { title: "Labour Welfare Fund \u2014 " + mL, html: `<div class="doc">
+${_rptHead("LABOUR WELFARE FUND &mdash; CONTRIBUTION STATEMENT", "State Labour Welfare Board", co, [["Employer:", (co && co.name) || "", "Contribution Period:", mL], ["Address:", (co && co.addr) || "\u2014", "Contributing employees:", String(P.length)]])}
+<table class="grid"><thead><tr><th>Sr</th><th>Code</th><th>Employee Name</th><th>State</th><th>Wages</th><th>Employee<br/>Share</th><th>Employer<br/>Share</th><th>Total</th></tr></thead>
+<tbody>${rows}<tr class="gt"><td colspan="4" class="r">TOTAL</td><td class="r">${f(P.reduce((s, e) => s + n(e.g), 0))}</td><td class="r">${f(ee)}</td><td class="r">${f(er)}</td><td class="r">${f(ee + er)}</td></tr></tbody></table>
+<div class="chal"><h3>Remittance Summary</h3><table class="s">
+<tr><td>Employee's contribution</td><td class="r">${f(ee)}</td></tr>
+<tr><td>Employer's contribution</td><td class="r">${f(er)}</td></tr>
+<tr class="tr"><td>Total Payable</td><td class="r">&#8377; ${f(ee + er)}</td></tr></table></div>
+<div class="note">${esc(numToWords(ee + er))} only. LWF is payable in the months notified by the State Labour Welfare Board.</div>
+${sign}<div class="ft">Payrolla &middot; LWF for ${esc(mL)}</div></div>${_rptCSS("#e0f2f1")}` };
+  }
+
+  if (kind === "Form 24Q") {
+    const P = R.filter((e) => (+e.tds || 0) > 0);
+    const noPan = P.filter((e) => !emp(e.code).pan);
+    if (!P.length) return { err: "No TDS deducted in this payroll run." };
+    const tot = P.reduce((s, e) => s + n(e.tds), 0), gr = P.reduce((s, e) => s + n(e.g), 0);
+    const rows = P.map((e, i) => { const E = emp(e.code); return `<tr><td class="c">${i + 1}</td><td>${esc(E.pan) || '<span class="bad">NOT SET</span>'}</td><td>${esc(e.code)}</td><td>${esc(e.name)}</td><td class="c">${(E.itRegime || "new") === "old" ? "Old" : "New"}</td><td class="r">${f(e.g)}</td><td class="r"><b>${f(e.tds)}</b></td><td class="c">192</td></tr>`; }).join("");
+    return { title: "Form 24Q \u2014 " + mL, html: `<div class="doc">
+${_rptHead("FORM 24Q &mdash; QUARTERLY STATEMENT OF TDS (ANNEXURE I)", "Deduction of tax from salary under section 192 &middot; Income-tax Act, 1961", co, [["Deductor:", (co && co.name) || "", "Month:", mL], ["TAN:", (co && co.tan) || "\u2014", "PAN:", (co && co.pan) || "\u2014"], ["Deductees:", String(P.length), "Due:", "7th of following month"]])}
+${noPan.length ? `<div class="warn"><b>${noPan.length} deductee(s) have no PAN.</b> TDS must be deducted at 20% under section 206AA and the return will be flagged.</div>` : ""}
+<table class="grid"><thead><tr><th>Sr</th><th>PAN of Deductee</th><th>Emp Code</th><th>Name of Deductee</th><th>Regime</th><th>Amount Paid<br/>/ Credited</th><th>Tax Deducted</th><th>Section</th></tr></thead>
+<tbody>${rows}<tr class="gt"><td colspan="5" class="r">TOTAL</td><td class="r">${f(gr)}</td><td class="r">${f(tot)}</td><td></td></tr></tbody></table>
+<div class="chal"><h3>Challan Detail (ITNS 281)</h3><table class="s">
+<tr><td>Tax deducted at source</td><td class="r">${f(tot)}</td></tr>
+<tr><td>Surcharge / Education cess</td><td class="r">Included</td></tr>
+<tr><td>Interest / Late fee</td><td class="r">&mdash;</td></tr>
+<tr class="tr"><td>Total to be deposited</td><td class="r">&#8377; ${f(tot)}</td></tr></table></div>
+<div class="note"><b>${esc(numToWords(tot))} only.</b> Deposit by the 7th of the following month (30th April for March). Quarterly Form 24Q is due on the 31st of the month following each quarter.</div>
+${sign}<div class="ft">Payrolla &middot; Form 24Q Annexure I &middot; ${esc(mL)}</div></div>${_rptCSS("#ede7f6", true)}` };
+  }
+
+  if (kind === "Muster Roll") {
+    if (!R.length) return { err: "Run payroll for the month first." };
+    const rows = R.map((e, i) => { const E = emp(e.code); const td = e.monthDays || 30; const days = +((td - (e.lopDays || 0)) * (e.joiningProration != null ? e.joiningProration : 1)).toFixed(1);
+      return `<tr><td class="c">${i + 1}</td><td>${esc(e.code)}</td><td>${esc(e.name)}<span class="sub">${esc(E.fatherName || "")}</span></td><td>${esc(E.desig || "\u2014")}</td><td>${esc(E.dept || "\u2014")}</td><td class="c">${esc(E.gen || "\u2014")}</td><td class="c">${esc(E.doj || "\u2014")}</td><td class="c">${td}</td><td class="c">${e.lopDays || 0}</td><td class="c"><b>${days}</b></td><td class="r">${f(e.g)}</td></tr>`; }).join("");
+    return { title: "Muster Roll \u2014 " + mL, html: `<div class="doc">
+${_rptHead("MUSTER ROLL", "Form V &middot; Maintained under the Minimum Wages Act, 1948 and Shops &amp; Establishments Acts", co, [["Establishment:", (co && co.name) || "", "For the month of:", mL], ["Address:", (co && co.addr) || "\u2014", "Total workers:", String(R.length)]])}
+<table class="grid"><thead><tr><th>Sr</th><th>Ticket /<br/>Code</th><th>Name &amp; Father's Name</th><th>Designation</th><th>Department</th><th>Sex</th><th>Date of<br/>Joining</th><th>Days in<br/>Month</th><th>Absent<br/>/ LOP</th><th>Days<br/>Worked</th><th>Wages Paid</th></tr></thead>
+<tbody>${rows}<tr class="gt"><td colspan="9" class="r">TOTAL</td><td class="c">${R.reduce((s, e) => s + ((e.monthDays || 30) - (e.lopDays || 0)), 0)}</td><td class="r">${f(R.reduce((s, e) => s + n(e.g), 0))}</td></tr></tbody></table>
+${sign}<div class="ft">Payrolla &middot; Muster Roll for ${esc(mL)}</div></div>${_rptCSS("#e8eaf6", true)}` };
+  }
+
+  if (kind === "Bonus Register" || kind === "Bonus Calculation" || kind === "Form A") {
+    const bp = (pol && pol.bonus) || {};
+    const rate = bp.currentRate || 8.33, elig = bp.eligibilityWage || 21e3, calcW = bp.calculationWage || 7e3;
+    const list = (emps || []).filter((e) => e.status !== "Inactive");
+    if (!list.length) return { err: "No employees to report." };
+    let tot = 0;
+    const rows = list.map((e, i) => { const b = +e.basic || 0; const ok = b <= elig; const base = Math.min(b, calcW); const amt = ok ? Math.round(base * 12 * rate / 100) : 0; tot += amt;
+      return `<tr><td class="c">${i + 1}</td><td>${esc(e.code)}</td><td>${esc(e.name)}<span class="sub">${esc(e.fatherName || "")}</span></td><td>${esc(e.desig || "\u2014")}</td><td class="c">${esc(e.doj || "\u2014")}</td><td class="r">${f(b)}</td><td class="c">${ok ? "Eligible" : "Not eligible"}</td><td class="r">${f(ok ? base : 0)}</td><td class="c">${rate}%</td><td class="r"><b>${f(amt)}</b></td></tr>`; }).join("");
+    return { title: "Bonus Register", html: `<div class="doc">
+${_rptHead("REGISTER OF BONUS &mdash; FORM C", "Payment of Bonus Act, 1965 &middot; Rule 4(b)", co, [["Establishment:", (co && co.name) || "", "Accounting Year:", bp.accountingYear || "April\u2013March"], ["Address:", (co && co.addr) || "\u2014", "Eligibility wage ceiling:", "\u20B9" + f(elig) + " \u00b7 Calculation ceiling \u20B9" + f(calcW)]])}
+<table class="grid"><thead><tr><th>Sr</th><th>Code</th><th>Name &amp; Father's Name</th><th>Designation</th><th>Date of<br/>Joining</th><th>Monthly<br/>Basic + DA</th><th>Eligibility</th><th>Bonus Wage<br/>Base</th><th>Rate</th><th>Bonus<br/>Payable</th></tr></thead>
+<tbody>${rows}<tr class="gt"><td colspan="9" class="r">TOTAL BONUS PAYABLE</td><td class="r">${f(tot)}</td></tr></tbody></table>
+<div class="note"><b>${esc(numToWords(tot))} only.</b> Minimum bonus 8.33% and maximum 20% of the bonus wage. Payable within 8 months of the close of the accounting year.</div>
+${sign}<div class="ft">Payrolla &middot; Bonus Register</div></div>${_rptCSS("#fce4ec", true)}` };
+  }
+
+  if (kind === "Form D") {
+    const bp = (pol && pol.bonus) || {};
+    const rate = bp.currentRate || 8.33, elig = bp.eligibilityWage || 21e3, calcW = bp.calculationWage || 7e3;
+    const list = (emps || []).filter((e) => e.status !== "Inactive" && (+e.basic || 0) <= elig);
+    const tot = list.reduce((s, e) => s + Math.round(Math.min(+e.basic || 0, calcW) * 12 * rate / 100), 0);
+    return { title: "Form D \u2014 Annual Bonus Return", html: `<div class="doc">
+${_rptHead("FORM D &mdash; ANNUAL RETURN OF BONUS PAID", "Payment of Bonus Act, 1965 &middot; Rule 5", co, [["Name of Establishment:", (co && co.name) || "", "Accounting Year:", bp.accountingYear || "April\u2013March"], ["Address:", (co && co.addr) || "\u2014", "Nature of business:", (co && co.nature) || "\u2014"]])}
+<table class="grid"><thead><tr><th style="width:62%">Particulars</th><th>Details</th></tr></thead><tbody>
+<tr><td>1. Total number of employees</td><td class="r">${(emps || []).filter((e) => e.status !== "Inactive").length}</td></tr>
+<tr><td>2. Number of employees eligible for bonus</td><td class="r">${list.length}</td></tr>
+<tr><td>3. Percentage of bonus declared</td><td class="r">${rate}%</td></tr>
+<tr><td>4. Total amount of bonus payable</td><td class="r">${f(tot)}</td></tr>
+<tr><td>5. Settlement, if any, reached under section 18(1) or 12(3)</td><td class="r">Nil</td></tr>
+<tr><td>6. Whether bonus has been paid within the prescribed period; if not, reasons</td><td class="r">Yes</td></tr>
+<tr class="gt"><td class="r">TOTAL BONUS DISBURSED</td><td class="r">&#8377; ${f(tot)}</td></tr></tbody></table>
+<div class="note">${esc(numToWords(tot))} only. This return is to be filed with the Inspector within 30 days of the expiry of the time limit specified in section 19.</div>
+${sign}<div class="ft">Payrolla &middot; Form D</div></div>${_rptCSS("#fce4ec")}` };
+  }
+  return { err: "Report not available." };
+}
+function numToWords(num) {
+  const a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  let x = Math.round(+num || 0);
+  if (x === 0) return "Rupees Zero";
+  const two = (v) => v < 20 ? a[v] : b[Math.floor(v / 10)] + (v % 10 ? " " + a[v % 10] : "");
+  const three = (v) => (v >= 100 ? a[Math.floor(v / 100)] + " Hundred" + (v % 100 ? " " + two(v % 100) : "") : two(v));
+  let out = "";
+  const cr = Math.floor(x / 1e7); x %= 1e7;
+  const lk = Math.floor(x / 1e5); x %= 1e5;
+  const th = Math.floor(x / 1e3); x %= 1e3;
+  if (cr) out += three(cr) + " Crore ";
+  if (lk) out += three(lk) + " Lakh ";
+  if (th) out += three(th) + " Thousand ";
+  if (x) out += three(x);
+  return "Rupees " + out.trim();
+}
 function HRAdmin({ user, onLogout }) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, __, _$, _aa, _ba, _ca, _da;
   const [tab, setTab] = useState(() => {
@@ -6442,7 +6626,7 @@ Run payroll anyway?`
     { icon: "\u{1F3DB}\uFE0F", t: "PF / EPF", s: "Employees Provident Fund", d: "ECR filing due 15th every month. Includes both employee (12%) and employer (12%) contributions.", btns: ["Generate ECR", "ECR Text File", "PF Challan", "Form 19", "Form 10C"], c: P },
     { icon: "\u{1F3E5}", t: "ESIC", s: "Employee State Insurance", d: "Monthly contributions. Employee 0.75%, Employer 3.25%. Applicable if gross \u2264 \u20B921,000.", btns: ["ESIC Challan", "Half-Yearly Return", "Form 37-A", "ESIC Cards"], c: AC },
     { icon: "\u{1F4C4}", t: "TDS (Form 24Q)", s: "Tax Deducted at Source", d: "Quarterly return for salary TDS. Q1: Jul 31, Q2: Oct 31, Q3: Jan 31, Q4: May 31.", btns: ["Form 24Q", "Form 16 (All)", "TDS Certificate", "26AS Reconcile"], c: WN },
-    { icon: "\u{1F4CB}", t: "Professional Tax", s: "State Tax", d: "Monthly PT deduction & challan. Maharashtra: \u20B9200/mo (gross >\u20B915K), \u20B9150 (>\u20B910K).", btns: ["PT Challan", "PT Return", "Enrollment Cert", "Exemption Form"], c: DG },
+    { icon: "\u{1F4CB}", t: "Professional Tax", s: "State Tax", d: "Monthly PT deduction & challan. Maharashtra: \u20B9200/mo (gross >\u20B915K), \u20B9150 (>\u20B910K).", btns: ["PT Challan", "PT Return", "LWF Return", "Enrollment Cert"], c: DG },
     { icon: "\u{1F4D1}", t: "Labour Law Returns", s: "Factories / Shops Act", d: "Annual Form D, Register of Wages, Muster Roll, Overtime Register, Leave Register.", btns: ["Salary Sheet", "Yearly Reports", "Form IV Register", "Form D", "Muster Roll", "Leave Register"], c: "#6a1b9a" },
     { icon: "\u2696\uFE0F", t: "Gratuity & Bonus", s: "Statutory Payments", d: "Gratuity: 15 days salary \xD7 years of service. Bonus: 8.33% to 20% of basic (Payment of Bonus Act).", btns: ["Gratuity Report", "Bonus Calculation", "Form A", "Bonus Register"], c: "#00695c" }
   ].map(({ icon, t, s: s2, d, btns, c }) => /* @__PURE__ */ React.createElement(Card, { key: t }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 26 } }, icon), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, t), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, s2))), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 13, color: MT, lineHeight: 1.6, marginBottom: 12 } }, d), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, btns.map((b) => /* @__PURE__ */ React.createElement(Btn, { key: b, sz: "sm", v: "sec", onClick: () => {
@@ -6693,6 +6877,9 @@ table.s tr.tr td{background:#f5f5f5;border-top:1px solid #000;font-size:11.5px}
 .sign div{border-top:1px solid #000;padding-top:4px;font-size:9.5px;width:150px;text-align:center}
 .ft{margin-top:10px;font-size:8px;color:#666;text-align:center}
 thead{display:table-header-group}tbody tr{page-break-inside:avoid}</style>`);
+    } else if (["PF Challan", "PT Challan", "PT Return", "LWF Return", "Form 24Q", "Muster Roll", "Bonus Register", "Bonus Calculation", "Form A", "Form D"].indexOf(b) >= 0) {
+      const _r = buildStatutoryReport(b, { run: activeRun, emps, co: co || CO0, pol: pol || DEFAULT_POLICIES, runs });
+      if (_r.err) alert(_r.err); else printHTML(_r.title, _r.html);
     } else alert(b + " \u2014 connect to government portal in production (EPFO / ESIC / TRACES / State PT portal).");
   }, s: { color: c, borderColor: c + "44", background: c + "11" } }, b)))))), /* @__PURE__ */ React.createElement(Card, { s: { marginTop: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 12 } }, "Compliance Calendar \u2014 ", MONTHS[NOW.getMonth()], " ", NOW.getFullYear()), /* @__PURE__ */ React.createElement(Tbl, { cols: ["Due Date", "Filing", "Authority", "Frequency", "Status"], rows: [
     ["7th", "TDS Deposit", "Income Tax Dept", "Monthly", /* @__PURE__ */ React.createElement(Badge, { t: "Upcoming", c: WN })],
