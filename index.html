@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v21.3 -->
+<!-- PAYROLLA v21.4 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.3 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.4 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="21.3";
+  var BUILD="21.4";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -6439,7 +6439,7 @@ Run payroll anyway?`
       return /* @__PURE__ */ React.createElement("div", { key: e.id }, /* @__PURE__ */ React.createElement("b", null, e.name), ": \u20B9", p.lwfE || 0, " emp + \u20B9", p.lwfR || 0, " emr = \u20B9", (p.lwfE || 0) + (p.lwfR || 0));
     }), totalEmp > 5 && /* @__PURE__ */ React.createElement("div", { style: { color: "#888" } }, "...and ", totalEmp - 5, " more employees")));
   })(), /* @__PURE__ */ React.createElement(G, { gap: 20 }, [
-    { icon: "\u{1F3DB}\uFE0F", t: "PF / EPF", s: "Employees Provident Fund", d: "ECR filing due 15th every month. Includes both employee (12%) and employer (12%) contributions.", btns: ["Generate ECR", "PF Challan", "Form 19", "Form 10C"], c: P },
+    { icon: "\u{1F3DB}\uFE0F", t: "PF / EPF", s: "Employees Provident Fund", d: "ECR filing due 15th every month. Includes both employee (12%) and employer (12%) contributions.", btns: ["Generate ECR", "ECR Text File", "PF Challan", "Form 19", "Form 10C"], c: P },
     { icon: "\u{1F3E5}", t: "ESIC", s: "Employee State Insurance", d: "Monthly contributions. Employee 0.75%, Employer 3.25%. Applicable if gross \u2264 \u20B921,000.", btns: ["ESIC Challan", "Half-Yearly Return", "Form 37-A", "ESIC Cards"], c: AC },
     { icon: "\u{1F4C4}", t: "TDS (Form 24Q)", s: "Tax Deducted at Source", d: "Quarterly return for salary TDS. Q1: Jul 31, Q2: Oct 31, Q3: Jan 31, Q4: May 31.", btns: ["Form 24Q", "Form 16 (All)", "TDS Certificate", "26AS Reconcile"], c: WN },
     { icon: "\u{1F4CB}", t: "Professional Tax", s: "State Tax", d: "Monthly PT deduction & challan. Maharashtra: \u20B9200/mo (gross >\u20B915K), \u20B9150 (>\u20B910K).", btns: ["PT Challan", "PT Return", "Enrollment Cert", "Exemption Form"], c: DG },
@@ -6570,8 +6570,75 @@ tbody tr{page-break-inside:avoid}
 thead{display:table-header-group}
 </style>`;
       printHTML("Form IV \u2014 Register of Wages \u2014 " + _mLabel, _html);
-    } else if (b === "Generate ECR" && activeRun) {
-      downloadExcel("PF_ECR", [{ name: "ECR", headers: ["UAN", "Name", "Gross", "EPF Wages", "EPS Wages", "EE Contrib", "EPS", "ER Contrib", "NCP Days"], rows: activeRun.results.filter((e) => e.pf).map((e, i) => [`UAN${1001 + i}`, e.name, e.g, e.pfBase || +e.basic, e.pfBase || +e.basic, e.pfE, Math.round((e.pfBase || +e.basic) * 0.0833), e.pfR, e.lopDays || 0]) }]);
+    } else if ((b === "Generate ECR" || b === "ECR Text File") && activeRun) {
+      const _R = (activeRun.results || []).filter((e) => e.pf);
+      if (!_R.length) { alert("No PF-eligible employees in this payroll run."); return; }
+      const _n = (x) => Math.round(+x || 0);
+      const _mL = activeRun.month + "/" + activeRun.year;
+      const _noUan = _R.filter((e) => !e.uan).map((e) => e.code + " " + e.name);
+      if (b === "ECR Text File") {
+        const _lines = _R.map((e) => {
+          const wage = _n(e.pfBase != null ? e.pfBase : e.basic);
+          const epsWage = Math.min(wage, 15e3);
+          const ee = _n(e.pfE) - _n(e.vpfE);
+          const eps = Math.min(Math.round(epsWage * 0.0833), 1250);
+          const er = Math.max(0, _n(e.pfR) - eps);
+          return [e.uan || "", (e.name || "").toUpperCase(), wage, wage, epsWage, epsWage, ee, eps, er, 0, e.lopDays || 0, 0].join("#~#");
+        });
+        downloadText("ECR_" + activeRun.month + "_" + activeRun.year + ".txt", _lines.join("\n"), "text/plain");
+        if (_noUan.length) alert("ECR generated.\n\n" + _noUan.length + " employee(s) have no UAN and will be rejected by EPFO:\n" + _noUan.slice(0, 12).join("\n"));
+        return;
+      }
+      const _esc = (t) => String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const _f = (x) => Math.round(+x || 0).toLocaleString("en-IN");
+      let T = { wage: 0, eps_w: 0, ee: 0, eps: 0, er: 0, tot: 0 };
+      const _rows = _R.map((e, i) => {
+        const wage = _n(e.pfBase != null ? e.pfBase : e.basic);
+        const epsWage = Math.min(wage, 15e3);
+        const ee = _n(e.pfE) - _n(e.vpfE);
+        const eps = Math.min(Math.round(epsWage * 0.0833), 1250);
+        const er = Math.max(0, _n(e.pfR) - eps);
+        T.wage += wage; T.eps_w += epsWage; T.ee += ee; T.eps += eps; T.er += er; T.tot += ee + eps + er;
+        return `<tr><td class="c">${i + 1}</td><td>${_esc(e.uan) || '<span class="bad">NOT SET</span>'}</td><td>${_esc(e.code)}</td><td>${_esc(e.name)}</td><td class="r">${_f(wage)}</td><td class="r">${_f(epsWage)}</td><td class="r">${_f(ee)}</td><td class="r">${_f(eps)}</td><td class="r">${_f(er)}</td><td class="c">${e.lopDays || 0}</td><td class="r"><b>${_f(ee + eps + er)}</b></td></tr>`;
+      }).join("");
+      const admin = Math.max(500, Math.round(T.wage * 0.005));
+      const edli = Math.round(Math.min(T.eps_w, 15e3 * _R.length) * 0.005);
+      printHTML("PF ECR \u2014 " + _mL, `<div class="doc">
+<div class="hd"><div class="t1">ELECTRONIC CHALLAN CUM RETURN (ECR)</div><div class="t2">Employees' Provident Fund Organisation &middot; EPF &amp; MP Act, 1952</div></div>
+<table class="meta"><tr><td><b>Establishment:</b> ${_esc((co && co.name) || "")}</td><td><b>Wage Month:</b> ${_esc(_mL)}</td></tr>
+<tr><td><b>Establishment Code:</b> ${_esc((co && (co.pf || co.pfCode)) || "\u2014")}</td><td><b>Members:</b> ${_R.length}&nbsp;&nbsp;<b>Due by:</b> 15th of following month</td></tr></table>
+${_noUan.length ? `<div class="warn"><b>${_noUan.length} member(s) have no UAN.</b> EPFO will reject these lines. Add UAN in the employee record before uploading.</div>` : ""}
+<table class="grid"><thead><tr><th>Sr</th><th>UAN</th><th>Emp Code</th><th>Member Name</th><th>EPF Wages</th><th>EPS Wages</th><th>EE Share<br/>A/c 1</th><th>Pension<br/>A/c 10</th><th>ER Share<br/>A/c 1</th><th>NCP<br/>Days</th><th>Total</th></tr></thead>
+<tbody>${_rows}<tr class="gt"><td colspan="4" class="r"><b>TOTAL</b></td><td class="r"><b>${_f(T.wage)}</b></td><td class="r"><b>${_f(T.eps_w)}</b></td><td class="r"><b>${_f(T.ee)}</b></td><td class="r"><b>${_f(T.eps)}</b></td><td class="r"><b>${_f(T.er)}</b></td><td></td><td class="r"><b>${_f(T.tot)}</b></td></tr></tbody></table>
+<div class="chal"><h3>Challan Summary</h3><table class="s">
+<tr><td>A/c No. 1 &mdash; Employee's share of EPF</td><td class="r">${_f(T.ee)}</td></tr>
+<tr><td>A/c No. 1 &mdash; Employer's share of EPF</td><td class="r">${_f(T.er)}</td></tr>
+<tr><td>A/c No. 10 &mdash; Pension Fund (EPS)</td><td class="r">${_f(T.eps)}</td></tr>
+<tr><td>A/c No. 2 &mdash; Administrative charges @ 0.5% (min \u20B9500)</td><td class="r">${_f(admin)}</td></tr>
+<tr><td>A/c No. 21 &mdash; EDLI contribution @ 0.5%</td><td class="r">${_f(edli)}</td></tr>
+<tr class="tr"><td><b>Total Amount Payable</b></td><td class="r"><b>\u20B9 ${_f(T.tot + admin + edli)}</b></td></tr></table></div>
+<div class="sign"><div>Prepared by</div><div>Verified by</div><div>Authorised Signatory</div></div>
+<div class="ft">Payrolla &middot; ECR for ${_esc(_mL)} &middot; Deposit by the 15th to avoid interest u/s 7Q and damages u/s 14B</div></div>
+<style>@page{size:A4 landscape;margin:10mm}body{padding:0!important;font-family:Arial,sans-serif}
+.doc{width:100%}.hd{text-align:center;border:2px solid #000;padding:8px}
+.t1{font-size:15px;font-weight:800}.t2{font-size:10px;margin-top:3px}
+table.meta{width:100%;border-collapse:collapse;margin-bottom:6px}
+table.meta td{border:1px solid #000;padding:5px 7px;font-size:10.5px}
+.warn{border:1px solid #c62828;background:#fff4f4;color:#8e0000;padding:7px 10px;font-size:10.5px;margin-bottom:6px}
+table.grid{width:100%;border-collapse:collapse}
+table.grid th{border:1px solid #000;background:#e8eaf6;font-size:9px;padding:5px 3px;text-align:center}
+table.grid td{border:1px solid #777;font-size:9.5px;padding:4px 5px}
+.c{text-align:center}.r{text-align:right}.bad{color:#c62828;font-weight:700}
+tr.gt td{background:#e8eaf6!important;border-top:2px solid #000}
+.chal{margin-top:12px;width:60%;border:1px solid #000;page-break-inside:avoid}
+.chal h3{font-size:11px;background:#e8eaf6;padding:5px 8px;border-bottom:1px solid #000;margin:0}
+table.s{width:100%;border-collapse:collapse}
+table.s td{border-bottom:1px solid #ddd;padding:5px 8px;font-size:10px}
+table.s tr.tr td{background:#f5f5f5;border-top:1px solid #000;font-size:11.5px}
+.sign{display:flex;justify-content:space-between;margin-top:30px;padding:0 20px}
+.sign div{border-top:1px solid #000;padding-top:4px;font-size:9.5px;width:160px;text-align:center}
+.ft{margin-top:10px;font-size:8px;color:#666;text-align:center}
+thead{display:table-header-group}tbody tr{page-break-inside:avoid}</style>`);
     } else if (b === "Gratuity Report") {
       downloadExcel("Gratuity", [{ name: "Gratuity", headers: ["Code", "Name", "DOJ", "Years", "Basic", "Gratuity", "Status"], rows: emps.map((e) => {
         const p = calcPay(e, 0, pol);
@@ -6579,7 +6646,53 @@ thead{display:table-header-group}
         return [e.code, e.name, e.doj, y.toFixed(1), +e.basic, p.gratuity, y >= 5 ? "Eligible" : "Not Yet"];
       }) }]);
     } else if (b === "ESIC Challan" && activeRun) {
-      downloadExcel("ESIC_Challan", [{ name: "ESIC", headers: ["IP No", "Name", "Days", "Wages", "EE ESIC", "ER ESIC", "Total"], rows: activeRun.results.filter((e) => e.esic).map((e, i) => [`IP${2001 + i}`, e.name, 26 - (e.lopDays || 0), e.g, e.esE, e.esR, e.esE + e.esR]) }]);
+      const _R = (activeRun.results || []).filter((e) => e.esic && (+e.esE || 0) >= 0 && (+e.g || 0) > 0);
+      if (!_R.length) { alert("No ESI-covered employees in this payroll run."); return; }
+      const _n = (x) => Math.round(+x || 0);
+      const _f = (x) => Math.round(+x || 0).toLocaleString("en-IN");
+      const _esc = (t) => String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const _mL = activeRun.month + "/" + activeRun.year;
+      const _noIp = _R.filter((e) => !e.esicNo);
+      let T = { w: 0, ee: 0, er: 0, d: 0 };
+      const _rows = _R.map((e, i) => {
+        const days = Math.round(((e.monthDays || 30) - (e.lopDays || 0)) * (e.joiningProration != null ? e.joiningProration : 1));
+        T.w += _n(e.g); T.ee += _n(e.esE); T.er += _n(e.esR); T.d += days;
+        return `<tr><td class="c">${i + 1}</td><td>${_esc(e.esicNo) || '<span class="bad">NOT SET</span>'}</td><td>${_esc(e.code)}</td><td>${_esc(e.name)}</td><td class="c">${days}</td><td class="r">${_f(e.g)}</td><td class="r">${_f(e.esE)}</td><td class="r">${_f(e.esR)}</td><td class="r"><b>${_f(_n(e.esE) + _n(e.esR))}</b></td></tr>`;
+      }).join("");
+      printHTML("ESI Contribution Challan \u2014 " + _mL, `<div class="doc">
+<div class="hd"><div class="t1">CONTRIBUTION CHALLAN &mdash; EMPLOYEES' STATE INSURANCE</div><div class="t2">Employees' State Insurance Corporation &middot; ESI Act, 1948</div></div>
+<table class="meta"><tr><td><b>Employer:</b> ${_esc((co && co.name) || "")}</td><td><b>Contribution Period:</b> ${_esc(_mL)}</td></tr>
+<tr><td><b>ESI Code No.:</b> ${_esc((co && (co.esic || co.esicCode)) || "\u2014")}</td><td><b>Insured Persons:</b> ${_R.length}&nbsp;&nbsp;<b>Due by:</b> 15th of following month</td></tr></table>
+${_noIp.length ? `<div class="warn"><b>${_noIp.length} insured person(s) have no ESI/IP number.</b> Add the IP number before filing.</div>` : ""}
+<table class="grid"><thead><tr><th>Sr</th><th>IP Number</th><th>Emp Code</th><th>Name of Insured Person</th><th>Days<br/>Worked</th><th>ESI Wages</th><th>Employee<br/>0.75%</th><th>Employer<br/>3.25%</th><th>Total</th></tr></thead>
+<tbody>${_rows}<tr class="gt"><td colspan="4" class="r"><b>TOTAL</b></td><td class="c"><b>${T.d}</b></td><td class="r"><b>${_f(T.w)}</b></td><td class="r"><b>${_f(T.ee)}</b></td><td class="r"><b>${_f(T.er)}</b></td><td class="r"><b>${_f(T.ee + T.er)}</b></td></tr></tbody></table>
+<div class="chal"><h3>Challan Summary</h3><table class="s">
+<tr><td>Total ESI Wages</td><td class="r">${_f(T.w)}</td></tr>
+<tr><td>Employee's Contribution @ 0.75%</td><td class="r">${_f(T.ee)}</td></tr>
+<tr><td>Employer's Contribution @ 3.25%</td><td class="r">${_f(T.er)}</td></tr>
+<tr class="tr"><td><b>Total Contribution Payable</b></td><td class="r"><b>\u20B9 ${_f(T.ee + T.er)}</b></td></tr></table></div>
+<div class="sign"><div>Prepared by</div><div>Verified by</div><div>Authorised Signatory</div></div>
+<div class="ft">Payrolla &middot; ESI contribution for ${_esc(_mL)} &middot; Wage ceiling \u20B921,000 &middot; Late payment attracts interest @12% p.a.</div></div>
+<style>@page{size:A4 portrait;margin:10mm}body{padding:0!important;font-family:Arial,sans-serif}
+.doc{width:100%}.hd{text-align:center;border:2px solid #000;padding:8px}
+.t1{font-size:14px;font-weight:800}.t2{font-size:10px;margin-top:3px}
+table.meta{width:100%;border-collapse:collapse;margin-bottom:6px}
+table.meta td{border:1px solid #000;padding:5px 7px;font-size:10.5px}
+.warn{border:1px solid #c62828;background:#fff4f4;color:#8e0000;padding:7px 10px;font-size:10.5px;margin-bottom:6px}
+table.grid{width:100%;border-collapse:collapse}
+table.grid th{border:1px solid #000;background:#e8f5e9;font-size:9px;padding:5px 3px;text-align:center}
+table.grid td{border:1px solid #777;font-size:10px;padding:4px 6px}
+.c{text-align:center}.r{text-align:right}.bad{color:#c62828;font-weight:700}
+tr.gt td{background:#e8f5e9!important;border-top:2px solid #000}
+.chal{margin-top:12px;width:70%;border:1px solid #000;page-break-inside:avoid}
+.chal h3{font-size:11px;background:#e8f5e9;padding:5px 8px;border-bottom:1px solid #000;margin:0}
+table.s{width:100%;border-collapse:collapse}
+table.s td{border-bottom:1px solid #ddd;padding:5px 8px;font-size:10px}
+table.s tr.tr td{background:#f5f5f5;border-top:1px solid #000;font-size:11.5px}
+.sign{display:flex;justify-content:space-between;margin-top:30px;padding:0 10px}
+.sign div{border-top:1px solid #000;padding-top:4px;font-size:9.5px;width:150px;text-align:center}
+.ft{margin-top:10px;font-size:8px;color:#666;text-align:center}
+thead{display:table-header-group}tbody tr{page-break-inside:avoid}</style>`);
     } else alert(b + " \u2014 connect to government portal in production (EPFO / ESIC / TRACES / State PT portal).");
   }, s: { color: c, borderColor: c + "44", background: c + "11" } }, b)))))), /* @__PURE__ */ React.createElement(Card, { s: { marginTop: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 12 } }, "Compliance Calendar \u2014 ", MONTHS[NOW.getMonth()], " ", NOW.getFullYear()), /* @__PURE__ */ React.createElement(Tbl, { cols: ["Due Date", "Filing", "Authority", "Frequency", "Status"], rows: [
     ["7th", "TDS Deposit", "Income Tax Dept", "Monthly", /* @__PURE__ */ React.createElement(Badge, { t: "Upcoming", c: WN })],
