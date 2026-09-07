@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v20.3 -->
+<!-- PAYROLLA v20.5 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v20.3 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v20.5 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="20.3";
+  var BUILD="20.5";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -204,12 +204,21 @@ const db = {
   // Policies (whole JSON blob per company)
   async getPolicies(companyId) {
     const ok = (p) => p && typeof p === "object" && Object.keys(p).length > 0;
+    const merge = (p) => {
+      const out = { ...DEFAULT_POLICIES, ...(p || {}) };
+      for (const k of Object.keys(DEFAULT_POLICIES)) {
+        const d = DEFAULT_POLICIES[k];
+        if (d && typeof d === "object" && !Array.isArray(d)) out[k] = { ...d, ...((p && p[k]) || {}) };
+      }
+      if (!Array.isArray(out.branches)) out.branches = [];
+      return out;
+    };
     const cacheKey = "payrolla_pol_" + (companyId || "default");
     try {
       const s = localStorage.getItem(cacheKey);
       if (s) {
         const p = JSON.parse(s);
-        if (ok(p)) return p;
+        if (ok(p)) return merge(p);
       }
     } catch (e) {
     }
@@ -220,11 +229,11 @@ const db = {
           localStorage.setItem(cacheKey, JSON.stringify(data.policies));
         } catch (e) {
         }
-        return data.policies;
+        return merge(data.policies);
       }
     } catch (e) {
     }
-    return {};
+    return merge({});
   },
   async savePolicies(pol, companyId) {
     const cacheKey = "payrolla_pol_" + (companyId || "default");
@@ -3305,7 +3314,7 @@ INSTRUCTIONS:
       rows: 2,
       style: { flex: 1, padding: "10px 14px", border: `1.5px solid ${BD}`, borderRadius: 10, fontSize: 13, outline: "none", resize: "none", lineHeight: 1.5, fontFamily: "inherit" }
     }
-  ), /* @__PURE__ */ React.createElement("button", { onClick: sendMessage, disabled: loading || !input.trim(), style: { padding: "10px 20px", background: loading || !input.trim() ? BD : P, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: loading || !input.trim() ? "not-allowed" : "pointer", flexShrink: 0 } }, loading ? "..." : "Send")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: MT, marginTop: 5, textAlign: "center" } }, "Payrolla AI has full access to your company data. Do not share sensitive information externally."), stab === "branches" && /* @__PURE__ */ React.createElement(Sec, { title: "\u{1F3E2} Branches / Locations", sub: "Define each work location once. Employees are assigned to a branch, and PT / LWF follow that branch's state." }, /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 13 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: "#f5f6fa" } }, ["Branch Name", "Code", "State", "PF Code", "ESI Code", "Address", ""].map((c, _ci) => /* @__PURE__ */ React.createElement("th", { key: _ci, style: { textAlign: "left", padding: "8px 10px", fontSize: 11, color: "#1a237e" } }, c)))), /* @__PURE__ */ React.createElement("tbody", null, ((pol && pol.branches) || []).map((b, bi) => /* @__PURE__ */ React.createElement("tr", { key: bi, style: { borderTop: "1px solid #eee" } }, ["name", "code", "state", "pfCode", "esiCode", "addr"].map((fk) => /* @__PURE__ */ React.createElement("td", { key: fk, style: { padding: "4px 6px" } }, fk === "state" ? /* @__PURE__ */ React.createElement("select", { value: b.state || "", onChange: (ev) => { const list = [...(pol.branches || [])]; list[bi] = { ...list[bi], state: ev.target.value }; apiSavePolicies({ ...pol, branches: list }); }, style: { width: "100%", padding: "6px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12 } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u2014 Select \u2014"), (typeof PT_SLABS_ALL !== "undefined" ? Object.keys(PT_SLABS_ALL) : ["Maharashtra", "Karnataka", "Tamil Nadu", "Delhi", "Uttar Pradesh"]).map((st) => /* @__PURE__ */ React.createElement("option", { key: st, value: st }, st))) : /* @__PURE__ */ React.createElement("input", { value: b[fk] || "", onChange: (ev) => { const list = [...(pol.branches || [])]; list[bi] = { ...list[bi], [fk]: ev.target.value }; apiSavePolicies({ ...pol, branches: list }); }, style: { width: "100%", padding: "6px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12 } }))), /* @__PURE__ */ React.createElement("td", { style: { padding: "4px 6px" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (!window.confirm("Remove branch \"" + (b.name || "") + "\"? Employees keep their location text.")) return; const list = (pol.branches || []).filter((_x, _i2) => _i2 !== bi); apiSavePolicies({ ...pol, branches: list }); }, style: { padding: "6px 10px", background: "#ffebee", color: "#c62828", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" } }, "Remove")))))), ((pol && pol.branches) || []).length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 4px", fontSize: 13, color: "#888" } }, "No branches yet. Add your first location below.")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14 } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => apiSavePolicies({ ...pol, branches: [...((pol && pol.branches) || []), { name: "", code: "", state: "", pfCode: "", esiCode: "", addr: "" }] }) }, "+ Add Branch"))), /* @__PURE__ */ React.createElement("style", null, `@keyframes pulse{from{opacity:.3;transform:scale(.8)}to{opacity:1;transform:scale(1)}}`));
+  ), /* @__PURE__ */ React.createElement("button", { onClick: sendMessage, disabled: loading || !input.trim(), style: { padding: "10px 20px", background: loading || !input.trim() ? BD : P, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: loading || !input.trim() ? "not-allowed" : "pointer", flexShrink: 0 } }, loading ? "..." : "Send")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: MT, marginTop: 5, textAlign: "center" } }, "Payrolla AI has full access to your company data. Do not share sensitive information externally."), /* @__PURE__ */ React.createElement("style", null, `@keyframes pulse{from{opacity:.3;transform:scale(.8)}to{opacity:1;transform:scale(1)}}`));
 }
 function downloadText(filename, content, mime = "text/plain") {
   const blob = new Blob([content], { type: mime });
@@ -4835,7 +4844,7 @@ function Settings({
   showToast,
   addAudit
 }) {
-  const [stab, setStab] = useState("users");
+  const [stab, setStab] = useState("branches");
   const [users, setUsers] = useState([]);
   const [loadingU, setLoadingU] = useState(true);
   const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "hr" });
@@ -4966,7 +4975,7 @@ function Settings({
     icon,
     " ",
     label
-  ))), stab === "users" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: "#1a237e", marginBottom: 4 } }, "\u2795 Add HR / Admin User"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 16 } }, "New user can log in to the HR portal with these credentials."), [
+  ))), stab === "branches" && /* @__PURE__ */ React.createElement(Sec, { title: "\u{1F3E2} Branches / Locations", sub: "Define each work location once. Employees are assigned to a branch, and PT / LWF follow that branch's state." }, /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 13 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: "#f5f6fa" } }, ["Branch Name", "Code", "State", "PF Code", "ESI Code", "Address", ""].map((c, _ci) => /* @__PURE__ */ React.createElement("th", { key: _ci, style: { textAlign: "left", padding: "8px 10px", fontSize: 11, color: "#1a237e" } }, c)))), /* @__PURE__ */ React.createElement("tbody", null, ((pol && pol.branches) || []).map((b, bi) => /* @__PURE__ */ React.createElement("tr", { key: bi, style: { borderTop: "1px solid #eee" } }, ["name", "code", "state", "pfCode", "esiCode", "addr"].map((fk) => /* @__PURE__ */ React.createElement("td", { key: fk, style: { padding: "4px 6px" } }, fk === "state" ? /* @__PURE__ */ React.createElement("select", { value: b.state || "", onChange: (ev) => { const list = [...(pol.branches || [])]; list[bi] = { ...list[bi], state: ev.target.value }; apiSavePolicies({ ...pol, branches: list }); }, style: { width: "100%", padding: "6px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12 } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u2014 Select \u2014"), (typeof PT_SLABS_ALL !== "undefined" ? Object.keys(PT_SLABS_ALL) : ["Maharashtra", "Karnataka", "Tamil Nadu", "Delhi", "Uttar Pradesh"]).map((st) => /* @__PURE__ */ React.createElement("option", { key: st, value: st }, st))) : /* @__PURE__ */ React.createElement("input", { value: b[fk] || "", onChange: (ev) => { const list = [...(pol.branches || [])]; list[bi] = { ...list[bi], [fk]: ev.target.value }; apiSavePolicies({ ...pol, branches: list }); }, style: { width: "100%", padding: "6px 8px", border: "1px solid #ddd", borderRadius: 6, fontSize: 12 } }))), /* @__PURE__ */ React.createElement("td", { style: { padding: "4px 6px" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => { if (!window.confirm("Remove branch \"" + (b.name || "") + "\"? Employees keep their location text.")) return; const list = (pol.branches || []).filter((_x, _i2) => _i2 !== bi); apiSavePolicies({ ...pol, branches: list }); }, style: { padding: "6px 10px", background: "#ffebee", color: "#c62828", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" } }, "Remove")))))), ((pol && pol.branches) || []).length === 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 4px", fontSize: 13, color: "#888" } }, "No branches yet. Add your first location below.")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14 } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => apiSavePolicies({ ...pol, branches: [...((pol && pol.branches) || []), { name: "", code: "", state: "", pfCode: "", esiCode: "", addr: "" }] }) }, "+ Add Branch"))), stab === "users" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e8eaf6", borderRadius: 14, padding: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: "#1a237e", marginBottom: 4 } }, "\u2795 Add HR / Admin User"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#888", marginBottom: 16 } }, "New user can log in to the HR portal with these credentials."), [
     { k: "name", label: "Full Name *", ph: "Anshul Garg" },
     { k: "email", label: "Work Email *", ph: "hr@company.com", type: "email" },
     { k: "password", label: "Temporary Password *", ph: "Min 8 chars", type: "password" }
