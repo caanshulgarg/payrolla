@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v21.2 -->
+<!-- PAYROLLA v21.3 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.2 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.3 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="21.2";
+  var BUILD="21.3";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -276,12 +276,26 @@ const db = {
   // Payroll
   async getRuns(companyId) {
     const { data } = await sb.from("payroll_runs").select("*").eq("company_id", companyId).order("year", { ascending: false }).order("month", { ascending: false });
-    return data || [];
+    const runs = data || [];
+    if (!runs.length) return runs;
+    try {
+      const ids = runs.map((r) => r.id).filter(Boolean);
+      const { data: det } = await sb.from("payroll_details").select("*").in("run_id", ids);
+      if (det && det.length) {
+        const byRun = {};
+        det.forEach((d) => { (byRun[d.run_id] = byRun[d.run_id] || []).push(d); });
+        runs.forEach((r) => { r._details = byRun[r.id] || []; });
+      }
+    } catch (e) {
+    }
+    return runs;
   },
   async saveRun(month, year, results, companyId) {
     const total = results.reduce((s, e) => s + (e.netFinal || e.net || 0), 0);
     const gross = results.reduce((s, e) => s + (e.g || 0), 0);
-    const { data: run } = await sb.from("payroll_runs").upsert({ company_id: companyId, month, year, total, gross, emp_count: results.length }, { onConflict: "company_id,month,year" }).select().single();
+    const { data: run, error: runErr } = await sb.from("payroll_runs").upsert({ company_id: companyId, month, year, total, gross, emp_count: results.length }, { onConflict: "company_id,month,year" }).select().single();
+    if (runErr) throw new Error(runErr.message);
+    if (!(run == null ? void 0 : run.id)) throw new Error("Payroll run was not saved (blocked by database permissions)");
     if (run == null ? void 0 : run.id) {
       await sb.from("payroll_details").delete().eq("run_id", run.id);
       await sb.from("payroll_details").insert(results.map((e) => ({
@@ -501,8 +515,12 @@ function fromDbLoan(l) {
 function fromDbReimb(r) {
   return { id: r.id, eid: r.employee_id, ename: r.ename, type: r.type, amount: +r.amount, date: r.expense_date, description: r.desc, status: r.status };
 }
-function fromDbRun(r) {
-  return { id: r.id, month: r.month, year: r.year, on: r.run_date ? new Date(r.run_date).toLocaleDateString("en-IN") : TODAY, total: +r.total || 0, gross: +r.gross || 0, count: r.emp_count || 0, results: [] };
+function fromDbRun(r, empList) {
+  const results = (r._details || []).map((d) => {
+    const e = (empList || []).find((x) => x.id === d.employee_id) || {};
+    return { ...e, id: d.employee_id, code: e.code, name: e.name, lop: +d.lop || 0, monthDays: 30, basic: +d.basic || 0, hra: +d.hra || 0, conv: +d.conv || 0, med: +d.med || 0, spl: +d.spl || 0, lta: +d.lta || 0, g: +d.gross || 0, pfE: +d.pf_employee || 0, pfR: +d.pf_employer || 0, esE: +d.esic_employee || 0, esR: +d.esic_employer || 0, pt: +d.pt || 0, tds: +d.tds || 0, loanEmi: +d.loan_emi || 0, ded: +d.total_ded || 0, net: +d.net_pay || 0, netFinal: +d.net_pay || 0, ctc: +d.ctc || 0, joiningNote: d.joining_note || "", joiningProration: d.joining_proration != null ? +d.joining_proration : 1, vpfE: 0, lwfE: 0, lwfR: 0, advance: 0, bonus: 0, otAmount: 0 };
+  });
+  return { id: r.id, month: r.month, year: r.year, on: r.run_date ? new Date(r.run_date).toLocaleDateString("en-IN") : TODAY, total: +r.total || 0, gross: +r.gross || 0, count: r.emp_count || 0, results };
 }
 const INR = (n) => "\u20B9" + Number(n || 0).toLocaleString("en-IN");
 const uid = () => Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -5722,7 +5740,12 @@ function HRAdmin({ user, onLogout }) {
         if (lvList.length) setLeaves(lvList.map(fromDbLeave));
         if (lnList.length) setLoans(lnList.map(fromDbLoan));
         if (reList.length) setReimb(reList.map(fromDbReimb));
-        if (runList.length) setRuns(runList.map(fromDbRun));
+        if (runList.length) {
+          const _mapped = runList.map((r) => fromDbRun(r, empList.map(fromDbEmp)));
+          setRuns(_mapped);
+          const _withResults = _mapped.find((r) => r.results && r.results.length);
+          if (_withResults) setActiveRun(_withResults);
+        }
         const lsPol = (() => {
           try {
             const s2 = localStorage.getItem("payrolla_pol");
