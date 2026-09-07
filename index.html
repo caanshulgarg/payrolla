@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v20.7 -->
+<!-- PAYROLLA v20.9 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v20.7 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v20.9 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="20.7";
+  var BUILD="20.9";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -5242,11 +5242,9 @@ function SalarySheetBuilder({ run, emps, co, pol, onClose }) {
   const line = (r) => {
     const e = full(r);
     const ded = Math.round((r.pfE || 0) + (r.esE || 0) + (r.pt || 0) + (r.tds || 0) + (r.lwfE || 0) + (r.advance || 0));
-    const days = (r.monthDays || 31) - (r.lopDays || 0);
-    const fg = (+e.basic || 0) + (+e.hra || 0) + (+e.conv || 0) + (+e.med || 0) + (+e.spl || 0);
-    const fac = fg > 0 && r.g ? (r.monthDays ? days / r.monthDays : 1) : 1;
-    const pr = (v) => Math.round((+v || 0) * fac);
-    return [e.code || "", e.name || "", e.location || "\u2014", e.dept || "\u2014", e.desig || "\u2014", days, pr(e.basic), pr(e.hra), pr(e.conv), pr(e.med), pr(e.spl), Math.round(r.g || 0), Math.round(r.pfE || 0), Math.round(r.vpfE || 0), Math.round(r.esE || 0), Math.round(r.pt || 0), Math.round(r.tds || 0), Math.round(r.advance || 0), ded, Math.round(r.net || 0)];
+    const days = Math.round(((r.monthDays || 31) - (r.lopDays || 0)) * (r.joiningProration != null ? r.joiningProration : 1) * 10) / 10;
+    const pr = (v) => Math.round(+v || 0);
+    return [e.code || "", e.name || "", e.location || "\u2014", e.dept || "\u2014", e.desig || "\u2014", days, pr(r.basic), pr(r.hra), pr(r.conv), pr(r.med), pr(r.spl), Math.round(r.g || 0), Math.round(r.pfE || 0), Math.round(r.vpfE || 0), Math.round(r.esE || 0), Math.round(r.pt || 0), Math.round(r.tds || 0), Math.round(r.advance || 0), ded, Math.round(r.net || 0)];
   };
   const totalOf = (list, idx) => list.reduce((a, r) => a + (+line(r)[idx] || 0), 0);
   const totalRow = (list, label) => { const t = new Array(HEAD.length).fill(""); t[1] = label; for (let i = 5; i < HEAD.length; i++) t[i] = totalOf(list, i); return t; };
@@ -5301,6 +5299,103 @@ function SalarySheetBuilder({ run, emps, co, pol, onClose }) {
         h(Btn, { v: "ghost", onClick: onClose }, "Cancel"),
         h(Btn, { disabled: scope === "branch" && !pick, onClick: build }, "\u2B07 Download"))));
 }
+function YearlyReports({ runs, emps, co, pol, onClose }) {
+  const h = React.createElement;
+  const FY_START = 4;
+  const now = new Date();
+  const curFY = now.getMonth() + 1 >= FY_START ? now.getFullYear() : now.getFullYear() - 1;
+  const [fy, setFy] = useState(curFY);
+  const [rep, setRep] = useState("salary");
+  const fyLabel = (y) => y + "-" + String((y + 1) % 100).padStart(2, "0");
+  const inFY = (r) => { const m = r.year * 12 + (r.month - 1); const a = fy * 12 + (FY_START - 1); return m >= a && m < a + 12; };
+  const fyRuns = (runs || []).filter(inFY).sort((a, b) => (a.year * 12 + a.month) - (b.year * 12 + b.month));
+  const emp = (code) => (emps || []).find((e) => e.code === code) || {};
+  const MON = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const agg = () => {
+    const map = {};
+    fyRuns.forEach((run) => (run.results || []).forEach((r) => {
+      const k = r.code; if (!k) return;
+      if (!map[k]) map[k] = { code: k, months: 0, g: 0, basic: 0, hra: 0, pfE: 0, pfR: 0, vpfE: 0, esE: 0, esR: 0, pt: 0, tds: 0, lwfE: 0, net: 0, bonus: 0, byMonth: {} };
+      const a = map[k];
+      a.months++; a.g += +r.g || 0; a.basic += +r.basic || 0; a.hra += +r.hra || 0;
+      a.pfE += +r.pfE || 0; a.pfR += +r.pfR || 0; a.vpfE += +r.vpfE || 0;
+      a.esE += +r.esE || 0; a.esR += +r.esR || 0; a.pt += +r.pt || 0; a.tds += +r.tds || 0;
+      a.lwfE += +r.lwfE || 0; a.net += +r.net || 0; a.bonus += +r.bonus || 0;
+      a.byMonth[run.month] = (a.byMonth[run.month] || 0) + (+r.g || 0);
+    }));
+    return Object.values(map).sort((x, y) => (x.code > y.code ? 1 : -1));
+  };
+  const money = (n) => Math.round(+n || 0);
+  const yrsOf = (e) => { if (!e.doj) return 0; const d = new Date(e.doj); return (now - d) / (365.25 * 24 * 3600 * 1000); };
+  function build() {
+    const A = agg();
+    const sum = (rows, i) => rows.reduce((s, r) => s + (+r[i] || 0), 0);
+    const withTotal = (headers, rows, from, skip) => { const t = new Array(headers.length).fill(""); t[1] = "TOTAL"; for (let i = from; i < headers.length; i++) { if (skip && skip.indexOf(i) >= 0) continue; t[i] = sum(rows, i); } return [...rows, t]; };
+    let sheets = [], fname = "";
+    if (rep === "salary") {
+      const HD = ["Emp Code", "Name", "Designation", "Branch", "Months Paid", "Basic", "HRA", "Gross", "PF", "VPF", "ESI", "PT", "TDS", "Net Paid"];
+      const rows = A.map((a) => { const e = emp(a.code); return [a.code, e.name || "", e.desig || "", e.location || "", a.months, money(a.basic), money(a.hra), money(a.g), money(a.pfE), money(a.vpfE), money(a.esE), money(a.pt), money(a.tds), money(a.net)]; });
+      sheets.push({ name: "Annual Salary", headers: HD, rows: withTotal(HD, rows, 4, [4]) });
+      const MH = ["Emp Code", "Name", ...fyRuns.map((r) => MON[r.month] + "-" + String(r.year).slice(2)), "Total"];
+      const mrows = A.map((a) => { const e = emp(a.code); const cells = fyRuns.map((r) => money(a.byMonth[r.month] || 0)); return [a.code, e.name || "", ...cells, cells.reduce((s, v) => s + v, 0)]; });
+      sheets.push({ name: "Month-wise Gross", headers: MH, rows: withTotal(MH, mrows, 2) });
+      fname = "Annual_Salary_" + fyLabel(fy);
+    } else if (rep === "pf") {
+      const HD = ["Emp Code", "Name", "UAN", "PF No", "Months", "PF Wages", "Employee PF", "VPF", "Employer PF", "Total PF"];
+      const rows = A.filter((a) => a.pfE > 0 || a.pfR > 0).map((a) => { const e = emp(a.code); return [a.code, e.name || "", e.uan || "", e.pfNo || "", a.months, money(a.basic), money(a.pfE - a.vpfE), money(a.vpfE), money(a.pfR), money(a.pfE + a.pfR)]; });
+      sheets.push({ name: "PF Annual", headers: HD, rows: withTotal(HD, rows, 4, [4]) });
+      const CH = ["Month", "Subscribers", "PF Wages", "Employee Share", "Employer Share", "Total Remitted"];
+      const crows = fyRuns.map((run) => { const rs = (run.results || []).filter((r) => (+r.pfE || 0) > 0); return [MON[run.month] + "-" + run.year, rs.length, money(rs.reduce((s, r) => s + (+r.basic || 0), 0)), money(rs.reduce((s, r) => s + (+r.pfE || 0), 0)), money(rs.reduce((s, r) => s + (+r.pfR || 0), 0)), money(rs.reduce((s, r) => s + (+r.pfE || 0) + (+r.pfR || 0), 0))]; });
+      sheets.push({ name: "PF Challan Monthly", headers: CH, rows: withTotal(CH, crows, 1) });
+      fname = "PF_Annual_" + fyLabel(fy);
+    } else if (rep === "esic") {
+      const HD = ["Emp Code", "Name", "ESI No", "Months", "ESI Wages", "Employee 0.75%", "Employer 3.25%", "Total"];
+      const rows = A.filter((a) => a.esE > 0 || a.esR > 0).map((a) => { const e = emp(a.code); return [a.code, e.name || "", e.esicNo || "", a.months, money(a.g), money(a.esE), money(a.esR), money(a.esE + a.esR)]; });
+      sheets.push({ name: "ESI Annual", headers: HD, rows: withTotal(HD, rows, 3, [3]) });
+      const CH = ["Month", "Insured Persons", "ESI Wages", "Employee Share", "Employer Share", "Total Payable"];
+      const crows = fyRuns.map((run) => { const rs = (run.results || []).filter((r) => (+r.esE || 0) > 0); return [MON[run.month] + "-" + run.year, rs.length, money(rs.reduce((s, r) => s + (+r.g || 0), 0)), money(rs.reduce((s, r) => s + (+r.esE || 0), 0)), money(rs.reduce((s, r) => s + (+r.esR || 0), 0)), money(rs.reduce((s, r) => s + (+r.esE || 0) + (+r.esR || 0), 0))]; });
+      sheets.push({ name: "ESI Challan Monthly", headers: CH, rows: withTotal(CH, crows, 1) });
+      fname = "ESIC_Annual_" + fyLabel(fy);
+    } else if (rep === "bonus") {
+      const bp = (pol && pol.bonus) || {}; const rate = bp.currentRate || 8.33, elig = bp.eligibilityWage || 21e3, calcW = bp.calculationWage || 7e3;
+      const HD = ["Emp Code", "Name", "DOJ", "Months Worked", "Avg Monthly Basic", "Eligible", "Bonus Wage Base", "Rate %", "Bonus Payable", "Already Paid"];
+      const rows = A.map((a) => { const e = emp(a.code); const avg = a.months ? a.basic / a.months : 0; const ok = avg <= elig; const base = Math.min(avg, calcW); return [a.code, e.name || "", e.doj || "", a.months, money(avg), ok ? "Yes" : "No (wage > " + elig + ")", ok ? money(base) : 0, rate, ok ? money(base * a.months * rate / 100) : 0, money(a.bonus)]; });
+      sheets.push({ name: "Bonus Register", headers: HD, rows: withTotal(HD, rows, 8) });
+      fname = "Bonus_Register_" + fyLabel(fy);
+    } else if (rep === "gratuity") {
+      const gp = (pol && pol.gratuity) || {}; const minY = gp.minServiceYears || 5, cap = gp.maxLimit || 2e6;
+      const HD = ["Emp Code", "Name", "DOJ", "Years of Service", "Last Drawn Basic", "Eligible", "Gratuity (15/26)", "Capped At"];
+      const rows = A.map((a) => { const e = emp(a.code); const y = yrsOf(e); const lastBasic = a.months ? a.basic / a.months : 0; const ok = y >= minY; const amt = Math.round(lastBasic / 26 * 15 * Math.floor(y)); return [a.code, e.name || "", e.doj || "", y.toFixed(1), money(lastBasic), ok ? "Yes" : "No (< " + minY + " yrs)", ok ? Math.min(amt, cap) : 0, cap]; });
+      sheets.push({ name: "Gratuity Register", headers: HD, rows: withTotal(HD, rows, 6, [7]) });
+      fname = "Gratuity_" + fyLabel(fy);
+    } else if (rep === "annual") {
+      const HD = ["Emp Code", "Name", "Father's Name", "Designation", "Branch", "DOJ", "Months", "Gross Paid", "PF", "ESI", "PT", "TDS", "Net Paid"];
+      const rows = A.map((a) => { const e = emp(a.code); return [a.code, e.name || "", e.fatherName || "", e.desig || "", e.location || "", e.doj || "", a.months, money(a.g), money(a.pfE), money(a.esE), money(a.pt), money(a.tds), money(a.net)]; });
+      sheets.push({ name: "Annual Return", headers: HD, rows: withTotal(HD, rows, 6, [6]) });
+      const S = ["Particulars", "Value"];
+      sheets.push({ name: "Summary", headers: S, rows: [["Establishment", (co && co.name) || ""], ["PF Code", (co && (co.pf || co.pfCode)) || ""], ["ESI Code", (co && (co.esic || co.esicCode)) || ""], ["Financial Year", fyLabel(fy)], ["Months Processed", fyRuns.length], ["Total Employees", A.length], ["Total Gross Paid", money(A.reduce((s, a) => s + a.g, 0))], ["Total PF (EE+ER)", money(A.reduce((s, a) => s + a.pfE + a.pfR, 0))], ["Total ESI (EE+ER)", money(A.reduce((s, a) => s + a.esE + a.esR, 0))], ["Total PT", money(A.reduce((s, a) => s + a.pt, 0))], ["Total TDS", money(A.reduce((s, a) => s + a.tds, 0))], ["Total Net Paid", money(A.reduce((s, a) => s + a.net, 0))]] });
+      fname = "Annual_Return_" + fyLabel(fy);
+    } else if (rep === "tds") {
+      const HD = ["Emp Code", "Name", "PAN", "Regime", "Months", "Gross Paid", "TDS Deducted", "Avg Monthly TDS"];
+      const rows = A.map((a) => { const e = emp(a.code); return [a.code, e.name || "", e.pan || "", (e.itRegime || "new") === "old" ? "Old" : "New", a.months, money(a.g), money(a.tds), money(a.months ? a.tds / a.months : 0)]; });
+      sheets.push({ name: "TDS Annual (24Q)", headers: HD, rows: withTotal(HD, rows, 4, [4]) });
+      fname = "TDS_Annual_" + fyLabel(fy);
+    }
+    downloadExcel(fname, sheets);
+    onClose();
+  }
+  const REPS = [["salary", "\u{1F4B0}", "Annual Salary Data", "Per-employee yearly totals + month-wise gross"], ["pf", "\u{1F3DB}\uFE0F", "PF Annual + Challans", "Yearly PF with month-wise challan detail"], ["esic", "\u{1F3E5}", "ESIC Annual + Challans", "Yearly ESI with month-wise challan detail"], ["bonus", "\u{1F381}", "Bonus Register", "Payment of Bonus Act eligibility & workings"], ["gratuity", "\u{1F91D}", "Gratuity Register", "Service years and 15/26 gratuity"], ["annual", "\u{1F4CB}", "Annual Return Data", "Consolidated return + establishment summary"], ["tds", "\u{1F9FE}", "TDS Annual (24Q)", "Per-employee TDS with regime"]];
+  const years = [curFY, curFY - 1, curFY - 2, curFY - 3];
+  return h(Modal, { title: "\u{1F4C5} Yearly Reports", onClose, w: 680 },
+    h("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 14, flexWrap: "wrap" } },
+      h("div", { style: { fontSize: 12, fontWeight: 700, color: "#1a237e" } }, "Financial Year"),
+      h("select", { value: fy, onChange: (e) => setFy(+e.target.value), style: { padding: "8px 12px", border: "1.5px solid #e0e0e0", borderRadius: 8, fontSize: 13 } }, years.map((y) => h("option", { key: y, value: y }, "FY " + fyLabel(y)))),
+      h("div", { style: { fontSize: 12, color: fyRuns.length ? "#1b5e20" : "#c62828", fontWeight: 700 } }, fyRuns.length ? fyRuns.length + " month" + (fyRuns.length > 1 ? "s" : "") + " of payroll found" : "No payroll runs in this year")),
+    h("div", { style: { display: "grid", gap: 8 } }, REPS.map(([id, ic, title, note]) => h("button", { key: id, type: "button", onClick: () => setRep(id), style: { textAlign: "left", padding: "11px 14px", border: rep === id ? "2px solid #1a237e" : "1.5px solid #e0e0e0", background: rep === id ? "#e8eaf6" : "#fff", borderRadius: 10, cursor: "pointer", display: "flex", gap: 10, alignItems: "center" } }, h("span", { style: { fontSize: 18 } }, ic), h("span", null, h("div", { style: { fontWeight: 700, fontSize: 13, color: "#1a237e" } }, title), h("div", { style: { fontSize: 11, color: "#888", marginTop: 1 } }, note))))),
+    h("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 } },
+      h(Btn, { v: "ghost", onClick: onClose }, "Cancel"),
+      h(Btn, { disabled: !fyRuns.length, onClick: build }, "\u2B07 Download")));
+}
 function HRAdmin({ user, onLogout }) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, __, _$, _aa, _ba, _ca, _da;
   const [tab, setTab] = useState(() => {
@@ -5321,6 +5416,7 @@ function HRAdmin({ user, onLogout }) {
   const [quickEdit, setQuickEdit] = useState(null);
   const [quickAdd, setQuickAdd] = useState(false);
   const [showSheet, setShowSheet] = useState(false);
+  const [showYearly, setShowYearly] = useState(false);
   const [locFilter, setLocFilter] = useState("");
   const [showBulk, setShowBulk] = useState(false);
   const [inviteResult, setInviteResult] = useState(null);
@@ -5769,7 +5865,7 @@ Run payroll anyway?`
       const attSummary = typeof getMonthSummary === "function" ? getMonthSummary(e.id, monthStr, attendance, (pol == null ? void 0 : pol.holidays) || [], ((_a3 = pol == null ? void 0 : pol.attendance) == null ? void 0 : _a3.unmarkedDayStatus) || "P", e.doj || null) : { total: 0, working: 0, present: 0, absent: 0, lop: 0, netPaid: 0 };
       const p = calcPay(e, lop, pol, payMonth, payYear);
       const loanEmi = loans.filter((l) => l.eid === e.id && l.status === "Approved" && l.remaining > 0).reduce((s2, l) => s2 + l.emi, 0);
-      return { ...e, ...p, _origBasic:e.basic, _origHra:e.hra, _origConv:e.conv, _origMed:e.med, _origSpl:e.spl, _origLta:e.lta, basic:e.basic, hra:e.hra, conv:e.conv, med:e.med, spl:e.spl, lta:e.lta, lop, loanEmi, netFinal: p.net - loanEmi, attSummary };
+      return { ...e, ...p, _origBasic: e.basic, _origHra: e.hra, _origConv: e.conv, _origMed: e.med, _origSpl: e.spl, _origLta: e.lta, basic: p.basic, hra: p.hra, conv: p.conv, med: p.med, spl: p.spl, lta: p.lta, lop, loanEmi, netFinal: p.net - loanEmi, attSummary };
     });
     const totalNet = results.reduce((s2, e) => s2 + e.netFinal, 0);
     const run = { id: "PR" + uid(), month: payMonth, year: payYear, on: (/* @__PURE__ */ new Date()).toLocaleDateString("en-IN"), total: totalNet, gross: results.reduce((s2, e) => s2 + e.g, 0), count: results.length, results };
@@ -6003,7 +6099,7 @@ Run payroll anyway?`
   /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16 } }, /* @__PURE__ */ React.createElement(
     Tbl,
     {
-      cols: ["Employee", "Days", "LOP", "Per Day", "Gross", "PF", "PT", "LWF", "TDS", "Net Pay", "Slip"],
+      cols: ["Employee", "Working", "Present", "LOP", "Per Day", "Gross", "PF", "PT", "LWF", "TDS", "Net Pay", "Slip"],
       rows: activeRun.results.map((e) => {
         var _a2, _b2;
         return [
@@ -6220,36 +6316,74 @@ Run payroll anyway?`
     { icon: "\u{1F3E5}", t: "ESIC", s: "Employee State Insurance", d: "Monthly contributions. Employee 0.75%, Employer 3.25%. Applicable if gross \u2264 \u20B921,000.", btns: ["ESIC Challan", "Half-Yearly Return", "Form 37-A", "ESIC Cards"], c: AC },
     { icon: "\u{1F4C4}", t: "TDS (Form 24Q)", s: "Tax Deducted at Source", d: "Quarterly return for salary TDS. Q1: Jul 31, Q2: Oct 31, Q3: Jan 31, Q4: May 31.", btns: ["Form 24Q", "Form 16 (All)", "TDS Certificate", "26AS Reconcile"], c: WN },
     { icon: "\u{1F4CB}", t: "Professional Tax", s: "State Tax", d: "Monthly PT deduction & challan. Maharashtra: \u20B9200/mo (gross >\u20B915K), \u20B9150 (>\u20B910K).", btns: ["PT Challan", "PT Return", "Enrollment Cert", "Exemption Form"], c: DG },
-    { icon: "\u{1F4D1}", t: "Labour Law Returns", s: "Factories / Shops Act", d: "Annual Form D, Register of Wages, Muster Roll, Overtime Register, Leave Register.", btns: ["Salary Sheet", "Form D", "Wage Register", "Muster Roll", "Leave Register"], c: "#6a1b9a" },
+    { icon: "\u{1F4D1}", t: "Labour Law Returns", s: "Factories / Shops Act", d: "Annual Form D, Register of Wages, Muster Roll, Overtime Register, Leave Register.", btns: ["Salary Sheet", "Yearly Reports", "Form D", "Wage Register", "Muster Roll", "Leave Register"], c: "#6a1b9a" },
     { icon: "\u2696\uFE0F", t: "Gratuity & Bonus", s: "Statutory Payments", d: "Gratuity: 15 days salary \xD7 years of service. Bonus: 8.33% to 20% of basic (Payment of Bonus Act).", btns: ["Gratuity Report", "Bonus Calculation", "Form A", "Bonus Register"], c: "#00695c" }
   ].map(({ icon, t, s: s2, d, btns, c }) => /* @__PURE__ */ React.createElement(Card, { key: t }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 26 } }, icon), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, t), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, s2))), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 13, color: MT, lineHeight: 1.6, marginBottom: 12 } }, d), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, btns.map((b) => /* @__PURE__ */ React.createElement(Btn, { key: b, sz: "sm", v: "sec", onClick: () => {
-    if (b === "Salary Sheet") {
+    if (b === "Yearly Reports") {
+      setShowYearly(true);
+    } else if (b === "Salary Sheet") {
       setShowSheet(true);
     } else if (b === "Leave Register") {
       const rows = [];
       leaves.forEach((l) => rows.push([l.ename, l.type, l.from, l.to, l.days, l.status]));
       downloadExcel("Leave_Register", [{ name: "Leaves", headers: ["Employee", "Type", "From", "To", "Days", "Status"], rows }]);
     } else if (b === "Wage Register" && activeRun) {
-      const _num = (x) => Math.round(+x || 0);
+      const _n = (x) => Math.round(+x || 0);
       const _mLabel = activeRun.month || (MONTHS[NOW.getMonth()] + "-" + NOW.getFullYear());
-      const _idRows = activeRun.results.map((r, _i) => {
+      const _R = activeRun.results || [];
+      const _mask = (v) => { const t = String(v || ""); return t.length > 8 ? t.slice(0, 4) + "XXXX" + t.slice(-4) : t; };
+      const _rows = _R.map((r, _i) => {
         const _e = emps.find((x) => x.code === r.code) || r;
-        const _fg = (+_e.basic || 0) + (+_e.hra || 0) + (+_e.conv || 0) + (+_e.med || 0) + (+_e.spl || 0) + (+_e.lta || 0);
-        const _td = r.monthDays || 31;
-        const _wd = +(_td - (r.lopDays || 0)).toFixed(1);
-        const _f = _td > 0 ? _wd / _td : 1;
-        const _p = (v) => _num((+v || 0) * _f);
-        const _ded = _num((r.pfE || 0) + (r.esE || 0) + (r.pt || 0) + (r.tds || 0) + (r.lwfE || 0) + (r.advance || 0));
-        return [_i + 1, _e.code || "", _e.name || "", _e.fatherName || "", _e.desig || "", _e.pfNo || "", _e.uan || "", _e.esicNo || "", _e.doj || "", _num(_fg), _wd, r.lopDays || 0, _td, _p(_e.basic), 0, _p(_e.hra), _p(_e.conv), _p(_e.med), 0, _p(_e.spl), 0, 0, _num(r.bonus), _num(r.g), _num(r.pfE), _num(r.esE), _num(r.pt), _num(r.advance), _num(r.tds), _ded, _num(r.net), _num(r.ctc)];
+        const _td = r.monthDays || 30;
+        const _days = +((_td - (r.lopDays || 0)) * (r.joiningProration != null ? r.joiningProration : 1)).toFixed(1);
+        const _ot = _n(r.otAmount);
+        const _gross = _n(r.g) + _ot;
+        const _pf = _n(r.pfE), _vpf = _n(r.vpfE), _esi = _n(r.esE), _tax = _n(r.tds), _adv = _n(r.advance), _loan = _n(r.loanEmi), _lwf = _n(r.lwfE);
+        const _ded = _pf + _vpf + _esi + _tax + _adv + _loan + _lwf + _n(r.pt);
+        return [_i + 1, _e.code || "", _e.name || "", _e.fatherName || "", _e.desig || "", _e.dept || "", _e.doj || "",
+          _e.pfNo || (r.pf ? "" : "Excluded"), _e.uan || "", _e.esicNo || (r.esic ? "" : "Exempt"),
+          _n(_e.basic), _n(_e.hra), _n(_e.conv), _n(_e.spl),
+          _days, r.lopDays || 0, _td,
+          _n(r.basic), _n(r.hra), _n(r.conv), _n(r.spl), _ot, _n(r.bonus), _gross,
+          _pf, _vpf, _esi, _n(r.pt), _lwf, _tax, _adv, _loan, _ded, _n(r.net),
+          _e.bank || "", _mask(_e.acc), "", ""];
       });
-      const _sum = (idx) => _idRows.reduce((a, row) => a + (+row[idx] || 0), 0);
-      const _tot = ["", "", "GRAND TOTAL", "", "", "", "", "", "", _sum(9), "", "", "", _sum(13), 0, _sum(15), _sum(16), _sum(17), 0, _sum(19), 0, 0, _sum(22), _sum(23), _sum(24), _sum(25), _sum(26), _sum(27), _sum(28), _sum(29), _sum(30), _sum(31)];
-      const _heads = ["Sr", "Emp Code", "Name", "Father's/Husband's Name", "Designation", "PF No", "UAN", "ESI No", "DOJ", "Rate of Wages", "Work Days", "LOP", "Total Days", "Basic", "DA/DP", "HRA", "Conv", "Medical", "Washing", "Special", "Other", "OT", "Bonus", "Gross", "PF", "ESI", "PT", "Advance", "TDS", "Total Ded", "Net Payable", "CTC"];
-      const _pf = activeRun.results.filter((r) => r.pf);
-      const _esi = activeRun.results.filter((r) => r.esic);
-      const _s2 = (arr, k) => arr.reduce((a, r) => a + (+r[k] || 0), 0);
-      const _summary = { name: "PF & ESI Summary", headers: ["Head", "Count / Establishment", "Wages", "Employee Share", "Employer / Pension", "Total"], rows: [["PF Subscribers", _pf.length, _s2(_pf, "pfBase") || _s2(_pf, "basic"), _s2(_pf, "pfE"), _s2(_pf, "pfR"), _s2(_pf, "pfE") + _s2(_pf, "pfR")], ["ESI Insured", _esi.length, _s2(_esi, "g"), _s2(_esi, "esE"), _s2(_esi, "esR"), _s2(_esi, "esE") + _s2(_esi, "esR")], [], ["Establishment", (co && co.name) || "", "", "PF Code", (co && (co.pf_reg || co.pfCode)) || "", ""], ["Month", _mLabel, "", "ESI Code", (co && (co.esic_reg || co.esicCode)) || "", ""], ["Total Employees", activeRun.results.length, "", "Grand Total Net", _sum(30), ""]] };
-      downloadExcel("Salary_Register_FormIV_" + _mLabel, [{ name: "Form IV - Register of Wages", headers: _heads, rows: [..._idRows, _tot] }, _summary]);
+      const _sum = (k) => _rows.reduce((a, x) => a + (+x[k] || 0), 0);
+      const _tot = new Array(38).fill("");
+      _tot[2] = "GRAND TOTAL";
+      [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32].forEach((k) => { _tot[k] = _sum(k); });
+      const _H = ["Sr No", "Emp Code", "Name of Employee", "Father's / Husband's Name", "Designation", "Department", "D.O.J",
+        "PF No", "UAN No", "ESI No",
+        "Rate: Basic", "Rate: HRA", "Rate: Conv", "Rate: Incentive",
+        "Days Paid", "LOP", "Month Days",
+        "Earned Basic", "Earned HRA", "Earned Conv", "Earned Incentive", "Over Time", "Bonus", "Gross Pay",
+        "P.F.", "Vol. PF", "ESIC of Employee", "P. Tax", "Welfare Fund", "Income Tax", "Advance", "Loan", "Total Deduction", "Amount Paid",
+        "Bank", "Bank A/c", "Mode / Date", "Signature / Thumb Impression"];
+      const _pfR = _R.filter((r) => (+r.pfE || 0) > 0 || (+r.pfR || 0) > 0);
+      const _esR = _R.filter((r) => (+r.esE || 0) > 0);
+      const _lwR = _R.filter((r) => (+r.lwfE || 0) > 0 || (+r.lwfR || 0) > 0);
+      const _s = (arr, k) => _n(arr.reduce((a, r) => a + (+r[k] || 0), 0));
+      const _pfWages = _s(_pfR, "basic"), _epsAll = _s(_pfR, "pfEPS");
+      const _sum2 = { name: "Summary", headers: ["Particulars", "Value"], rows: [
+        ["Establishment", (co && co.name) || ""], ["Address", (co && co.addr) || ""],
+        ["For the month of", _mLabel], ["P.F. Code", (co && (co.pf || co.pfCode)) || ""], ["ESI Code", (co && (co.esic || co.esicCode)) || ""],
+        [], ["--- Summary P.F. ---", ""],
+        ["Total No. of Subscribers", _pfR.length], ["Total PF Wages", _pfWages],
+        ["Employee's share (A/c 1)", _s(_pfR, "pfE")], ["Pension Fund (A/c 10)", _epsAll],
+        ["Employer's share (A/c 1)", _s(_pfR, "pfEPF_er")],
+        ["Total payment of PF", _s(_pfR, "pfE") + _s(_pfR, "pfR")],
+        ["No. of PF-exempt Workers", _R.length - _pfR.length],
+        ["Wages of PF-exempt Workers", _n(_R.filter((r) => !((+r.pfE || 0) > 0)).reduce((a, r) => a + (+r.g || 0), 0))],
+        [], ["--- Summary ESI ---", ""],
+        ["No. of Insured Employees", _esR.length], ["Total ESI Wages", _s(_esR, "g")],
+        ["Employee Contribution", _s(_esR, "esE")], ["Employer Contribution", _s(_esR, "esR")],
+        ["Total Contribution", _s(_esR, "esE") + _s(_esR, "esR")],
+        [], ["--- Summary Welfare Fund ---", ""],
+        ["Employee's share", _s(_lwR, "lwfE")], ["Employer's share", _s(_lwR, "lwfR")],
+        ["Total", _s(_lwR, "lwfE") + _s(_lwR, "lwfR")],
+        [], ["Total No. of Employees", _R.length], ["Total Gross", _sum(22)], ["Total Deductions", _sum(31)], ["Total Amount Paid", _sum(32)]
+      ] };
+      downloadExcel("FormIV_Register_of_Wages_" + _mLabel, [{ name: "Form IV", headers: _H, rows: [..._rows, _tot] }, _sum2]);
     } else if (b === "Generate ECR" && activeRun) {
       downloadExcel("PF_ECR", [{ name: "ECR", headers: ["UAN", "Name", "Gross", "EPF Wages", "EPS Wages", "EE Contrib", "EPS", "ER Contrib", "NCP Days"], rows: activeRun.results.filter((e) => e.pf).map((e, i) => [`UAN${1001 + i}`, e.name, e.g, e.pfBase || +e.basic, e.pfBase || +e.basic, e.pfE, Math.round((e.pfBase || +e.basic) * 0.0833), e.pfR, e.lopDays || 0]) }]);
     } else if (b === "Gratuity Report") {
@@ -6873,7 +7007,7 @@ Please fill your PAN, Aadhaar and bank details after login.
 
 Regards, HR`;
     window.open(`mailto:${inviteResult.email}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`);
-  }, style: { flex: 1, padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 9, background: "#fff", color: "#1a237e", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2709\uFE0F Send Email"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { padding: "9px 28px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), showBulk && /* @__PURE__ */ React.createElement(BulkImport, { onClose: () => setShowBulk(false), existingCodes: emps.map((e) => e.code), defaultState: (pol && pol.pt && pol.pt.state) || "Maharashtra", onImport: async (list) => { setShowBulk(false); let _ok = 0, _fail = 0; for (const r of list) { try { const _sv = await db.addEmp(r, user.companyId); setEmps((p) => [...p, _sv && _sv.id ? { ...r, id: _sv.id } : r]); _ok++; } catch (e) { _fail++; } } showToast(_ok + " employee" + (_ok !== 1 ? "s" : "") + " imported" + (_fail ? ", " + _fail + " failed to save" : "") + " \u2713", _fail ? "warn" : void 0); } }), showSheet && /* @__PURE__ */ React.createElement(SalarySheetBuilder, { run: activeRun, emps, co, pol, onClose: () => setShowSheet(false) }), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "92vh", boxShadow: "0 20px 60px rgba(0,0,0,.25)", display: "flex", flexDirection: "column", overflow: "hidden", isolation: "isolate" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
+  }, style: { flex: 1, padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 9, background: "#fff", color: "#1a237e", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2709\uFE0F Send Email"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { padding: "9px 28px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), showBulk && /* @__PURE__ */ React.createElement(BulkImport, { onClose: () => setShowBulk(false), existingCodes: emps.map((e) => e.code), defaultState: (pol && pol.pt && pol.pt.state) || "Maharashtra", onImport: async (list) => { setShowBulk(false); let _ok = 0, _fail = 0; for (const r of list) { try { const _sv = await db.addEmp(r, user.companyId); setEmps((p) => [...p, _sv && _sv.id ? { ...r, id: _sv.id } : r]); _ok++; } catch (e) { _fail++; } } showToast(_ok + " employee" + (_ok !== 1 ? "s" : "") + " imported" + (_fail ? ", " + _fail + " failed to save" : "") + " \u2713", _fail ? "warn" : void 0); } }), showYearly && /* @__PURE__ */ React.createElement(YearlyReports, { runs, emps, co, pol, onClose: () => setShowYearly(false) }), showSheet && /* @__PURE__ */ React.createElement(SalarySheetBuilder, { run: activeRun, emps, co, pol, onClose: () => setShowSheet(false) }), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "92vh", boxShadow: "0 20px 60px rgba(0,0,0,.25)", display: "flex", flexDirection: "column", overflow: "hidden", isolation: "isolate" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
     const done = qaStep > +n;
     const active2 = qaStep === +n;
     return /* @__PURE__ */ React.createElement("div", { key: n, style: { display: "flex", alignItems: "center", flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: 12, background: done ? "#69f0ae" : active2 ? "#fff" : "rgba(255,255,255,.2)", color: done ? "#1b5e20" : active2 ? "#1a237e" : "rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0 } }, done ? "\u2713" : n), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: active2 ? "#fff" : done ? "#69f0ae" : "rgba(255,255,255,.4)", fontWeight: active2 ? 700 : 400 } }, l)), i < 2 && /* @__PURE__ */ React.createElement("div", { style: { flex: 1, height: 1, background: "rgba(255,255,255,.2)", margin: "0 8px" } }));
