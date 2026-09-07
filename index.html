@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v21.0 -->
+<!-- PAYROLLA v21.1 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.0 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.1 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="21.0";
+  var BUILD="21.1";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -3365,6 +3365,18 @@ function printHTML(title, bodyHtml) {
 <button class="no-print" onclick="window.print()" style="position:fixed;top:10px;right:10px;padding:8px 18px;background:#1a237e;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;z-index:99;box-shadow:0 2px 8px rgba(0,0,0,.3)">\u{1F5A8} Print / Save PDF</button>
 ${bodyHtml}
 </body></html>`;
+  try {
+    const w = window.open("", "_blank");
+    if (w && w.document) {
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+      setTimeout(() => { try { w.print(); } catch (e) {} }, 400);
+      return;
+    }
+  } catch (e) {
+  }
   downloadHTML(title.replace(/[\s/\\:*?"<>|]/g, "_") + ".html", html);
 }
 function downloadExcel(filename, sheets) {
@@ -6343,61 +6355,120 @@ Run payroll anyway?`
       downloadExcel("Leave_Register", [{ name: "Leaves", headers: ["Employee", "Type", "From", "To", "Days", "Status"], rows }]);
     } else if (b === "Form IV Register" && activeRun) {
       const _n = (x) => Math.round(+x || 0);
+      const _f = (x) => { const v = Math.round(+x || 0); return v === 0 ? "\u2013" : v.toLocaleString("en-IN"); };
       const _mLabel = activeRun.month || (MONTHS[NOW.getMonth()] + "-" + NOW.getFullYear());
       const _R = activeRun.results || [];
+      const _esc = (t) => String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const _mask = (v) => { const t = String(v || ""); return t.length > 8 ? t.slice(0, 4) + "XXXX" + t.slice(-4) : t; };
-      const _rows = _R.map((r, _i) => {
+      const _tot = { basic: 0, hra: 0, conv: 0, spl: 0, ot: 0, gross: 0, pf: 0, vpf: 0, esi: 0, pt: 0, lwf: 0, tax: 0, adv: 0, loan: 0, ded: 0, net: 0, days: 0 };
+      const _body = _R.map((r, _i) => {
         const _e = emps.find((x) => x.code === r.code) || r;
         const _td = r.monthDays || 30;
         const _days = +((_td - (r.lopDays || 0)) * (r.joiningProration != null ? r.joiningProration : 1)).toFixed(1);
-        const _ot = _n(r.otAmount);
-        const _gross = _n(r.g) + _ot;
-        const _pf = _n(r.pfE), _vpf = _n(r.vpfE), _esi = _n(r.esE), _tax = _n(r.tds), _adv = _n(r.advance), _loan = _n(r.loanEmi), _lwf = _n(r.lwfE);
-        const _ded = _pf + _vpf + _esi + _tax + _adv + _loan + _lwf + _n(r.pt);
-        return [_i + 1, _e.code || "", _e.name || "", _e.fatherName || "", _e.desig || "", _e.dept || "", _e.doj || "",
-          _e.pfNo || (r.pf ? "" : "Excluded"), _e.uan || "", _e.esicNo || (r.esic ? "" : "Exempt"),
-          _n(_e.basic), _n(_e.hra), _n(_e.conv), _n(_e.spl),
-          _days, r.lopDays || 0, _td,
-          _n(r.basic), _n(r.hra), _n(r.conv), _n(r.spl), _ot, _n(r.bonus), _gross,
-          _pf, _vpf, _esi, _n(r.pt), _lwf, _tax, _adv, _loan, _ded, _n(r.net),
-          _e.bank || "", _mask(_e.acc), "", ""];
-      });
-      const _sum = (k) => _rows.reduce((a, x) => a + (+x[k] || 0), 0);
-      const _tot = new Array(38).fill("");
-      _tot[2] = "GRAND TOTAL";
-      [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32].forEach((k) => { _tot[k] = _sum(k); });
-      const _H = ["Sr No", "Emp Code", "Name of Employee", "Father's / Husband's Name", "Designation", "Department", "D.O.J",
-        "PF No", "UAN No", "ESI No",
-        "Rate: Basic", "Rate: HRA", "Rate: Conv", "Rate: Incentive",
-        "Days Paid", "LOP", "Month Days",
-        "Earned Basic", "Earned HRA", "Earned Conv", "Earned Incentive", "Over Time", "Bonus", "Gross Pay",
-        "P.F.", "Vol. PF", "ESIC of Employee", "P. Tax", "Welfare Fund", "Income Tax", "Advance", "Loan", "Total Deduction", "Amount Paid",
-        "Bank", "Bank A/c", "Mode / Date", "Signature / Thumb Impression"];
+        const _ot = _n(r.otAmount), _gross = _n(r.g) + _ot;
+        const _pf = _n(r.pfE) - _n(r.vpfE), _vpf = _n(r.vpfE), _esi = _n(r.esE), _pt = _n(r.pt), _lwf = _n(r.lwfE), _tax = _n(r.tds), _adv = _n(r.advance), _loan = _n(r.loanEmi);
+        const _ded = _pf + _vpf + _esi + _pt + _lwf + _tax + _adv + _loan;
+        _tot.basic += _n(r.basic); _tot.hra += _n(r.hra); _tot.conv += _n(r.conv); _tot.spl += _n(r.spl);
+        _tot.ot += _ot; _tot.gross += _gross; _tot.pf += _pf; _tot.vpf += _vpf; _tot.esi += _esi; _tot.pt += _pt;
+        _tot.lwf += _lwf; _tot.tax += _tax; _tot.adv += _adv; _tot.loan += _loan; _tot.ded += _ded; _tot.net += _n(r.net); _tot.days += _days;
+        return `<tr>
+<td class="c">${_i + 1}</td>
+<td><b>${_esc(_e.code)}</b></td>
+<td class="nm"><b>${_esc(_e.name)}</b><span class="sub">${_esc(_e.fatherName || "")}</span><span class="sub">Desig: ${_esc(_e.desig || "\u2014")}${_e.dept ? " &middot; Dept: " + _esc(_e.dept) : ""}</span></td>
+<td class="ids"><span>DOJ: ${_esc(_e.doj || "\u2014")}</span><span>PF: ${_esc(_e.pfNo || (r.pf ? "\u2014" : "Excluded"))}</span><span>UAN: ${_esc(_e.uan || "\u2014")}</span><span>ESI: ${_esc(_e.esicNo || (r.esic ? "\u2014" : "Exempt"))}</span></td>
+<td class="r">${_f(_e.basic)}</td><td class="r">${_f(_e.hra)}</td><td class="r">${_f(_e.conv)}</td><td class="r">${_f(_e.spl)}</td>
+<td class="c"><b>${_days}</b>${r.lopDays ? '<span class="sub">LOP ' + r.lopDays + "</span>" : ""}</td>
+<td class="r">${_f(r.basic)}</td><td class="r">${_f(r.hra)}</td><td class="r">${_f(r.conv)}</td><td class="r">${_f(r.spl)}</td><td class="r">${_f(_ot)}</td>
+<td class="r tg"><b>${_f(_gross)}</b></td>
+<td class="r">${_f(_pf)}</td><td class="r">${_f(_vpf)}</td><td class="r">${_f(_esi)}</td><td class="r">${_f(_pt)}</td><td class="r">${_f(_lwf)}</td><td class="r">${_f(_tax)}</td><td class="r">${_f(_adv + _loan)}</td>
+<td class="r td"><b>${_f(_ded)}</b></td>
+<td class="r tn"><b>${_f(r.net)}</b></td>
+<td class="bk">${_esc(_e.bank || "")}<span class="sub">${_esc(_mask(_e.acc))}</span></td>
+<td class="sig"></td></tr>`;
+      }).join("");
       const _pfR = _R.filter((r) => (+r.pfE || 0) > 0 || (+r.pfR || 0) > 0);
       const _esR = _R.filter((r) => (+r.esE || 0) > 0);
-      const _lwR = _R.filter((r) => (+r.lwfE || 0) > 0 || (+r.lwfR || 0) > 0);
-      const _s = (arr, k) => _n(arr.reduce((a, r) => a + (+r[k] || 0), 0));
-      const _pfWages = _s(_pfR, "basic"), _epsAll = _s(_pfR, "pfEPS");
-      const _sum2 = { name: "Summary", headers: ["Particulars", "Value"], rows: [
-        ["Establishment", (co && co.name) || ""], ["Address", (co && co.addr) || ""],
-        ["For the month of", _mLabel], ["P.F. Code", (co && (co.pf || co.pfCode)) || ""], ["ESI Code", (co && (co.esic || co.esicCode)) || ""],
-        [], ["--- Summary P.F. ---", ""],
-        ["Total No. of Subscribers", _pfR.length], ["Total PF Wages", _pfWages],
-        ["Employee's share (A/c 1)", _s(_pfR, "pfE")], ["Pension Fund (A/c 10)", _epsAll],
-        ["Employer's share (A/c 1)", _s(_pfR, "pfEPF_er")],
-        ["Total payment of PF", _s(_pfR, "pfE") + _s(_pfR, "pfR")],
-        ["No. of PF-exempt Workers", _R.length - _pfR.length],
-        ["Wages of PF-exempt Workers", _n(_R.filter((r) => !((+r.pfE || 0) > 0)).reduce((a, r) => a + (+r.g || 0), 0))],
-        [], ["--- Summary ESI ---", ""],
-        ["No. of Insured Employees", _esR.length], ["Total ESI Wages", _s(_esR, "g")],
-        ["Employee Contribution", _s(_esR, "esE")], ["Employer Contribution", _s(_esR, "esR")],
-        ["Total Contribution", _s(_esR, "esE") + _s(_esR, "esR")],
-        [], ["--- Summary Welfare Fund ---", ""],
-        ["Employee's share", _s(_lwR, "lwfE")], ["Employer's share", _s(_lwR, "lwfR")],
-        ["Total", _s(_lwR, "lwfE") + _s(_lwR, "lwfR")],
-        [], ["Total No. of Employees", _R.length], ["Total Gross", _sum(22)], ["Total Deductions", _sum(31)], ["Total Amount Paid", _sum(32)]
-      ] };
-      downloadExcel("FormIV_Register_of_Wages_" + _mLabel, [{ name: "Form IV", headers: _H, rows: [..._rows, _tot] }, _sum2]);
+      const _sm = (arr, k) => _n(arr.reduce((a, r) => a + (+r[k] || 0), 0));
+      const _exempt = _R.filter((r) => !((+r.pfE || 0) > 0));
+      const _sumBlock = `<div class="sums">
+<div class="sbox"><h3>Summary &mdash; Provident Fund</h3><table class="s">
+<tr><td>Total No. of Subscribers</td><td class="r">${_pfR.length}</td></tr>
+<tr><td>Total PF Wages</td><td class="r">${_f(_sm(_pfR, "basic"))}</td></tr>
+<tr><td>Employee's Share (A/c No. 1)</td><td class="r">${_f(_sm(_pfR, "pfE"))}</td></tr>
+<tr><td>Pension Fund (A/c No. 10)</td><td class="r">${_f(_sm(_pfR, "pfEPS"))}</td></tr>
+<tr><td>Employer's Share (A/c No. 1)</td><td class="r">${_f(_sm(_pfR, "pfEPF_er"))}</td></tr>
+<tr class="tr"><td><b>Total Payment of PF</b></td><td class="r"><b>${_f(_sm(_pfR, "pfE") + _sm(_pfR, "pfR"))}</b></td></tr>
+<tr><td>No. of PF-exempt Workers</td><td class="r">${_exempt.length}</td></tr>
+<tr><td>Wages of PF-exempt Workers</td><td class="r">${_f(_exempt.reduce((a, r) => a + (+r.g || 0), 0))}</td></tr></table></div>
+<div class="sbox"><h3>Summary &mdash; ESI</h3><table class="s">
+<tr><td>No. of Insured Employees</td><td class="r">${_esR.length}</td></tr>
+<tr><td>Total ESI Wages</td><td class="r">${_f(_sm(_esR, "g"))}</td></tr>
+<tr><td>Employee Contribution</td><td class="r">${_f(_sm(_esR, "esE"))}</td></tr>
+<tr><td>Employer Contribution</td><td class="r">${_f(_sm(_esR, "esR"))}</td></tr>
+<tr class="tr"><td><b>Total Contribution</b></td><td class="r"><b>${_f(_sm(_esR, "esE") + _sm(_esR, "esR"))}</b></td></tr></table></div>
+<div class="sbox"><h3>Summary &mdash; Welfare Fund</h3><table class="s">
+<tr><td>Employee's Share</td><td class="r">${_f(_sm(_R, "lwfE"))}</td></tr>
+<tr><td>Employer's Share</td><td class="r">${_f(_sm(_R, "lwfR"))}</td></tr>
+<tr class="tr"><td><b>Total</b></td><td class="r"><b>${_f(_sm(_R, "lwfE") + _sm(_R, "lwfR"))}</b></td></tr>
+<tr><td>Total No. of Employees</td><td class="r">${_R.length}</td></tr>
+<tr><td>Total Gross Wages</td><td class="r">${_f(_tot.gross)}</td></tr>
+<tr class="tr"><td><b>Total Amount Paid</b></td><td class="r"><b>${_f(_tot.net)}</b></td></tr></table></div></div>`;
+      const _html = `<div class="fw">
+<div class="hd"><div class="t1">REGISTER OF PAYMENT OF WAGES</div><div class="t2">FORM &ndash; IV &nbsp;[ See Rule 27(1) &mdash; Payment of Wages Rules, 1971 ]</div></div>
+<table class="meta"><tr><td><b>Name of the Establishment:</b> ${_esc((co && co.name) || "")}</td><td><b>For the month of:</b> ${_esc(_mLabel)}</td></tr>
+<tr><td><b>Address:</b> ${_esc((co && co.addr) || "")}${(co && co.city) ? ", " + _esc(co.city) : ""}${(co && co.pin) ? " &ndash; " + _esc(co.pin) : ""}</td><td><b>P.F. Code:</b> ${_esc((co && (co.pf || co.pfCode)) || "\u2014")} &nbsp;&nbsp; <b>ESI Code:</b> ${_esc((co && (co.esic || co.esicCode)) || "\u2014")}</td></tr></table>
+<table class="grid"><thead>
+<tr><th rowspan="2" class="w1">Sr.</th><th rowspan="2" class="w2">Emp Code</th><th rowspan="2" class="w3">Name / Father's Name / Designation</th><th rowspan="2" class="w4">Statutory IDs</th>
+<th colspan="4">Rate of Wages</th><th rowspan="2" class="w1">Days Paid</th><th colspan="5">Amount Payable</th><th rowspan="2">Gross Pay</th>
+<th colspan="7">Deductions</th><th rowspan="2">Total Ded.</th><th rowspan="2">Amount Paid</th><th rowspan="2" class="w5">Bank / A/c</th><th rowspan="2" class="w6">Signature / Thumb</th></tr>
+<tr><th>Basic</th><th>HRA</th><th>Conv.</th><th>Other</th>
+<th>Basic</th><th>HRA</th><th>Conv.</th><th>Other</th><th>O.T.</th>
+<th>P.F.</th><th>Vol. PF</th><th>ESIC</th><th>P.Tax</th><th>Welfare</th><th>I.Tax</th><th>Adv./Loan</th></tr></thead>
+<tbody>${_body}
+<tr class="gt"><td colspan="4" class="r"><b>GRAND TOTAL</b></td><td colspan="4"></td><td class="c"><b>${_tot.days.toFixed(1)}</b></td>
+<td class="r"><b>${_f(_tot.basic)}</b></td><td class="r"><b>${_f(_tot.hra)}</b></td><td class="r"><b>${_f(_tot.conv)}</b></td><td class="r"><b>${_f(_tot.spl)}</b></td><td class="r"><b>${_f(_tot.ot)}</b></td>
+<td class="r"><b>${_f(_tot.gross)}</b></td>
+<td class="r"><b>${_f(_tot.pf)}</b></td><td class="r"><b>${_f(_tot.vpf)}</b></td><td class="r"><b>${_f(_tot.esi)}</b></td><td class="r"><b>${_f(_tot.pt)}</b></td><td class="r"><b>${_f(_tot.lwf)}</b></td><td class="r"><b>${_f(_tot.tax)}</b></td><td class="r"><b>${_f(_tot.adv + _tot.loan)}</b></td>
+<td class="r"><b>${_f(_tot.ded)}</b></td><td class="r"><b>${_f(_tot.net)}</b></td><td colspan="2"></td></tr>
+</tbody></table>
+${_sumBlock}
+<div class="sign"><div>Checked by</div><div>Authorised Signatory</div><div>Employer / Manager</div></div>
+<div class="ft">Generated by Payrolla &middot; ${_esc(_mLabel)} &middot; ${_R.length} employees</div></div>
+<style>
+@page{size:A4 landscape;margin:8mm}
+body{padding:0!important;font-family:Arial,sans-serif}
+.fw{width:100%}
+.hd{text-align:center;border:2px solid #000;padding:6px;margin-bottom:0}
+.t1{font-size:15px;font-weight:800;letter-spacing:.5px}
+.t2{font-size:10px;margin-top:2px}
+table.meta{width:100%;border-collapse:collapse;margin:0 0 4px}
+table.meta td{border:1px solid #000;padding:4px 6px;font-size:10px}
+table.grid{width:100%;border-collapse:collapse;table-layout:fixed}
+table.grid th{border:1px solid #000;background:#e8eaf6;font-size:8px;padding:3px 2px;text-align:center;font-weight:700;color:#000}
+table.grid td{border:1px solid #666;font-size:8.5px;padding:3px 3px;vertical-align:top}
+table.grid tr:nth-child(even){background:#fafafa}
+.c{text-align:center}.r{text-align:right}
+.nm{line-height:1.35}
+.sub{display:block;font-size:7.5px;color:#555;font-weight:400}
+.ids span{display:block;font-size:7.5px;line-height:1.35}
+.w1{width:26px}.w2{width:52px}.w3{width:150px}.w4{width:104px}.w5{width:78px}.w6{width:70px}
+.tg{background:#eef2ff}.td{background:#fff4f4}.tn{background:#f1f8e9}
+.bk{font-size:7.5px}
+.sig{height:34px}
+tr.gt td{background:#e8eaf6!important;border-top:2px solid #000;font-size:9px}
+.sums{display:flex;gap:8px;margin-top:8px;page-break-inside:avoid}
+.sbox{flex:1;border:1px solid #000}
+.sbox h3{font-size:9.5px;background:#e8eaf6;padding:4px 6px;border-bottom:1px solid #000;margin:0}
+table.s{width:100%;border-collapse:collapse}
+table.s td{border-bottom:1px solid #ddd;padding:3px 6px;font-size:8.5px}
+table.s tr.tr td{background:#f5f5f5;border-top:1px solid #000}
+.sign{display:flex;justify-content:space-between;margin-top:26px;padding:0 30px}
+.sign div{border-top:1px solid #000;padding-top:3px;font-size:9px;width:150px;text-align:center}
+.ft{margin-top:8px;font-size:7.5px;color:#777;text-align:center}
+tbody tr{page-break-inside:avoid}
+thead{display:table-header-group}
+</style>`;
+      printHTML("Form IV \u2014 Register of Wages \u2014 " + _mLabel, _html);
     } else if (b === "Generate ECR" && activeRun) {
       downloadExcel("PF_ECR", [{ name: "ECR", headers: ["UAN", "Name", "Gross", "EPF Wages", "EPS Wages", "EE Contrib", "EPS", "ER Contrib", "NCP Days"], rows: activeRun.results.filter((e) => e.pf).map((e, i) => [`UAN${1001 + i}`, e.name, e.g, e.pfBase || +e.basic, e.pfBase || +e.basic, e.pfE, Math.round((e.pfBase || +e.basic) * 0.0833), e.pfR, e.lopDays || 0]) }]);
     } else if (b === "Gratuity Report") {
