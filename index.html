@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v20.9 -->
+<!-- PAYROLLA v21.0 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v20.9 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.0 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="20.9";
+  var BUILD="21.0";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -805,13 +805,27 @@ const DEFAULT_POLICIES = {
     }
   ]
 };
+function parseDMY(v) {
+  if (!v) return null;
+  if (v instanceof Date) return isNaN(v) ? null : v;
+  const t = String(v).trim();
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(t);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/.exec(t);
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+  m = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/.exec(t);
+  if (m) return new Date(2000 + +m[3], +m[2] - 1, +m[1]);
+  const d = new Date(t);
+  return isNaN(d) ? null : d;
+}
 function calcPay(e, lopDays = 0, POL = null, runMonth = null, runYear = null, extras = {}) {
   var _a, _b, _b2, _c, _d, _d2, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
   const P_pol = POL || (typeof DEFAULT_POLICIES !== "undefined" ? DEFAULT_POLICIES : null);
   let joiningProration = 1;
   let joiningNote = "";
-  if (e.doj && runMonth && runYear) {
-    const doj = new Date(e.doj);
+  const _dojParsed = parseDMY(e.doj);
+  if (_dojParsed && runMonth && runYear) {
+    const doj = _dojParsed;
     const dojMonth = doj.getMonth() + 1;
     const dojYear = doj.getFullYear();
     if (dojYear === runYear && dojMonth === runMonth) {
@@ -6316,7 +6330,7 @@ Run payroll anyway?`
     { icon: "\u{1F3E5}", t: "ESIC", s: "Employee State Insurance", d: "Monthly contributions. Employee 0.75%, Employer 3.25%. Applicable if gross \u2264 \u20B921,000.", btns: ["ESIC Challan", "Half-Yearly Return", "Form 37-A", "ESIC Cards"], c: AC },
     { icon: "\u{1F4C4}", t: "TDS (Form 24Q)", s: "Tax Deducted at Source", d: "Quarterly return for salary TDS. Q1: Jul 31, Q2: Oct 31, Q3: Jan 31, Q4: May 31.", btns: ["Form 24Q", "Form 16 (All)", "TDS Certificate", "26AS Reconcile"], c: WN },
     { icon: "\u{1F4CB}", t: "Professional Tax", s: "State Tax", d: "Monthly PT deduction & challan. Maharashtra: \u20B9200/mo (gross >\u20B915K), \u20B9150 (>\u20B910K).", btns: ["PT Challan", "PT Return", "Enrollment Cert", "Exemption Form"], c: DG },
-    { icon: "\u{1F4D1}", t: "Labour Law Returns", s: "Factories / Shops Act", d: "Annual Form D, Register of Wages, Muster Roll, Overtime Register, Leave Register.", btns: ["Salary Sheet", "Yearly Reports", "Form D", "Wage Register", "Muster Roll", "Leave Register"], c: "#6a1b9a" },
+    { icon: "\u{1F4D1}", t: "Labour Law Returns", s: "Factories / Shops Act", d: "Annual Form D, Register of Wages, Muster Roll, Overtime Register, Leave Register.", btns: ["Salary Sheet", "Yearly Reports", "Form IV Register", "Form D", "Muster Roll", "Leave Register"], c: "#6a1b9a" },
     { icon: "\u2696\uFE0F", t: "Gratuity & Bonus", s: "Statutory Payments", d: "Gratuity: 15 days salary \xD7 years of service. Bonus: 8.33% to 20% of basic (Payment of Bonus Act).", btns: ["Gratuity Report", "Bonus Calculation", "Form A", "Bonus Register"], c: "#00695c" }
   ].map(({ icon, t, s: s2, d, btns, c }) => /* @__PURE__ */ React.createElement(Card, { key: t }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 26 } }, icon), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, t), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, s2))), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 13, color: MT, lineHeight: 1.6, marginBottom: 12 } }, d), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, btns.map((b) => /* @__PURE__ */ React.createElement(Btn, { key: b, sz: "sm", v: "sec", onClick: () => {
     if (b === "Yearly Reports") {
@@ -6327,7 +6341,7 @@ Run payroll anyway?`
       const rows = [];
       leaves.forEach((l) => rows.push([l.ename, l.type, l.from, l.to, l.days, l.status]));
       downloadExcel("Leave_Register", [{ name: "Leaves", headers: ["Employee", "Type", "From", "To", "Days", "Status"], rows }]);
-    } else if (b === "Wage Register" && activeRun) {
+    } else if (b === "Form IV Register" && activeRun) {
       const _n = (x) => Math.round(+x || 0);
       const _mLabel = activeRun.month || (MONTHS[NOW.getMonth()] + "-" + NOW.getFullYear());
       const _R = activeRun.results || [];
