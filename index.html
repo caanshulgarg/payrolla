@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v21.1 -->
+<!-- PAYROLLA v21.2 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.1 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.2 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="21.1";
+  var BUILD="21.2";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -5422,6 +5422,120 @@ function YearlyReports({ runs, emps, co, pol, onClose }) {
       h(Btn, { v: "ghost", onClick: onClose }, "Cancel"),
       h(Btn, { disabled: !fyRuns.length, onClick: build }, "\u2B07 Download")));
 }
+function DashboardView({ user, emps, active, runs, activeRun, leaves, loans, pol, co, payMonth, payYear, calcP, go }) {
+  const h = React.createElement;
+  const NOW2 = new Date();
+  const MN = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const inr = (n) => "\u20B9" + Math.round(+n || 0).toLocaleString("en-IN");
+  const short = (n) => { const v = Math.round(+n || 0); if (v >= 1e7) return "\u20B9" + (v / 1e7).toFixed(2) + " Cr"; if (v >= 1e5) return "\u20B9" + (v / 1e5).toFixed(2) + " L"; return inr(v); };
+  const thisRun = (runs || []).find((r) => r.month === payMonth && r.year === payYear) || null;
+  const done = !!thisRun;
+  const est = React.useMemo(() => {
+    if (thisRun) { const R = thisRun.results || []; return { net: R.reduce((s, r) => s + (+r.netFinal || +r.net || 0), 0), pf: R.reduce((s, r) => s + (+r.pfE || 0) + (+r.pfR || 0), 0), esi: R.reduce((s, r) => s + (+r.esE || 0) + (+r.esR || 0), 0), tds: R.reduce((s, r) => s + (+r.tds || 0), 0), pt: R.reduce((s, r) => s + (+r.pt || 0), 0), n: R.length }; }
+    let net = 0, pf = 0, esi = 0, tds = 0, pt = 0;
+    (active || []).forEach((e) => { try { const p = calcP(e, 0); net += p.net || 0; pf += (p.pfE || 0) + (p.pfR || 0); esi += (p.esE || 0) + (p.esR || 0); tds += p.tds || 0; pt += p.pt || 0; } catch (err) {} });
+    return { net, pf, esi, tds, pt, n: (active || []).length };
+  }, [thisRun, active, payMonth, payYear]);
+  const nextMonth = payMonth === 12 ? 1 : payMonth + 1;
+  const nextYear = payMonth === 12 ? payYear + 1 : payYear;
+  const dueOn = (d) => new Date(nextYear, nextMonth - 1, d);
+  const daysTo = (dt) => Math.ceil((dt - new Date(NOW2.getFullYear(), NOW2.getMonth(), NOW2.getDate())) / 864e5);
+  const DUES = [
+    { k: "TDS", label: "TDS deposit", sub: "Challan ITNS 281", amt: est.tds, on: dueOn(7) },
+    { k: "PF", label: "PF remittance", sub: "ECR upload \u00b7 EPFO", amt: est.pf, on: dueOn(15) },
+    { k: "ESI", label: "ESI contribution", sub: "ESIC portal", amt: est.esi, on: dueOn(15) },
+    { k: "PT", label: "Professional tax", sub: "State portal", amt: est.pt, on: dueOn(20) }
+  ].filter((d) => d.amt > 0);
+  const pendingLeaves = (leaves || []).filter((l) => l.status === "Pending").length;
+  const activeLoans = (loans || []).filter((l) => l.status === "Approved" && l.remaining > 0);
+  const noPf = (active || []).filter((e) => e.pf && !e.uan).length;
+  const noPan = (active || []).filter((e) => !e.pan).length;
+  const noBank = (active || []).filter((e) => !e.acc).length;
+  const gaps = [noPan && { t: noPan + " without PAN", why: "TDS return will reject", to: "employees" }, noPf && { t: noPf + " without UAN", why: "ECR upload will fail", to: "employees" }, noBank && { t: noBank + " without bank details", why: "cannot pay by NEFT", to: "employees" }].filter(Boolean);
+  const byLoc = {};
+  (active || []).forEach((e) => { const k = e.location || "Unassigned"; byLoc[k] = (byLoc[k] || 0) + 1; });
+  const locs = Object.entries(byLoc).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const maxLoc = locs.length ? locs[0][1] : 1;
+  const recent = (runs || []).slice(0, 4);
+  const hour = NOW2.getHours();
+  const CARD = { background: "#fff", border: "1px solid #e6e8f0", borderRadius: 14, padding: 20 };
+  const LBL = { fontSize: 11, fontWeight: 700, color: "#8a8fa3", letterSpacing: .3 };
+  return h("div", null,
+    h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 12, marginBottom: 20 } },
+      h("div", null,
+        h("div", { style: { fontSize: 26, fontWeight: 800, color: "#12143a", letterSpacing: -.5 } }, (hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening") + ", " + String(user.name || "").split(" ")[0]),
+        h("div", { style: { fontSize: 13, color: "#7c8195", marginTop: 3 } }, NOW2.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" }))),
+      h("div", { style: { display: "flex", gap: 8 } },
+        h(Btn, { v: "sec", onClick: () => go("employees") }, "Add employee"),
+        h(Btn, { onClick: () => go("payroll") }, done ? "View payroll" : "Run payroll"))),
+    h("div", { style: { ...CARD, padding: 0, overflow: "hidden", marginBottom: 16, borderColor: done ? "#c8e6c9" : "#ffe0b2" } },
+      h("div", { style: { display: "flex", flexWrap: "wrap" } },
+        h("div", { style: { flex: "1 1 300px", padding: "22px 24px", borderRight: "1px solid #eef0f6" } },
+          h("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 10 } },
+            h("span", { style: { width: 8, height: 8, borderRadius: 8, background: done ? "#2e7d32" : "#ef6c00", display: "inline-block" } }),
+            h("span", { style: { ...LBL, color: done ? "#2e7d32" : "#ef6c00" } }, done ? "Payroll processed" : "Payroll pending")),
+          h("div", { style: { fontSize: 32, fontWeight: 800, color: "#12143a", lineHeight: 1.05, letterSpacing: -1 } }, short(est.net)),
+          h("div", { style: { fontSize: 13, color: "#7c8195", marginTop: 6 } }, (done ? "Net paid to " : "Estimated net for ") + est.n + " employee" + (est.n === 1 ? "" : "s") + " \u00b7 " + MN[payMonth] + " " + payYear),
+          !done && est.n > 0 && h("div", { style: { fontSize: 12, color: "#ef6c00", marginTop: 10 } }, "Not yet run \u2014 figures are an estimate from current salary structures.")),
+        h("div", { style: { flex: "1 1 320px", padding: "22px 24px", display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "16px 12px" } },
+          [["Provident fund", est.pf], ["ESI", est.esi], ["TDS", est.tds], ["Professional tax", est.pt]].map(([l, v]) =>
+            h("div", { key: l },
+              h("div", { style: LBL }, l),
+              h("div", { style: { fontSize: 17, fontWeight: 700, color: v > 0 ? "#12143a" : "#b9bdcc", marginTop: 3 } }, v > 0 ? inr(v) : "\u2014"))))) ),
+    h("div", { style: { display: "grid", gridTemplateColumns: "1.35fr 1fr", gap: 16, alignItems: "start" } },
+      h("div", { style: CARD },
+        h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
+          h("div", { style: { fontSize: 15, fontWeight: 700, color: "#12143a" } }, "Statutory calendar"),
+          h("div", { style: { fontSize: 11, color: "#8a8fa3" } }, "for " + MN[payMonth] + " liabilities")),
+        DUES.length === 0 ? h("div", { style: { fontSize: 13, color: "#8a8fa3", padding: "14px 0" } }, "Nothing due yet. Run payroll to generate statutory liabilities.") :
+        h("div", null, DUES.map((d) => { const n = daysTo(d.on); const late = n < 0, soon = n >= 0 && n <= 5;
+          return h("div", { key: d.k, style: { display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderTop: "1px solid #f0f2f7" } },
+            h("div", { style: { width: 46, textAlign: "center", flexShrink: 0 } },
+              h("div", { style: { fontSize: 18, fontWeight: 800, color: late ? "#c62828" : soon ? "#ef6c00" : "#12143a", lineHeight: 1 } }, d.on.getDate()),
+              h("div", { style: { fontSize: 10, color: "#8a8fa3", marginTop: 2 } }, MN[nextMonth].slice(0, 3))),
+            h("div", { style: { flex: 1, minWidth: 0 } },
+              h("div", { style: { fontSize: 13.5, fontWeight: 600, color: "#12143a" } }, d.label),
+              h("div", { style: { fontSize: 11, color: "#8a8fa3", marginTop: 1 } }, d.sub)),
+            h("div", { style: { textAlign: "right" } },
+              h("div", { style: { fontSize: 14, fontWeight: 700, color: "#12143a" } }, inr(d.amt)),
+              h("div", { style: { fontSize: 10.5, fontWeight: 700, marginTop: 2, color: late ? "#c62828" : soon ? "#ef6c00" : "#7c8195" } }, late ? Math.abs(n) + "d overdue" : n === 0 ? "due today" : "in " + n + "d")));
+        })),
+        h("div", { style: { marginTop: 14, paddingTop: 12, borderTop: "1px solid #f0f2f7" } },
+          h("button", { onClick: () => go("compliance"), style: { background: "none", border: "none", padding: 0, color: "#1a237e", fontSize: 12.5, fontWeight: 700, cursor: "pointer" } }, "Open compliance"))),
+      h("div", { style: { display: "grid", gap: 16 } },
+        h("div", { style: CARD },
+          h("div", { style: { fontSize: 15, fontWeight: 700, color: "#12143a", marginBottom: 4 } }, "Workforce"),
+          h("div", { style: { display: "flex", alignItems: "baseline", gap: 8, marginBottom: 14 } },
+            h("span", { style: { fontSize: 30, fontWeight: 800, color: "#12143a", letterSpacing: -.5 } }, (active || []).length),
+            h("span", { style: { fontSize: 12, color: "#8a8fa3" } }, "active" + ((emps || []).length !== (active || []).length ? " \u00b7 " + ((emps || []).length - (active || []).length) + " inactive" : ""))),
+          locs.length ? locs.map(([n, c]) => h("div", { key: n, style: { marginBottom: 9 } },
+            h("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 } },
+              h("span", { style: { color: "#4a4f66", fontWeight: 600 } }, n), h("span", { style: { color: "#8a8fa3" } }, c)),
+            h("div", { style: { height: 5, background: "#f0f2f7", borderRadius: 4, overflow: "hidden" } },
+              h("div", { style: { width: Math.round(c / maxLoc * 100) + "%", height: "100%", background: "#3949ab", borderRadius: 4 } }))))
+            : h("div", { style: { fontSize: 12.5, color: "#8a8fa3" } }, "Add branches in Settings to see the split by location.")),
+        gaps.length > 0 && h("div", { style: { ...CARD, borderColor: "#ffe0b2", background: "#fffdf8" } },
+          h("div", { style: { fontSize: 15, fontWeight: 700, color: "#12143a", marginBottom: 10 } }, "Needs attention"),
+          gaps.map((g, i) => h("div", { key: i, style: { paddingTop: i ? 9 : 0, marginTop: i ? 9 : 0, borderTop: i ? "1px solid #f4ece0" : "none" } },
+            h("div", { style: { fontSize: 13, fontWeight: 600, color: "#12143a" } }, g.t),
+            h("div", { style: { fontSize: 11.5, color: "#a0713a", marginTop: 2 } }, g.why))),
+          h("button", { onClick: () => go("employees"), style: { marginTop: 12, background: "none", border: "none", padding: 0, color: "#1a237e", fontSize: 12.5, fontWeight: 700, cursor: "pointer" } }, "Fix in employees")),
+        (pendingLeaves > 0 || activeLoans.length > 0) && h("div", { style: CARD },
+          h("div", { style: { fontSize: 15, fontWeight: 700, color: "#12143a", marginBottom: 12 } }, "Open items"),
+          pendingLeaves > 0 && h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: activeLoans.length ? 10 : 0 } },
+            h("span", { style: { fontSize: 13, color: "#4a4f66" } }, "Leave requests awaiting approval"),
+            h("button", { onClick: () => go("leaves"), style: { background: "#eef0fb", border: "none", borderRadius: 8, padding: "3px 10px", fontSize: 13, fontWeight: 700, color: "#1a237e", cursor: "pointer" } }, pendingLeaves)),
+          activeLoans.length > 0 && h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
+            h("span", { style: { fontSize: 13, color: "#4a4f66" } }, "Loans being recovered"),
+            h("button", { onClick: () => go("loans"), style: { background: "#eef0fb", border: "none", borderRadius: 8, padding: "3px 10px", fontSize: 13, fontWeight: 700, color: "#1a237e", cursor: "pointer" } }, activeLoans.length))))),
+    recent.length > 0 && h("div", { style: { ...CARD, marginTop: 16 } },
+      h("div", { style: { fontSize: 15, fontWeight: 700, color: "#12143a", marginBottom: 12 } }, "Recent payroll runs"),
+      h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 } },
+        recent.map((r) => h("button", { key: r.id, onClick: () => go("payroll"), style: { textAlign: "left", border: "1px solid #eef0f6", borderRadius: 10, padding: "12px 14px", background: "#fbfcfe", cursor: "pointer" } },
+          h("div", { style: { fontSize: 12, fontWeight: 700, color: "#4a4f66" } }, MN[r.month] + " " + r.year),
+          h("div", { style: { fontSize: 17, fontWeight: 800, color: "#12143a", margin: "4px 0 2px", letterSpacing: -.3 } }, short(r.total)),
+          h("div", { style: { fontSize: 11, color: "#8a8fa3" } }, r.count + " employees \u00b7 " + (r.on || "")))))));
+}
 function HRAdmin({ user, onLogout }) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, __, _$, _aa, _ba, _ca, _da;
   const [tab, setTab] = useState(() => {
@@ -5927,43 +6041,7 @@ Run payroll anyway?`
     ["ai", "\u{1F916}", "AI Features"],
     ["settings", "\u{1F527}", "System"]
   ];
-  return /* @__PURE__ */ React.createElement(Shell, { user, nav: NAV, tab, setTab, onLogout }, toast && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", top: 16, right: 16, zIndex: 9999, background: toast.type === "warn" ? WN : OK, color: "#fff", padding: "10px 18px", borderRadius: 10, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 20px rgba(0,0,0,.25)", display: "flex", alignItems: "center", gap: 8 } }, toast.type === "warn" ? "\u26A0" : "\u2713", " ", toast.msg), /* @__PURE__ */ React.createElement("div", { style: { background: dbReady ? "#e8f5e9" : "#fff8e1", borderBottom: `1px solid ${dbReady ? "#a5d6a7" : "#ffe082"}`, padding: "5px 20px", fontSize: 11, color: dbReady ? "#2e7d32" : "#f57f17", display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: 4, background: dbReady ? "#2e7d32" : "#f57f17" } }), loading ? "\u23F3 Loading data from database..." : dbReady ? "\u{1F7E2} Connected to Payrolla Database \u2014 all data is live and persistent" : "\u{1F7E1} Demo mode \u2014 running with sample data. Connect API to persist data."), tab === "dashboard" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { background: "linear-gradient(135deg,#1a237e,#3949ab)", borderRadius: 16, padding: "24px 28px", marginBottom: 24, color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 800, marginBottom: 4 } }, "Good ", (/* @__PURE__ */ new Date()).getHours() < 12 ? "Morning" : "Afternoon", ", ", (user.name || "").split(" ")[0], "! \u{1F44B}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, opacity: 0.75 } }, "Here's what's happening with your team today \u2014 ", (/* @__PURE__ */ new Date()).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => setTabAndSave("employees"), s: { background: "rgba(255,255,255,.15)", border: "1px solid rgba(255,255,255,.3)", color: "#fff" } }, "+ Add Employee"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => setTabAndSave("payroll"), s: { background: "#fff", color: "#1a237e" } }, "\u25B6 Run Payroll"))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 24 } }, /* @__PURE__ */ React.createElement(QuickStat, { label: "Total Employees", value: active.length, icon: "\u{1F465}", color: "#1a237e", sub: `${active.filter((e) => e.cat === "Permanent").length} permanent`, onClick: () => setTabAndSave("employees") }), /* @__PURE__ */ React.createElement(QuickStat, { label: "This Month Payroll", value: INR(active.reduce((s2, e) => s2 + calcP(e).net, 0)), icon: "\u{1F4B0}", color: "#1b5e20", sub: "Net pay estimate", onClick: () => setTabAndSave("payroll") }), /* @__PURE__ */ React.createElement(QuickStat, { label: "Pending Leaves", value: leaves.filter((l) => l.status === "Pending").length, icon: "\u{1F334}", color: "#e65100", sub: "Awaiting approval", onClick: () => setTabAndSave("leaves") }), /* @__PURE__ */ React.createElement(QuickStat, { label: "Compliance Items", value: runs.length > 0 ? "\u2713 Up to date" : "\u26A0 Pending", icon: "\u{1F4CB}", color: runs.length > 0 ? "#1b5e20" : "#c62828", sub: "Statutory filings", onClick: () => setTabAndSave("compliance") })), /* @__PURE__ */ React.createElement(G, { cols: 2, gap: 20 }, /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, marginBottom: 16, color: "#1a237e" } }, "\u26A1 Quick Actions"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } }, [
-    { icon: "\u{1F464}", label: "Add Employee", desc: "Onboard new team member", tab: "employees" },
-    { icon: "\u{1F550}", label: "Mark Attendance", desc: "Update today's attendance", tab: "attendance" },
-    { icon: "\u{1F334}", label: "Approve Leave", desc: "Pending: " + leaves.filter((l) => l.status === "Pending").length + " requests", tab: "leaves" },
-    { icon: "\u{1F4B0}", label: "Run Payroll", desc: "Process salaries", tab: "payroll" },
-    { icon: "\u{1F4CB}", label: "Compliance", desc: "PF, ESIC, TDS due dates", tab: "duedates" },
-    { icon: "\u{1F4C4}", label: "Offer Letter", desc: "Generate for new hire", tab: "letters" }
-  ].map((a) => /* @__PURE__ */ React.createElement(
-    "div",
-    {
-      key: a.tab,
-      onClick: () => setTabAndSave(a.tab),
-      style: { padding: "12px 14px", background: "#f4f5fa", borderRadius: 10, cursor: "pointer", border: "1px solid transparent", transition: "all .12s" },
-      onMouseEnter: (e) => {
-        e.currentTarget.style.background = "#e8eaf6";
-        e.currentTarget.style.borderColor = "#9fa8da";
-      },
-      onMouseLeave: (e) => {
-        e.currentTarget.style.background = "#f4f5fa";
-        e.currentTarget.style.borderColor = "transparent";
-      }
-    },
-    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, marginBottom: 4 } }, a.icon),
-    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: "#333" } }, a.label),
-    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#888", marginTop: 2 } }, a.desc)
-  )))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#1a237e" } }, "\u{1F465} Team (", active.length, ")"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", onClick: () => setTabAndSave("employees") }, "View All \u2192")), active.length === 0 ? /* @__PURE__ */ React.createElement(EmptyState, { icon: "\u{1F465}", title: "No employees yet", desc: "Add your first employee to get started.", action: "Add Employee", onAction: () => setTabAndSave("employees") }) : /* @__PURE__ */ React.createElement("div", null, active.slice(0, 6).map((e) => {
-    const p = calcP(e);
-    return /* @__PURE__ */ React.createElement("div", { key: e.id, style: { display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f5f5f5" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 32, height: 32, borderRadius: 16, background: "#e8eaf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#1a237e", flexShrink: 0 } }, (e.name || "?")[0].toUpperCase()), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, e.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#888" } }, e.desig || "\u2014", " \xB7 ", e.dept || "\u2014")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: "#1b5e20", flexShrink: 0 } }, INR(p.net), "/mo"));
-  }), active.length > 6 && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginTop: 10, fontSize: 12, color: "#888" } }, "+", active.length - 6, " more employees"))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#1a237e" } }, "\u{1F4B0} Recent Payroll"), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", onClick: () => setTabAndSave("payroll") }, "Run Now \u2192")), runs.length === 0 ? /* @__PURE__ */ React.createElement(EmptyState, { icon: "\u{1F4B0}", title: "No payroll runs yet", desc: "Run your first payroll to see history here.", action: "Run Payroll", onAction: () => setTabAndSave("payroll") }) : /* @__PURE__ */ React.createElement("div", null, runs.slice(0, 4).map((r) => {
-    var _a2;
-    return /* @__PURE__ */ React.createElement("div", { key: r.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #f5f5f5" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: "#333" } }, MONTHS[(r.month || 1) - 1], " ", r.year), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#888" } }, r.emp_count || ((_a2 = r.results) == null ? void 0 : _a2.length) || "\u2014", " employees")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "#1b5e20" } }, INR(r.total || 0)), /* @__PURE__ */ React.createElement(Badge, { t: "\u2713 Processed", c: "#1b5e20" })));
-  }))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#1a237e", marginBottom: 16 } }, "\u{1F4C5} Compliance Calendar"), [
-    { name: "PF Challan", due: `15 ${MONTHS[(/* @__PURE__ */ new Date()).getMonth()]} ${(/* @__PURE__ */ new Date()).getFullYear()}`, color: "#e65100" },
-    { name: "ESIC Challan", due: `15 ${MONTHS[(/* @__PURE__ */ new Date()).getMonth()]} ${(/* @__PURE__ */ new Date()).getFullYear()}`, color: "#1b5e20" },
-    { name: "TDS Deposit", due: `7 ${MONTHS[(/* @__PURE__ */ new Date()).getMonth()]} ${(/* @__PURE__ */ new Date()).getFullYear()}`, color: "#c62828" },
-    { name: "PT Payment", due: `21 ${MONTHS[(/* @__PURE__ */ new Date()).getMonth()]} ${(/* @__PURE__ */ new Date()).getFullYear()}`, color: "#6a1b9a" }
-  ].map((d, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f5f5f5" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 8, height: 8, borderRadius: 4, background: d.color, flexShrink: 0 } }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#333" } }, d.name)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: d.color } }, "Due: ", d.due))), /* @__PURE__ */ React.createElement(Btn, { sz: "sm", s: { marginTop: 12 }, onClick: () => setTabAndSave("duedates") }, "View All Due Dates \u2192")))), tab === "employees" && /* @__PURE__ */ React.createElement(Sec, { title: "Employees", action: /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
+  return /* @__PURE__ */ React.createElement(Shell, { user, nav: NAV, tab, setTab: setTabAndSave, onLogout }, toast && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", top: 16, right: 16, zIndex: 9999, background: toast.type === "warn" ? WN : OK, color: "#fff", padding: "10px 18px", borderRadius: 10, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 20px rgba(0,0,0,.25)", display: "flex", alignItems: "center", gap: 8 } }, toast.type === "warn" ? "\u26A0" : "\u2713", " ", toast.msg), /* @__PURE__ */ React.createElement("div", { style: { background: dbReady ? "#e8f5e9" : "#fff8e1", borderBottom: `1px solid ${dbReady ? "#a5d6a7" : "#ffe082"}`, padding: "5px 20px", fontSize: 11, color: dbReady ? "#2e7d32" : "#f57f17", display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: 4, background: dbReady ? "#2e7d32" : "#f57f17" } }), loading ? "\u23F3 Loading data from database..." : dbReady ? "\u{1F7E2} Connected to Payrolla Database \u2014 all data is live and persistent" : "\u{1F7E1} Demo mode \u2014 running with sample data. Connect API to persist data."), tab === "dashboard" && /* @__PURE__ */ React.createElement(DashboardView, { user, emps, active, runs, activeRun, leaves, loans, pol, co, payMonth, payYear, calcP, go: setTabAndSave }), tab === "employees" && /* @__PURE__ */ React.createElement(Sec, { title: "Employees", action: /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
     var _a2;
     setQaData({ doj: TODAY, status: "Active", cat: "Permanent", pt: true, pf: true, esic: false, workState: ((_a2 = pol == null ? void 0 : pol.pt) == null ? void 0 : _a2.state) || "Maharashtra" });
     setQaStep(1);
