@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v20.6 -->
+<!-- PAYROLLA v20.7 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v20.6 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v20.7 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="20.6";
+  var BUILD="20.7";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -5220,6 +5220,87 @@ function BulkImport({ onClose, onImport, existingCodes = [], defaultState = "Mah
       h(Btn, { v: "ghost", onClick: onClose }, "Cancel"),
       h(Btn, { disabled: valid.length === 0, onClick: () => onImport(valid.map((r) => r.emp)) }, valid.length > 0 ? "Import " + valid.length + " Employee" + (valid.length > 1 ? "s" : "") : "Import")));
 }
+function SalarySheetBuilder({ run, emps, co, pol, onClose }) {
+  const h = React.createElement;
+  const [scope, setScope] = useState("combined");
+  const [pick, setPick] = useState("");
+  const [sub, setSub] = useState("none");
+  const rows = (run && run.results) || [];
+  const full = (r) => (emps || []).find((e) => e.code === r.code) || r;
+  const branches = [...new Set(rows.map((r) => full(r).location || "").filter(Boolean))].sort();
+  const groupKey = (r) => {
+    const e = full(r);
+    if (sub === "dept") return e.dept || "Unassigned";
+    if (sub === "desig") return e.desig || "Unassigned";
+    return null;
+  };
+  const filtered = rows.filter((r) => {
+    if (scope === "branch" && pick) return (full(r).location || "") === pick;
+    return true;
+  });
+  const HEAD = ["Emp Code", "Name", "Branch", "Department", "Designation", "Days", "Basic", "HRA", "Conv", "Medical", "Special", "Gross", "PF", "VPF", "ESI", "PT", "TDS", "Advance", "Total Ded", "Net Pay"];
+  const line = (r) => {
+    const e = full(r);
+    const ded = Math.round((r.pfE || 0) + (r.esE || 0) + (r.pt || 0) + (r.tds || 0) + (r.lwfE || 0) + (r.advance || 0));
+    const days = (r.monthDays || 31) - (r.lopDays || 0);
+    const fg = (+e.basic || 0) + (+e.hra || 0) + (+e.conv || 0) + (+e.med || 0) + (+e.spl || 0);
+    const fac = fg > 0 && r.g ? (r.monthDays ? days / r.monthDays : 1) : 1;
+    const pr = (v) => Math.round((+v || 0) * fac);
+    return [e.code || "", e.name || "", e.location || "\u2014", e.dept || "\u2014", e.desig || "\u2014", days, pr(e.basic), pr(e.hra), pr(e.conv), pr(e.med), pr(e.spl), Math.round(r.g || 0), Math.round(r.pfE || 0), Math.round(r.vpfE || 0), Math.round(r.esE || 0), Math.round(r.pt || 0), Math.round(r.tds || 0), Math.round(r.advance || 0), ded, Math.round(r.net || 0)];
+  };
+  const totalOf = (list, idx) => list.reduce((a, r) => a + (+line(r)[idx] || 0), 0);
+  const totalRow = (list, label) => { const t = new Array(HEAD.length).fill(""); t[1] = label; for (let i = 5; i < HEAD.length; i++) t[i] = totalOf(list, i); return t; };
+  function build() {
+    const sheets = [];
+    const mk = (list, name) => {
+      let out = [];
+      if (sub === "none") out = [...list.map(line), totalRow(list, "TOTAL")];
+      else {
+        const keys = [...new Set(list.map(groupKey))].sort();
+        keys.forEach((k) => {
+          const part = list.filter((r) => groupKey(r) === k);
+          out.push(new Array(HEAD.length).fill(""));
+          const hdr = new Array(HEAD.length).fill(""); hdr[1] = (sub === "dept" ? "Department: " : "Designation: ") + k; out.push(hdr);
+          out.push(...part.map(line));
+          out.push(totalRow(part, "Sub-total \u2014 " + k));
+        });
+        out.push(new Array(HEAD.length).fill(""));
+        out.push(totalRow(list, "GRAND TOTAL"));
+      }
+      sheets.push({ name: name.slice(0, 28), headers: HEAD, rows: out });
+    };
+    if (scope === "combined") mk(rows, "All Employees");
+    else if (scope === "branch" && pick) mk(filtered, pick);
+    else if (scope === "eachbranch") {
+      branches.forEach((b) => mk(rows.filter((r) => (full(r).location || "") === b), b));
+      const none = rows.filter((r) => !full(r).location);
+      if (none.length) mk(none, "No Branch");
+    }
+    const label = (run && run.month) || "";
+    downloadExcel("Salary_Sheet_" + (scope === "branch" && pick ? pick.replace(/\s+/g, "_") + "_" : "") + label, sheets);
+    onClose();
+  }
+  const Opt = ({ v, cur, set: setter, title, note }) => h("button", { type: "button", onClick: () => setter(v), style: { textAlign: "left", padding: "10px 12px", border: cur === v ? "2px solid #1a237e" : "1.5px solid #e0e0e0", background: cur === v ? "#e8eaf6" : "#fff", borderRadius: 8, cursor: "pointer", flex: 1, minWidth: 150 } }, h("div", { style: { fontWeight: 700, fontSize: 12, color: "#1a237e" } }, title), note && h("div", { style: { fontSize: 10, color: "#888", marginTop: 2 } }, note));
+  return h(Modal, { title: "\u{1F4C4} Salary Sheet", onClose, w: 640 },
+    !run ? h("div", { style: { fontSize: 13, color: "#c62828" } }, "Run payroll for a month first \u2014 the salary sheet is built from a processed payroll run.") : h("div", null,
+      h("div", { style: { fontSize: 12, fontWeight: 700, color: "#1a237e", marginBottom: 8 } }, "Scope"),
+      h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 6 } },
+        h(Opt, { v: "combined", cur: scope, set: setScope, title: "Combined", note: "All employees, one sheet" }),
+        h(Opt, { v: "eachbranch", cur: scope, set: setScope, title: "Branch-wise", note: "One sheet per branch" }),
+        h(Opt, { v: "branch", cur: scope, set: setScope, title: "Selected branch", note: "Pick one branch" })),
+      scope === "branch" && h("select", { value: pick, onChange: (e) => setPick(e.target.value), style: { width: "100%", padding: "10px 12px", border: "1.5px solid #e0e0e0", borderRadius: 8, fontSize: 13, marginBottom: 12 } },
+        h("option", { value: "" }, "\u2014 Select branch \u2014"), branches.map((b) => h("option", { key: b, value: b }, b))),
+      h("div", { style: { fontSize: 12, fontWeight: 700, color: "#1a237e", margin: "14px 0 8px" } }, "Group within each sheet"),
+      h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+        h(Opt, { v: "none", cur: sub, set: setSub, title: "No grouping" }),
+        h(Opt, { v: "dept", cur: sub, set: setSub, title: "Department-wise", note: "Sub-totals per dept" }),
+        h(Opt, { v: "desig", cur: sub, set: setSub, title: "Designation-wise", note: "Sub-totals per designation" })),
+      h("div", { style: { marginTop: 16, padding: "10px 12px", background: "#f5f6fa", borderRadius: 8, fontSize: 12, color: "#555" } },
+        scope === "combined" ? rows.length + " employees in one sheet" : scope === "eachbranch" ? branches.length + " branch sheet" + (branches.length !== 1 ? "s" : "") : pick ? filtered.length + " employees in " + pick : "Select a branch above"),
+      h("div", { style: { display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 } },
+        h(Btn, { v: "ghost", onClick: onClose }, "Cancel"),
+        h(Btn, { disabled: scope === "branch" && !pick, onClick: build }, "\u2B07 Download"))));
+}
 function HRAdmin({ user, onLogout }) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, __, _$, _aa, _ba, _ca, _da;
   const [tab, setTab] = useState(() => {
@@ -5239,6 +5320,8 @@ function HRAdmin({ user, onLogout }) {
   const calcP = (e, lop = 0) => calcPay(e, lop, pol, payMonth, payYear);
   const [quickEdit, setQuickEdit] = useState(null);
   const [quickAdd, setQuickAdd] = useState(false);
+  const [showSheet, setShowSheet] = useState(false);
+  const [locFilter, setLocFilter] = useState("");
   const [showBulk, setShowBulk] = useState(false);
   const [inviteResult, setInviteResult] = useState(null);
   const [qaStep, setQaStep] = useState(1);
@@ -5630,7 +5713,7 @@ function HRAdmin({ user, onLogout }) {
   }
   const active = emps.filter((e) => e.status === "Active");
   const s = search.toLowerCase();
-  const filtered = emps.filter((e) => !s || (e.name || "").toLowerCase().includes(s) || (e.code || "").toLowerCase().includes(s) || (e.dept || "").toLowerCase().includes(s) || (e.desig || "").toLowerCase().includes(s));
+  const filtered = emps.filter((e) => !locFilter || (e.location || "") === locFilter).filter((e) => !s || (e.name || "").toLowerCase().includes(s) || (e.code || "").toLowerCase().includes(s) || (e.dept || "").toLowerCase().includes(s) || (e.desig || "").toLowerCase().includes(s) || (e.location || "").toLowerCase().includes(s));
   function getLOP(eid) {
     var _a2;
     const mo = String(payMonth).padStart(2, "0");
@@ -5766,7 +5849,7 @@ Run payroll anyway?`
   }, s: { background: "#1b5e20", color: "#fff" } }, "\u26A1 Quick Add"), /* @__PURE__ */ React.createElement(Btn, { v: "sec", onClick: () => {
     setEditEmp(null);
     setShowEmpForm(true);
-  } }, "Full Form"), /* @__PURE__ */ React.createElement(Btn, { v: "sec", onClick: () => setShowBulk(true) }, "\u{1F4E5} Import CSV")) }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("input", { value: search, onChange: (e) => setSearch(e.target.value), placeholder: "Search by name, code or department...", style: { width: "100%", padding: "9px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box" } })), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement(
+  } }, "Full Form"), /* @__PURE__ */ React.createElement(Btn, { v: "sec", onClick: () => setShowBulk(true) }, "\u{1F4E5} Import CSV")) }, /* @__PURE__ */ React.createElement(Card, { s: { marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("input", { value: search, onChange: (e) => setSearch(e.target.value), placeholder: "Search by name, code, department or location...", style: { flex: 2, minWidth: 220, padding: "9px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box" } }), /* @__PURE__ */ React.createElement("select", { value: locFilter, onChange: (e) => setLocFilter(e.target.value), style: { flex: 1, minWidth: 170, padding: "9px 12px", border: `1.5px solid ${BD}`, borderRadius: 8, fontSize: 14, background: "#fff" } }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u{1F4CD} All locations"), [...new Set(emps.map((e) => e.location).filter(Boolean))].sort().map((L) => /* @__PURE__ */ React.createElement("option", { key: L, value: L }, L))), locFilter && /* @__PURE__ */ React.createElement("div", { style: { alignSelf: "center", fontSize: 12, color: "#1a237e", fontWeight: 700 } }, filtered.length + " in " + locFilter))), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement(
     Tbl,
     {
       cols: ["Code", "Name", "State", "Gross", "Net", "PF", "PT", "Status", "Actions"],
@@ -6137,10 +6220,12 @@ Run payroll anyway?`
     { icon: "\u{1F3E5}", t: "ESIC", s: "Employee State Insurance", d: "Monthly contributions. Employee 0.75%, Employer 3.25%. Applicable if gross \u2264 \u20B921,000.", btns: ["ESIC Challan", "Half-Yearly Return", "Form 37-A", "ESIC Cards"], c: AC },
     { icon: "\u{1F4C4}", t: "TDS (Form 24Q)", s: "Tax Deducted at Source", d: "Quarterly return for salary TDS. Q1: Jul 31, Q2: Oct 31, Q3: Jan 31, Q4: May 31.", btns: ["Form 24Q", "Form 16 (All)", "TDS Certificate", "26AS Reconcile"], c: WN },
     { icon: "\u{1F4CB}", t: "Professional Tax", s: "State Tax", d: "Monthly PT deduction & challan. Maharashtra: \u20B9200/mo (gross >\u20B915K), \u20B9150 (>\u20B910K).", btns: ["PT Challan", "PT Return", "Enrollment Cert", "Exemption Form"], c: DG },
-    { icon: "\u{1F4D1}", t: "Labour Law Returns", s: "Factories / Shops Act", d: "Annual Form D, Register of Wages, Muster Roll, Overtime Register, Leave Register.", btns: ["Form D", "Wage Register", "Muster Roll", "Leave Register"], c: "#6a1b9a" },
+    { icon: "\u{1F4D1}", t: "Labour Law Returns", s: "Factories / Shops Act", d: "Annual Form D, Register of Wages, Muster Roll, Overtime Register, Leave Register.", btns: ["Salary Sheet", "Form D", "Wage Register", "Muster Roll", "Leave Register"], c: "#6a1b9a" },
     { icon: "\u2696\uFE0F", t: "Gratuity & Bonus", s: "Statutory Payments", d: "Gratuity: 15 days salary \xD7 years of service. Bonus: 8.33% to 20% of basic (Payment of Bonus Act).", btns: ["Gratuity Report", "Bonus Calculation", "Form A", "Bonus Register"], c: "#00695c" }
   ].map(({ icon, t, s: s2, d, btns, c }) => /* @__PURE__ */ React.createElement(Card, { key: t }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 12, marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 26 } }, icon), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, t), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: MT } }, s2))), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 13, color: MT, lineHeight: 1.6, marginBottom: 12 } }, d), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, btns.map((b) => /* @__PURE__ */ React.createElement(Btn, { key: b, sz: "sm", v: "sec", onClick: () => {
-    if (b === "Leave Register") {
+    if (b === "Salary Sheet") {
+      setShowSheet(true);
+    } else if (b === "Leave Register") {
       const rows = [];
       leaves.forEach((l) => rows.push([l.ename, l.type, l.from, l.to, l.days, l.status]));
       downloadExcel("Leave_Register", [{ name: "Leaves", headers: ["Employee", "Type", "From", "To", "Days", "Status"], rows }]);
@@ -6788,7 +6873,7 @@ Please fill your PAN, Aadhaar and bank details after login.
 
 Regards, HR`;
     window.open(`mailto:${inviteResult.email}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`);
-  }, style: { flex: 1, padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 9, background: "#fff", color: "#1a237e", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2709\uFE0F Send Email"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { padding: "9px 28px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), showBulk && /* @__PURE__ */ React.createElement(BulkImport, { onClose: () => setShowBulk(false), existingCodes: emps.map((e) => e.code), defaultState: (pol && pol.pt && pol.pt.state) || "Maharashtra", onImport: async (list) => { setShowBulk(false); let _ok = 0, _fail = 0; for (const r of list) { try { const _sv = await db.addEmp(r, user.companyId); setEmps((p) => [...p, _sv && _sv.id ? { ...r, id: _sv.id } : r]); _ok++; } catch (e) { _fail++; } } showToast(_ok + " employee" + (_ok !== 1 ? "s" : "") + " imported" + (_fail ? ", " + _fail + " failed to save" : "") + " \u2713", _fail ? "warn" : void 0); } }), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "92vh", boxShadow: "0 20px 60px rgba(0,0,0,.25)", display: "flex", flexDirection: "column", overflow: "hidden", isolation: "isolate" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
+  }, style: { flex: 1, padding: "10px 14px", border: "1px solid #1a237e", borderRadius: 9, background: "#fff", color: "#1a237e", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u2709\uFE0F Send Email"))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 24px", borderTop: "1px solid #f0f0f0", display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setInviteResult(null), style: { padding: "9px 28px", border: "none", borderRadius: 9, background: "#1a237e", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "Done")))), showBulk && /* @__PURE__ */ React.createElement(BulkImport, { onClose: () => setShowBulk(false), existingCodes: emps.map((e) => e.code), defaultState: (pol && pol.pt && pol.pt.state) || "Maharashtra", onImport: async (list) => { setShowBulk(false); let _ok = 0, _fail = 0; for (const r of list) { try { const _sv = await db.addEmp(r, user.companyId); setEmps((p) => [...p, _sv && _sv.id ? { ...r, id: _sv.id } : r]); _ok++; } catch (e) { _fail++; } } showToast(_ok + " employee" + (_ok !== 1 ? "s" : "") + " imported" + (_fail ? ", " + _fail + " failed to save" : "") + " \u2713", _fail ? "warn" : void 0); } }), showSheet && /* @__PURE__ */ React.createElement(SalarySheetBuilder, { run: activeRun, emps, co, pol, onClose: () => setShowSheet(false) }), quickAdd && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 600, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }, onClick: () => setQuickAdd(false) }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "92vh", boxShadow: "0 20px 60px rgba(0,0,0,.25)", display: "flex", flexDirection: "column", overflow: "hidden", isolation: "isolate" }, onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { background: "#1a237e", padding: "18px 24px", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#fff", marginBottom: 12 } }, "\u26A1 Quick Add Employee"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 0 } }, [["1", "Basic Info"], ["2", "Role & State"], ["3", "Salary"]].map(([n, l], i) => {
     const done = qaStep > +n;
     const active2 = qaStep === +n;
     return /* @__PURE__ */ React.createElement("div", { key: n, style: { display: "flex", alignItems: "center", flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 24, height: 24, borderRadius: 12, background: done ? "#69f0ae" : active2 ? "#fff" : "rgba(255,255,255,.2)", color: done ? "#1b5e20" : active2 ? "#1a237e" : "rgba(255,255,255,.5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0 } }, done ? "\u2713" : n), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: active2 ? "#fff" : done ? "#69f0ae" : "rgba(255,255,255,.4)", fontWeight: active2 ? 700 : 400 } }, l)), i < 2 && /* @__PURE__ */ React.createElement("div", { style: { flex: 1, height: 1, background: "rgba(255,255,255,.2)", margin: "0 8px" } }));
