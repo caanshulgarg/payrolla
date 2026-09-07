@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v21.5 -->
+<!-- PAYROLLA v21.6 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.5 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v21.6 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="21.5";
+  var BUILD="21.6";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -5440,7 +5440,7 @@ function YearlyReports({ runs, emps, co, pol, onClose }) {
       h(Btn, { v: "ghost", onClick: onClose }, "Cancel"),
       h(Btn, { disabled: !fyRuns.length, onClick: build }, "\u2B07 Download")));
 }
-function DashboardView({ user, emps, active, runs, activeRun, leaves, loans, pol, co, payMonth, payYear, calcP, go }) {
+function DashboardView({ user, emps, active, runs, activeRun, leaves, loans, reimb, pol, co, payMonth, payYear, calcP, go }) {
   const h = React.createElement;
   const NOW2 = new Date();
   const MN = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -5470,10 +5470,24 @@ function DashboardView({ user, emps, active, runs, activeRun, leaves, loans, pol
   const noPan = (active || []).filter((e) => !e.pan).length;
   const noBank = (active || []).filter((e) => !e.acc).length;
   const gaps = [noPan && { t: noPan + " without PAN", why: "TDS return will reject", to: "employees" }, noPf && { t: noPf + " without UAN", why: "ECR upload will fail", to: "employees" }, noBank && { t: noBank + " without bank details", why: "cannot pay by NEFT", to: "employees" }].filter(Boolean);
+  const gapsCount = noPan + noPf + noBank;
   const byLoc = {};
   (active || []).forEach((e) => { const k = e.location || "Unassigned"; byLoc[k] = (byLoc[k] || 0) + 1; });
   const locs = Object.entries(byLoc).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxLoc = locs.length ? locs[0][1] : 1;
+  const pendingReimb = (reimb || []).filter((r) => (r.status || "Pending") === "Pending");
+  const reimbAmt = pendingReimb.reduce((s, r) => s + (+r.amount || 0), 0);
+  const pendingLoanReq = (loans || []).filter((l) => (l.status || "") === "Pending");
+  const regularisations = (leaves || []).filter((l) => l.status === "Pending" && /Regularisation/i.test(l.reason || ""));
+  const plainLeaves = (leaves || []).filter((l) => l.status === "Pending" && !/Regularisation/i.test(l.reason || ""));
+  const TASKS = [
+    plainLeaves.length && { icon: "\u{1F334}", title: "Leave requests to approve", sub: plainLeaves.slice(0, 2).map((l) => l.ename).filter(Boolean).join(", ") || "Awaiting your decision", count: plainLeaves.length, to: "leaves" },
+    regularisations.length && { icon: "\u{1F551}", title: "Attendance regularisations", sub: "Submitted from the employee portal", count: regularisations.length, to: "leaves" },
+    pendingLoanReq.length && { icon: "\u{1F3E6}", title: "Loan requests to review", sub: "Awaiting approval", count: pendingLoanReq.length, to: "loans" },
+    pendingReimb.length && { icon: "\u{1F9FE}", title: "Reimbursement claims", sub: reimbAmt ? inr(reimbAmt) + " claimed" : "Awaiting approval", count: pendingReimb.length, to: "reimbursements" },
+    !done && (active || []).length > 0 && { icon: "\u{1F4B0}", title: "Run payroll for " + MN[payMonth], sub: "Not yet processed", count: "\u2192", to: "payroll", tone: "warn" },
+    gapsCount > 0 && { icon: "\u26A0", title: "Employee records incomplete", sub: "Missing PAN, UAN or bank details", count: gapsCount, to: "employees", tone: "warn" }
+  ].filter(Boolean);
   const recent = (runs || []).slice(0, 4);
   const hour = NOW2.getHours();
   const CARD = { background: "#fff", border: "1px solid #e6e8f0", borderRadius: 14, padding: 20 };
@@ -5538,14 +5552,18 @@ function DashboardView({ user, emps, active, runs, activeRun, leaves, loans, pol
             h("div", { style: { fontSize: 13, fontWeight: 600, color: "#12143a" } }, g.t),
             h("div", { style: { fontSize: 11.5, color: "#a0713a", marginTop: 2 } }, g.why))),
           h("button", { onClick: () => go("employees"), style: { marginTop: 12, background: "none", border: "none", padding: 0, color: "#1a237e", fontSize: 12.5, fontWeight: 700, cursor: "pointer" } }, "Fix in employees")),
-        (pendingLeaves > 0 || activeLoans.length > 0) && h("div", { style: CARD },
-          h("div", { style: { fontSize: 15, fontWeight: 700, color: "#12143a", marginBottom: 12 } }, "Open items"),
-          pendingLeaves > 0 && h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: activeLoans.length ? 10 : 0 } },
-            h("span", { style: { fontSize: 13, color: "#4a4f66" } }, "Leave requests awaiting approval"),
-            h("button", { onClick: () => go("leaves"), style: { background: "#eef0fb", border: "none", borderRadius: 8, padding: "3px 10px", fontSize: 13, fontWeight: 700, color: "#1a237e", cursor: "pointer" } }, pendingLeaves)),
-          activeLoans.length > 0 && h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
-            h("span", { style: { fontSize: 13, color: "#4a4f66" } }, "Loans being recovered"),
-            h("button", { onClick: () => go("loans"), style: { background: "#eef0fb", border: "none", borderRadius: 8, padding: "3px 10px", fontSize: 13, fontWeight: 700, color: "#1a237e", cursor: "pointer" } }, activeLoans.length))))),
+        h("div", { style: { ...CARD, borderColor: TASKS.length ? "#c5cae9" : "#e6e8f0" } },
+          h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: TASKS.length ? 12 : 0 } },
+            h("div", { style: { fontSize: 15, fontWeight: 700, color: "#12143a" } }, "To do"),
+            TASKS.length > 0 && h("span", { style: { background: "#1a237e", color: "#fff", borderRadius: 20, padding: "1px 9px", fontSize: 12, fontWeight: 700 } }, TASKS.length)),
+          TASKS.length === 0
+            ? h("div", { style: { fontSize: 13, color: "#8a8fa3", paddingTop: 8 } }, "Nothing waiting on you. Approvals and pending requests will appear here.")
+            : TASKS.map((t, i) => h("button", { key: i, onClick: () => go(t.to), style: { width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "10px 0", background: "none", border: "none", borderTop: i ? "1px solid #f0f2f7" : "none", cursor: "pointer" } },
+                h("span", { style: { width: 26, height: 26, borderRadius: 7, background: t.tone === "warn" ? "#fff3e0" : "#eef0fb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 } }, t.icon),
+                h("span", { style: { flex: 1, minWidth: 0 } },
+                  h("span", { style: { display: "block", fontSize: 13, fontWeight: 600, color: "#12143a" } }, t.title),
+                  h("span", { style: { display: "block", fontSize: 11.5, color: "#8a8fa3", marginTop: 1 } }, t.sub)),
+                h("span", { style: { fontSize: 15, fontWeight: 800, color: t.tone === "warn" ? "#ef6c00" : "#1a237e" } }, t.count)))))),
     recent.length > 0 && h("div", { style: { ...CARD, marginTop: 16 } },
       h("div", { style: { fontSize: 15, fontWeight: 700, color: "#12143a", marginBottom: 12 } }, "Recent payroll runs"),
       h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12 } },
@@ -6248,7 +6266,7 @@ Run payroll anyway?`
     ["ai", "\u{1F916}", "AI Features"],
     ["settings", "\u{1F527}", "System"]
   ];
-  return /* @__PURE__ */ React.createElement(Shell, { user, nav: NAV, tab, setTab: setTabAndSave, onLogout }, toast && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", top: 16, right: 16, zIndex: 9999, background: toast.type === "warn" ? WN : OK, color: "#fff", padding: "10px 18px", borderRadius: 10, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 20px rgba(0,0,0,.25)", display: "flex", alignItems: "center", gap: 8 } }, toast.type === "warn" ? "\u26A0" : "\u2713", " ", toast.msg), /* @__PURE__ */ React.createElement("div", { style: { background: dbReady ? "#e8f5e9" : "#fff8e1", borderBottom: `1px solid ${dbReady ? "#a5d6a7" : "#ffe082"}`, padding: "5px 20px", fontSize: 11, color: dbReady ? "#2e7d32" : "#f57f17", display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: 4, background: dbReady ? "#2e7d32" : "#f57f17" } }), loading ? "\u23F3 Loading data from database..." : dbReady ? "\u{1F7E2} Connected to Payrolla Database \u2014 all data is live and persistent" : "\u{1F7E1} Demo mode \u2014 running with sample data. Connect API to persist data."), tab === "dashboard" && /* @__PURE__ */ React.createElement(DashboardView, { user, emps, active, runs, activeRun, leaves, loans, pol, co, payMonth, payYear, calcP, go: setTabAndSave }), tab === "employees" && /* @__PURE__ */ React.createElement(Sec, { title: "Employees", action: /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
+  return /* @__PURE__ */ React.createElement(Shell, { user, nav: NAV, tab, setTab: setTabAndSave, onLogout }, toast && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", top: 16, right: 16, zIndex: 9999, background: toast.type === "warn" ? WN : OK, color: "#fff", padding: "10px 18px", borderRadius: 10, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 20px rgba(0,0,0,.25)", display: "flex", alignItems: "center", gap: 8 } }, toast.type === "warn" ? "\u26A0" : "\u2713", " ", toast.msg), /* @__PURE__ */ React.createElement("div", { style: { background: dbReady ? "#e8f5e9" : "#fff8e1", borderBottom: `1px solid ${dbReady ? "#a5d6a7" : "#ffe082"}`, padding: "5px 20px", fontSize: 11, color: dbReady ? "#2e7d32" : "#f57f17", display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: 4, background: dbReady ? "#2e7d32" : "#f57f17" } }), loading ? "\u23F3 Loading data from database..." : dbReady ? "\u{1F7E2} Connected to Payrolla Database \u2014 all data is live and persistent" : "\u{1F7E1} Demo mode \u2014 running with sample data. Connect API to persist data."), tab === "dashboard" && /* @__PURE__ */ React.createElement(DashboardView, { user, emps, active, runs, activeRun, leaves, loans, reimb, pol, co, payMonth, payYear, calcP, go: setTabAndSave }), tab === "employees" && /* @__PURE__ */ React.createElement(Sec, { title: "Employees", action: /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
     var _a2;
     setQaData({ doj: TODAY, status: "Active", cat: "Permanent", pt: true, pf: true, esic: false, workState: ((_a2 = pol == null ? void 0 : pol.pt) == null ? void 0 : _a2.state) || "Maharashtra" });
     setQaStep(1);
@@ -8076,6 +8094,7 @@ function EmployeePortal({ user, onLogout }) {
       const days = Math.ceil((new Date(form.to) - new Date(form.from)) / 864e5) + 1;
       const { data, error } = await sb.from("leaves").insert({
         employee_id: empId,
+        company_id: user.companyId,
         ename: (emp == null ? void 0 : emp.name) || "",
         type: form.type,
         from_date: form.from,
@@ -8098,6 +8117,8 @@ function EmployeePortal({ user, onLogout }) {
     try {
       const { data, error } = await sb.from("loans").insert({
         employee_id: empId,
+        company_id: user.companyId,
+        ename: (emp == null ? void 0 : emp.name) || "",
         type: form.type,
         amount: +form.amount,
         tenure: +form.tenure,
@@ -8265,7 +8286,7 @@ function EmployeePortal({ user, onLogout }) {
       return;
     }
     try {
-      await sb.from("leaves").insert({ employee_id: empId, type: "Regularisation", from: reglForm.date, to: reglForm.date, days: 1, reason: "[Regularisation] " + reglForm.status + " \u2014 " + reglForm.reason, status: "Pending" });
+      await sb.from("leaves").insert({ employee_id: empId, company_id: user.companyId, ename: (emp == null ? void 0 : emp.name) || "", type: "Regularisation", from: reglForm.date, to: reglForm.date, days: 1, reason: "[Regularisation] " + reglForm.status + " \u2014 " + reglForm.reason, status: "Pending" });
       showToast("Regularisation request sent to HR \u2713");
       setReglForm(null);
     } catch (e) {
