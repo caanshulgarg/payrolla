@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- PAYROLLA v22.0 -->
+<!-- PAYROLLA v22.1 -->
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Payrolla.in</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",system-ui,sans-serif}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{from{opacity:.3}to{opacity:1}}</style>
 </head>
 <body>
-<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v22.0 — Loading...</div></div></div>
+<div id="root"><div style="min-height:100vh;background:linear-gradient(135deg,#0d1b4b,#3949ab);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff"><div style="font-size:36px;font-weight:900;margin-bottom:6px">Payrolla<span style="color:#64b5f6">.in</span></div><div style="font-size:12px;opacity:.5">v22.1 — Loading...</div></div></div>
 <script>
 (function(){
-  var BUILD="22.0";
+  var BUILD="22.1";
   try{
     var prev=null, reloaded=null;
     try{ prev=localStorage.getItem("payrolla_build"); reloaded=sessionStorage.getItem("payrolla_cache_cleared"); }catch(e){}
@@ -5780,7 +5780,7 @@ function CompanySwitcher({ user, onSwitch }) {
     open && h("div", { style: { position: "absolute", top: "110%", left: 0, background: "#fff", border: "1px solid #e0e0e0", borderRadius: 10, boxShadow: "0 8px 28px rgba(0,0,0,.18)", zIndex: 900, minWidth: 220, overflow: "hidden" } },
       list.map((c) => h("button", { key: c.id, onClick: () => { setOpen(false); onSwitch(c.id); }, style: { display: "block", width: "100%", textAlign: "left", padding: "10px 14px", border: "none", background: c.id === user.companyId ? "#eef0fb" : "#fff", fontSize: 13, fontWeight: c.id === user.companyId ? 700 : 500, color: "#12143a", cursor: "pointer" } }, c.name))));
 }
-function SuperAdmin({ user, onLogout }) {
+function SuperAdmin({ user, onLogout, onHRView }) {
   const h = React.createElement;
   const [tab, setTab] = useState(() => { try { return sessionStorage.getItem("sa_tab") || "companies"; } catch (e) { return "companies"; } });
   const setT = (t) => { try { sessionStorage.setItem("sa_tab", t); } catch (e) {} setTab(t); };
@@ -5852,7 +5852,9 @@ function SuperAdmin({ user, onLogout }) {
       h("div", null,
         h("div", { style: { fontSize: 18, fontWeight: 800 } }, "Payrolla", h("span", { style: { color: "#7986cb" } }, " \u00b7 Practice")),
         h("div", { style: { fontSize: 12, opacity: .7, marginTop: 2 } }, (me && (me.firm_name || me.name)) || user.name || "Super Admin")),
-      h("button", { onClick: onLogout, style: { background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.25)", color: "#fff", borderRadius: 8, padding: "7px 14px", fontSize: 13, cursor: "pointer" } }, "Sign out")),
+      h("div", { style: { display: "flex", gap: 8 } },
+        onHRView && h("button", { onClick: onHRView, style: { background: "#3949ab", border: "1px solid #5c6bc0", color: "#fff", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" } }, "\u{1F4BC} HR dashboard"),
+        h("button", { onClick: onLogout, style: { background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.25)", color: "#fff", borderRadius: 8, padding: "7px 14px", fontSize: 13, cursor: "pointer" } }, "Sign out"))),
     h("div", { style: { maxWidth: 1080, margin: "0 auto", padding: "24px 20px" } },
       msg && h("div", { style: { background: "#e8eaf6", border: "1px solid #c5cae9", color: "#1a237e", borderRadius: 10, padding: "10px 14px", fontSize: 13, marginBottom: 14 } }, msg),
       !busy && !me && h("div", { style: { ...CARD, borderColor: "#ffcc80", background: "#fffdf8" } },
@@ -5871,10 +5873,10 @@ function SuperAdmin({ user, onLogout }) {
         cos.length === 0 ? h("div", { style: { ...CARD, textAlign: "center", color: "#8a8fa3", fontSize: 13 } }, "No companies yet. Add your first client above.")
           : h("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 14 } },
             cos.map((c) => { const team = approved.filter((r) => r.company_id === c.id).length;
-              return h("div", { key: c.id, style: { ...CARD, marginBottom: 0 } },
+              return h("div", { key: c.id, style: { ...CARD, marginBottom: 0, cursor: onHRView ? "pointer" : "default" }, onClick: () => { if (!onHRView) return; try { localStorage.setItem("payrolla_active_company", c.id); } catch (e) {} onHRView(); } },
                 h("div", { style: { fontSize: 15, fontWeight: 700, color: "#12143a" } }, c.name),
                 h("div", { style: { fontSize: 11.5, color: "#8a8fa3", marginTop: 3 } }, [c.pf && "PF " + c.pf, c.esic && "ESI " + c.esic].filter(Boolean).join(" \u00b7 ") || "No statutory codes yet"),
-                h("div", { style: { fontSize: 12, color: "#4a4f66", marginTop: 10, paddingTop: 10, borderTop: "1px solid #f0f2f7" } }, team + " user" + (team === 1 ? "" : "s") + " with access")); }))),
+                h("div", { style: { fontSize: 12, color: "#4a4f66", marginTop: 10, paddingTop: 10, borderTop: "1px solid #f0f2f7", display: "flex", justifyContent: "space-between" } }, h("span", null, team + " user" + (team === 1 ? "" : "s") + " with access"), onHRView && h("span", { style: { color: "#1a237e", fontWeight: 700 } }, "Open \u2192"))); }))),
       !busy && tab === "requests" && h("div", null,
         pending.length === 0 ? h("div", { style: { ...CARD, color: "#8a8fa3", fontSize: 13 } }, "No pending requests. When an HR user asks for access to one of your companies, it appears here for approval.")
           : pending.map((r) => h("div", { key: r.id, style: { ...CARD, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" } },
@@ -5903,7 +5905,7 @@ function SuperAdmin({ user, onLogout }) {
                 h("div", { style: { fontSize: 11.5, color: "#8a8fa3", marginTop: 2 } }, r.role + " \u00b7 " + coName(r.company_id))),
               h("button", { onClick: () => decide(r, "Revoked"), style: { background: "#fff0f0", border: "1px solid #ffcdd2", color: "#c62828", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" } }, "Revoke")))))));
 }
-function HRAdmin({ user, onLogout }) {
+function HRAdmin({ user, onLogout, onPracticeView }) {
   var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, __, _$, _aa, _ba, _ca, _da;
   const [tab, setTab] = useState(() => {
     try {
@@ -6413,7 +6415,7 @@ Run payroll anyway?`
     ["ai", "\u{1F916}", "AI Features"],
     ["settings", "\u{1F527}", "System"]
   ];
-  return /* @__PURE__ */ React.createElement(Shell, { user, nav: NAV, tab, setTab: setTabAndSave, switcher: React.createElement(CompanySwitcher, { user, onSwitch: (cid) => { try { localStorage.setItem("payrolla_active_company", cid); } catch (e) {} location.reload(); } }), onLogout }, toast && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", top: 16, right: 16, zIndex: 9999, background: toast.type === "warn" ? WN : OK, color: "#fff", padding: "10px 18px", borderRadius: 10, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 20px rgba(0,0,0,.25)", display: "flex", alignItems: "center", gap: 8 } }, toast.type === "warn" ? "\u26A0" : "\u2713", " ", toast.msg), /* @__PURE__ */ React.createElement("div", { style: { background: dbReady ? "#e8f5e9" : "#fff8e1", borderBottom: `1px solid ${dbReady ? "#a5d6a7" : "#ffe082"}`, padding: "5px 20px", fontSize: 11, color: dbReady ? "#2e7d32" : "#f57f17", display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: 4, background: dbReady ? "#2e7d32" : "#f57f17" } }), loading ? "\u23F3 Loading data from database..." : dbReady ? "\u{1F7E2} Connected to Payrolla Database \u2014 all data is live and persistent" : "\u{1F7E1} Demo mode \u2014 running with sample data. Connect API to persist data."), tab === "dashboard" && /* @__PURE__ */ React.createElement(DashboardView, { user, emps, active, runs, activeRun, leaves, loans, reimb, pol, co, payMonth, payYear, calcP, go: setTabAndSave }), tab === "employees" && /* @__PURE__ */ React.createElement(Sec, { title: "Employees", action: /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
+  return /* @__PURE__ */ React.createElement(Shell, { user, nav: NAV, tab, setTab: setTabAndSave, switcher: React.createElement(React.Fragment, null, onPracticeView && React.createElement("button", { onClick: onPracticeView, style: { background: "#12143a", border: "none", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer", marginRight: 4 } }, "\u2190 Practice"), React.createElement(CompanySwitcher, { user, onSwitch: (cid) => { try { localStorage.setItem("payrolla_active_company", cid); } catch (e) {} location.reload(); } })), onLogout }, toast && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", top: 16, right: 16, zIndex: 9999, background: toast.type === "warn" ? WN : OK, color: "#fff", padding: "10px 18px", borderRadius: 10, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 20px rgba(0,0,0,.25)", display: "flex", alignItems: "center", gap: 8 } }, toast.type === "warn" ? "\u26A0" : "\u2713", " ", toast.msg), /* @__PURE__ */ React.createElement("div", { style: { background: dbReady ? "#e8f5e9" : "#fff8e1", borderBottom: `1px solid ${dbReady ? "#a5d6a7" : "#ffe082"}`, padding: "5px 20px", fontSize: 11, color: dbReady ? "#2e7d32" : "#f57f17", display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: 4, background: dbReady ? "#2e7d32" : "#f57f17" } }), loading ? "\u23F3 Loading data from database..." : dbReady ? "\u{1F7E2} Connected to Payrolla Database \u2014 all data is live and persistent" : "\u{1F7E1} Demo mode \u2014 running with sample data. Connect API to persist data."), tab === "dashboard" && /* @__PURE__ */ React.createElement(DashboardView, { user, emps, active, runs, activeRun, leaves, loans, reimb, pol, co, payMonth, payYear, calcP, go: setTabAndSave }), tab === "employees" && /* @__PURE__ */ React.createElement(Sec, { title: "Employees", action: /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
     var _a2;
     setQaData({ doj: TODAY, status: "Active", cat: "Permanent", pt: true, pf: true, esic: false, workState: ((_a2 = pol == null ? void 0 : pol.pt) == null ? void 0 : _a2.state) || "Maharashtra" });
     setQaStep(1);
@@ -8729,7 +8731,7 @@ function App() {
     setShowRegister(false);
   }
   async function handleLogout() {
-    try { localStorage.removeItem("payrolla_active_company"); } catch (e) {}
+    try { localStorage.removeItem("payrolla_active_company"); localStorage.removeItem("payrolla_sa_view"); } catch (e) {}
     try {
       localStorage.removeItem("payrolla_session");
     } catch (e) {
@@ -8755,7 +8757,10 @@ function App() {
   }, []);
   if (!session && showRegister) return /* @__PURE__ */ React.createElement(Register, { onBack: () => setShowRegister(false), onSuccess: handleLogin });
   if (!session) return /* @__PURE__ */ React.createElement(Login, { onLogin: handleLogin, onRegister: () => setShowRegister(true) });
-  if (session.role === "sa") return /* @__PURE__ */ React.createElement(SuperAdmin, { user: { id: session.id, email: session.email, name: session.name || "Super Admin", role: "Super Admin" }, onLogout: handleLogout });
+  const _saView = (() => { try { return localStorage.getItem("payrolla_sa_view") || "practice"; } catch (e) { return "practice"; } })();
+  const _setView = (v) => { try { localStorage.setItem("payrolla_sa_view", v); } catch (e) {} location.reload(); };
+  if (session.role === "sa" && _saView === "practice") return /* @__PURE__ */ React.createElement(SuperAdmin, { user: { id: session.id, email: session.email, name: session.name || "Super Admin", role: "Super Admin" }, onLogout: handleLogout, onHRView: () => _setView("hr") });
+  if (session.role === "sa") return /* @__PURE__ */ React.createElement(HRAdmin, { user: { ...session, name: session.name || "Admin", role: "HR Admin", aiEnabled: session.aiEnabled }, onLogout: handleLogout, onPracticeView: () => _setView("practice") });
   if (session.role === "hr") return /* @__PURE__ */ React.createElement(HRAdmin, { user: { ...session, name: session.name || "HR Admin", role: "HR Admin", aiEnabled: session.aiEnabled }, onLogout: handleLogout });
   if (session.role === "emp") return /* @__PURE__ */ React.createElement(EmployeePortal, { user: { name: session.name, role: "Employee", email: session.email, eid: session.eid || session.employee_id, id: session.id, companyId: session.companyId, _empRow: session._empRow }, onLogout: handleLogout });
   return null;
